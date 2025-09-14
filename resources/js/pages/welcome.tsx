@@ -27,6 +27,7 @@ import { Calendar } from "@/components/ui/calendar"
 
 import BackToTopButton from '@/components/BackToTopButton';
 import { format } from "date-fns";
+import { toast } from 'sonner';
 
 
 
@@ -117,6 +118,43 @@ export default function Welcome() {
 
     const [open, setOpen] = useState(false)
     const [date, setDate] = useState<Date | undefined>(undefined)
+    const [processing, setProcessing] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setProcessing(true);
+        const formData = new FormData(e.currentTarget);
+        const fileInputs = e.currentTarget.querySelectorAll<HTMLInputElement>('input[type="file"]');
+        fileInputs.forEach((input, idx) => {
+            Array.from(input.files ?? []).forEach((file) => {
+                formData.append(input.name || `file_${idx}`, file);
+            });
+        });
+
+        try {
+            const response = await fetch('/apply', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                if (result.errors) {
+                    Object.values(result.errors).forEach((message: unknown) => {
+                        toast.error(String(message));
+                    });
+                } else {
+                    toast.error('Submission failed.');
+                }
+            } else {
+                toast.success('Application submitted successfully.');
+            }
+        } catch {
+            toast.error('Submission failed.');
+        } finally {
+            setProcessing(false);
+        }
+    };
 
     return (
         <>
@@ -171,7 +209,8 @@ export default function Welcome() {
 
                 {/* Main */}
                 <div className="flex w-full items-center justify-center opacity-100 transition-opacity duration-700 lg:grow">
-                    <main className="mx-auto flex w-full max-w-[380px] sm:max-w-md flex-col gap-6 lg:max-w-7xl">
+                    <main className="mx-auto flex w-full max-w-[380px] sm:max-w-md lg:max-w-7xl">
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                         {/* Top CMSP card */}
                         <section className="w-full mt-6">
                             <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-zinc-800/70 dark:bg-zinc-950/40">
@@ -1492,9 +1531,9 @@ export default function Welcome() {
                             <div className="flex justify-center pt-6">
                                 <Button
                                     type="submit"
-                                    disabled={incoming === "no" || incoming === null}
+                                    disabled={processing || incoming === "no" || incoming === null}
                                     className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
-                                        hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
+                                        hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73]
                                         disabled:cursor-not-allowed disabled:opacity-50
                                         dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
                                 >
@@ -1503,7 +1542,7 @@ export default function Welcome() {
                             </div>
                         </section>
 
-
+                        </form>
                     </main>
                 </div>
 
