@@ -23,16 +23,16 @@ export function AppLogoWide() {
       <div className="ml-1 grid flex-1 text-left text-sm">
         <div className="flex flex-col">
           <span className="hidden lg:block self-center text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
-            COMMISSION ON HIGHER EDUCATION
+            COMMISSION ON HIGHER EDUCATION - REGIONAL OFFICE XII
           </span>
           <span className="lg:hidden sm:block  text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
-            CHED
+            CHEDRO XII
           </span>
           <span className="hidden lg:block text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
-            CHED System
+            CHED Metit Scholarhip Program (CMSP)
           </span>
           <span className="lg:hidden sm:block text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
-            System
+            CMSP
           </span>
         </div>
       </div>

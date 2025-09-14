@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage, router } from '@inertiajs/react';
-import { Search, UserX, CalendarClock, UserRoundPlus, UserRoundX, Pencil, Plus } from "lucide-react";
+import { Search, UserX, CalendarClock, UserRoundPlus, UserRoundX, Pencil, Plus, KeyRound  } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { useForm } from '@inertiajs/react';
@@ -292,7 +292,7 @@ export default function RoleManagement() {
                                                     },
                                                 });
                                             }}
-                                        
+
                                             className="space-y-4"
                                         >
                                             <div>
@@ -319,7 +319,7 @@ export default function RoleManagement() {
                                             </DialogFooter>
                                         </form>
 
-                                                
+
                                     </DialogContent>
                                 </Dialog>
                             </CardHeader>
@@ -953,6 +953,27 @@ export default function RoleManagement() {
                                         <TableCell>
                                             <Button
                                                 variant="ghost"
+                                                className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-3 py-1 rounded-md transition"
+                                                title="Reset Password"
+                                                onClick={() => {
+                                                    router.post(route('users.resetPassword', user.id), {}, {
+                                                        preserveScroll: true,
+                                                        preserveState: true,
+                                                        onSuccess: () => {
+                                                            toast.success(`Password reset for ${user.name}!`, {
+                                                                description: "Default password: 12345678",
+                                                            });
+                                                        },
+                                                        onError: () => {
+                                                            toast.error("Failed to reset password.");
+                                                        },
+                                                    });
+                                                }}
+                                            >
+                                               <KeyRound  className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
                                                 className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1 rounded-md transition"
                                                 title="Edit"
                                                 onClick={() => {
@@ -1201,7 +1222,7 @@ export default function RoleManagement() {
                                 style={{ height: '90px' }}
                             >
 
-                                
+
                                 {roles.map(role => (
                                     <option
                                         key={role.id}

@@ -185,4 +185,14 @@ public function update(Request $request, User $user)
          return redirect()->back()->with('success', 'Role status updated!');
     }
 
+    public function resetPassword(User $user)
+{
+    $user->update([
+        'password' => Hash::make('12345678'),
+    ]);
+
+    return redirect()->back()->with('success', 'Password reset to default (12345678).');
+}
+
+
 }

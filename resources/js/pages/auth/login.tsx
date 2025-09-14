@@ -50,6 +50,10 @@ export default function Login({ status, canResetPassword }: LoginProps) {
         <AuthLayout title="Log in to your account" description="Enter your email and password below to log in">
             <Head title="Log in" />
 
+              <h2 className="text-2xl md:text-4xl font-semibold text-[#1e3c73] dark:text-[#8fb4ff] mb-5 text-center">
+                CHED Merit Scholarship Program 
+            </h2>
+
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <div className="grid gap-6">
                     {/* Email Field */}
@@ -71,14 +75,14 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
                     {/* Password Field */}
                     <div className="grid gap-2">
-                        <div className="flex items-center">
+                        {/* <div className="flex items-center">
                             <Label htmlFor="password">Password</Label>
                             {canResetPassword && (
                                 <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={5}>
                                     Forgot password?
                                 </TextLink>
                             )}
-                        </div>
+                        </div> */}
                         <Input
                             id="password"
                             type={showPassword ? 'text' : 'password'}
@@ -105,19 +109,22 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </div>
 
                     {/* Submit Button */}
-                    <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
+                    <Button type="submit" className="mt-4 w-full  bg-[#1e3c73] hover:bg-[#274b8a]
+                        dark:bg-[#3b5fae] dark:hover:bg-[#4a6bc0]
+                        text-white
+                        ring-1 ring-black/5 dark:ring-white/10" tabIndex={4} disabled={processing}>
                         {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
                         Log in
                     </Button>
                 </div>
 
                 {/* Sign Up Link */}
-                <div className="text-center text-sm text-muted-foreground">
+                {/* <div className="text-center text-sm text-muted-foreground">
                     Don't have an account?{' '}
                     <TextLink href={route('register')} tabIndex={5}>
                         Sign up
                     </TextLink>
-                </div>
+                </div> */}
             </form>
 
             {/* Status Message (e.g., Password Reset Success) */}

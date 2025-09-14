@@ -7,10 +7,19 @@ use App\Http\Controllers\RegionController;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\RegionMiddleware;
 use App\Http\Middleware\EnsureActiveRoleAndRegion;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\DistrictController;
+use App\Http\Controllers\SchoolController;
+use App\Http\Controllers\CourseController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
+
+Route::get('/api/locations', [LocationController::class, 'index']);
+Route::get('/api/districts', [DistrictController::class, 'index']);
+Route::get('/api/schools', [SchoolController::class, 'index']);
+Route::get('/api/courses', [CourseController::class, 'index']);
 
 Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function () {
     
@@ -39,6 +48,11 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::get('/roles', [RoleController::class, 'getRoles'])->name('roles.index');
     Route::post('/roles', [RoleController::class, 'storeRole'])->name('roles.store');
     Route::patch('/roles/{role}/status', [RoleController::class, 'updateRoleStatus'])->name('roles.updateStatus');
+    Route::post('/users/{user}/reset-password', [RoleController::class, 'resetPassword'])
+    ->name('users.resetPassword');
+
+    
+
 
 
 
