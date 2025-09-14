@@ -1,9 +1,8 @@
 // resources/js/Pages/welcome.tsx
-import { type SharedData } from '@/types';
-import { Head, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { Head } from '@inertiajs/react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, ChevronUp, ChevronDownIcon } from 'lucide-react';
+import { Moon, Sun, ChevronDown, ChevronDownIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,15 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Toaster, toast } from "sonner";
 
 
 
@@ -31,7 +39,6 @@ import { format } from "date-fns";
 
 
 export default function Welcome() {
-    const { auth } = usePage<SharedData>().props;
     const { appearance, updateAppearance } = useAppearance();
     const isDark = appearance === 'dark';
 
@@ -117,6 +124,31 @@ export default function Welcome() {
 
     const [open, setOpen] = useState(false)
     const [date, setDate] = useState<Date | undefined>(undefined)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const formRef = useRef<HTMLFormElement>(null)
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        toast.success('Application submitted!')
+        setDialogOpen(true)
+    }
+
+    const handleDialogChange = (isOpen: boolean) => {
+        setDialogOpen(isOpen)
+        if (!isOpen) {
+            formRef.current?.reset()
+            setIncoming(null)
+            setNameExt('')
+            setProvince('')
+            setDistrict('')
+            setSchool('')
+            setYearLevel('')
+            setCourse('')
+            setDate(undefined)
+            setOpen(false)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+    }
 
     return (
         <>
@@ -125,11 +157,12 @@ export default function Welcome() {
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
 
-            {/* Offset for fixed navbar */}
-            <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 pt-16 lg:pt-20 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
-                <header className="w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
-                    {/* Fixed navbar with explicit height */}
-                    <nav className="fixed inset-x-0 top-0 z-20 h-16 lg:h-20 border-b border-gray-200 bg-[#1e3c72] dark:border-[#3E3E3A] dark:bg-[#161615]">
+            <form ref={formRef} onSubmit={handleSubmit}>
+                {/* Offset for fixed navbar */}
+                <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 pt-16 lg:pt-20 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
+                    <header className="w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
+                        {/* Fixed navbar with explicit height */}
+                        <nav className="fixed inset-x-0 top-0 z-20 h-16 lg:h-20 border-b border-gray-200 bg-[#1e3c72] dark:border-[#3E3E3A] dark:bg-[#161615]">
                         <div className="mx-auto flex h-full max-w-screen-xl items-center justify-between px-4">
                             <a href="/" className="flex items-center space-x-3 rtl:space-x-reverse">
                                 <img src="/ched_logo.png" className="h-8" alt="Logo" />
@@ -1507,10 +1540,29 @@ export default function Welcome() {
                     </main>
                 </div>
 
-                <div className="hidden h-14.5 lg:block"></div>
-            </div>
+                    <div className="hidden h-14.5 lg:block"></div>
+                </div>
+            </form>
 
             <BackToTopButton />
+
+            <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Application Submitted</DialogTitle>
+                        <DialogDescription>
+                            Your application has been submitted successfully.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button type="button" onClick={() => handleDialogChange(false)}>
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Toaster position="top-right" richColors closeButton />
         </>
     );
 }
