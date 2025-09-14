@@ -11,6 +11,7 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\SchoolController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\ApplicationController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -20,6 +21,7 @@ Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
 Route::get('/api/schools', [SchoolController::class, 'index']);
 Route::get('/api/courses', [CourseController::class, 'index']);
+Route::post('/api/applications', [ApplicationController::class, 'store']);
 
 Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function () {
     
