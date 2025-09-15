@@ -11,15 +11,17 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\SchoolController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\WelcomeController;
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
 Route::get('/api/schools', [SchoolController::class, 'index']);
 Route::get('/api/courses', [CourseController::class, 'index']);
+
+
 
 Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function () {
     

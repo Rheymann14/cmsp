@@ -28,10 +28,23 @@ import { Calendar } from "@/components/ui/calendar"
 import BackToTopButton from '@/components/BackToTopButton';
 import { format } from "date-fns";
 
-
+type AyDeadline = {
+    id: number;
+    academic_year: string;
+    deadline: string; // comes as YYYY-MM-DD from backend
+};
 
 export default function Welcome() {
-    const { auth } = usePage<SharedData>().props;
+    
+    const { auth, ayDeadline } = usePage<{ auth: SharedData['auth']; ayDeadline: AyDeadline }>().props;
+     const formattedDeadline = ayDeadline
+        ? new Date(ayDeadline.deadline).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+          })
+        : "";
+
     const { appearance, updateAppearance } = useAppearance();
     const isDark = appearance === 'dark';
 
@@ -120,7 +133,8 @@ export default function Welcome() {
 
     return (
         <>
-            <Head title="AY 2025–2026">
+            <Head title={`AY ${ayDeadline?.academic_year ?? ''}`}>
+
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
@@ -181,14 +195,16 @@ export default function Welcome() {
                                             variant="outline"
                                             className="rounded-full border-green-200 bg-green-50 text-xs text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
                                         >
-                                            Call for Application
+                                            Call for Application 
                                         </Badge>
-                                        <Badge
-                                            variant="outline"
-                                            className="rounded-full border-blue-200 bg-blue-50 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300"
-                                        >
-                                            AY 2025–2026
-                                        </Badge>
+                                        {ayDeadline && (
+                                            <Badge
+                                                variant="outline"
+                                                className="rounded-full border-blue-200 bg-blue-50 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300"
+                                            >
+                                                AY {ayDeadline.academic_year}
+                                            </Badge>
+                                        )}
                                     </div>
 
                                     <div className="mt-2 flex items-center gap-0">
@@ -207,7 +223,7 @@ export default function Welcome() {
 
                                 <CardContent className="space-y-4 text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-200">
                                     <p className="text-justify">
-                                        CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year 2025–2026.
+                                        CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline.academic_year}.
                                         Please be advised that this scholarship application is
                                         <span className="ml-1 font-bold"> intended only for all incoming first year college students.</span>
                                         Earned units and already in the college level are discouraged to apply. Please read the CHED Memorandum Order
@@ -228,12 +244,15 @@ export default function Welcome() {
                                                 </p>
 
                                                 <div className="flex flex-wrap items-center gap-2 pt-1.5">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                                                    >
-                                                        Deadline: June 20, 2025
-                                                    </Badge>
+                                                    {ayDeadline && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                                        >
+                                                            Deadline: {formattedDeadline}
+                                                        </Badge>
+                                                    )}
+
                                                     <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
                                                         Late submissions will not be entertained.
                                                     </span>
