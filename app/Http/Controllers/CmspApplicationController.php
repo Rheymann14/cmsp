@@ -42,17 +42,17 @@ class CmspApplicationController extends Controller
             'birthdate' => ['required','date'],
             'sex' => ['required', Rule::in(['male','female'])],
 
-            'province_municipality' => ['required','string','max:150'],
+            'province_municipality' => ['required','integer'],
             'barangay' => ['required','string','max:150'],
             'purok_street' => ['required','string','max:150'],
             'zip_code' => ['nullable','string','max:12'],
-            'district' => ['required','string','max:100'],
+            'district' => ['required','integer'],
 
-            'intended_school' => ['required','string','max:200'],
+            'intended_school' => ['required','integer'],
             'school_type' => ['required', Rule::in(['Public','LUC','Private'])],
             'other_school' => ['nullable','string','max:200'],
             'year_level' => ['required','string','max:100'],
-            'course' => ['required','string','max:200'],
+            'course' => ['required','integer'],
 
             'shs_name' => ['required','string','max:200'],
             'shs_address' => ['required','string','max:200'],

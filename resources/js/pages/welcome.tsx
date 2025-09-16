@@ -321,15 +321,19 @@ export default function Welcome() {
     // States for dropdowns
     const [nameExt, setNameExt] = useState<string>("");
     const [openNameExt, setOpenNameExt] = useState(false);
-    const [province, setProvince] = useState<string>("");
+    const [provinceId, setProvinceId] = useState<number | null>(null);
+    const [provinceLabel, setProvinceLabel] = useState<string>("");
     const [openProvince, setOpenProvince] = useState(false);
-    const [district, setDistrict] = useState<string>("");
+    const [districtId, setDistrictId] = useState<number | null>(null);
+    const [districtLabel, setDistrictLabel] = useState<string>("");
     const [openDistrict, setOpenDistrict] = useState(false);
-    const [school, setSchool] = useState<string>("");
+    const [schoolId, setSchoolId] = useState<number | null>(null);
+    const [schoolLabel, setSchoolLabel] = useState<string>("");
     const [openSchool, setOpenSchool] = useState(false);
     const [yearLevel, setYearLevel] = useState<string>("Incoming First Year");
     const [openYearLevel, setOpenYearLevel] = useState(false);
-    const [course, setCourse] = useState<string>("");
+    const [courseId, setCourseId] = useState<number | null>(null);
+    const [courseLabel, setCourseLabel] = useState<string>("");
     const [openCourse, setOpenCourse] = useState(false);
     const [locations, setLocations] = useState<{ id: number; label: string }[]>([]);
     const [loadingLocations, setLoadingLocations] = useState(true);
@@ -488,11 +492,36 @@ export default function Welcome() {
         // hydrate controlled pieces
         if (typeof saved.incoming === 'string') setIncoming(saved.incoming);
         if (typeof saved.name_extension === 'string') setNameExt(saved.name_extension);
-        if (typeof saved.province_municipality === 'string') setProvince(saved.province_municipality);
-        if (typeof saved.district === 'string') setDistrict(saved.district);
-        if (typeof saved.intended_school === 'string') setSchool(saved.intended_school);
+        if (typeof saved.province_municipality === 'string') {
+            const n = Number(saved.province_municipality);
+            setProvinceId(Number.isFinite(n) ? n : null);
+        }
+        if (typeof saved.province_municipality_label === 'string') {
+            setProvinceLabel(saved.province_municipality_label);
+        }
+        if (typeof saved.district === 'string') {
+            const n = Number(saved.district);
+            setDistrictId(Number.isFinite(n) ? n : null);
+        }
+        if (typeof saved.district_label === 'string') {
+            setDistrictLabel(saved.district_label);
+        }
+        if (typeof saved.intended_school === 'string') {
+            const n = Number(saved.intended_school);
+            setSchoolId(Number.isFinite(n) ? n : null);
+        }
+        if (typeof saved.intended_school_label === 'string') {
+            setSchoolLabel(saved.intended_school_label);
+        }
+
         if (typeof saved.year_level === 'string') setYearLevel(saved.year_level);
-        if (typeof saved.course === 'string') setCourse(saved.course);
+        if (typeof saved.course === 'string') {
+            const n = Number(saved.course);
+            setCourseId(Number.isFinite(n) ? n : null);
+        }
+        if (typeof saved.course_label === 'string') {
+            setCourseLabel(saved.course_label);
+        }
 
 
         if (saved.birthdate) setDate(parseISO(saved.birthdate));
@@ -654,11 +683,11 @@ export default function Welcome() {
         // Bridge UI state (from your Command/Popover, date picker, radios) → FormData
         fd.set('incoming', incoming ?? '');                 // "yes" | "no"
         fd.set('name_extension', nameExt || '');
-        fd.set('province_municipality', province || '');
-        fd.set('district', district || '');
-        fd.set('intended_school', school || '');
+        fd.set('province_municipality', provinceId ? String(provinceId) : '');
+        fd.set('district', districtId ? String(districtId) : '');
+        fd.set('intended_school', schoolId   ? String(schoolId)   : '');
         fd.set('year_level', yearLevel || '');
-        fd.set('course', course || '');
+        fd.set('course', courseId   ? String(courseId)   : '');
         fd.set('birthdate', date ? format(date, 'yyyy-MM-dd') : '');
 
         clearInvalidMarks();
@@ -715,11 +744,11 @@ export default function Welcome() {
                 // reset controlled state
                 setIncoming(null);
                 setNameExt('');
-                setProvince('');
-                setDistrict('');
-                setSchool('');
+                setProvinceId(null); setProvinceLabel('');
+                setDistrictId(null); setDistrictLabel('');
+                setSchoolId(null);   setSchoolLabel('');
                 setYearLevel('');
-                setCourse('');
+                setCourseId(null);   setCourseLabel('');
                 setDate(undefined);
 
                 setSuccessOpen(true);
@@ -1252,7 +1281,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="province_municipality"
                                                                 >
-                                                                    {province || "Select location"}
+                                                                    {provinceLabel || "Select location"}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -1275,10 +1304,12 @@ export default function Welcome() {
                                                                                     <CommandItem
                                                                                         key={loc.id}
                                                                                         value={loc.label}
-                                                                                        onSelect={(value) => {
-                                                                                            setProvince(value);
-                                                                                            persistDraft('province_municipality', value);
-                                                                                            setOpenProvince(false); // close after picking
+                                                                                        onSelect={() => {
+                                                                                            setProvinceId(loc.id);
+                                                                                            setProvinceLabel(loc.label);
+                                                                                            persistDraft('province_municipality', String(loc.id));
+                                                                                            persistDraft('province_municipality_label', loc.label);
+                                                                                            setOpenProvince(false);
                                                                                         }}
                                                                                     >
                                                                                         {loc.label}
@@ -1327,7 +1358,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="district"
                                                                 >
-                                                                    {district || "Select district"}
+                                                                    {districtLabel || "Select district"}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -1350,15 +1381,18 @@ export default function Welcome() {
                                                                                     <CommandItem
                                                                                         key={d.id}
                                                                                         value={d.label}
-                                                                                        onSelect={(value) => {
-                                                                                            setDistrict(value);
-                                                                                            persistDraft('district', value);
-                                                                                            setOpenDistrict(false); // close after selecting
+                                                                                        onSelect={() => {
+                                                                                            setDistrictId(d.id);
+                                                                                            setDistrictLabel(d.label);
+                                                                                            persistDraft('district', String(d.id));
+                                                                                            persistDraft('district_label', d.label);
+                                                                                            setOpenDistrict(false);
                                                                                         }}
                                                                                     >
                                                                                         {d.label}
                                                                                     </CommandItem>
                                                                                 ))}
+
                                                                             </CommandGroup>
                                                                         )}
                                                                     </CommandList>
@@ -1460,7 +1494,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="intended_school"
                                                                 >
-                                                                    {school || "Choose school"}
+                                                                    {schoolLabel || "Choose school"}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -1483,15 +1517,18 @@ export default function Welcome() {
                                                                                     <CommandItem
                                                                                         key={s.id}
                                                                                         value={s.label}
-                                                                                        onSelect={(value) => {
-                                                                                            setSchool(value);
-                                                                                            persistDraft('intended_school', value);
-                                                                                            setOpenSchool(false); // close after selecting
+                                                                                        onSelect={() => {
+                                                                                            setSchoolId(s.id);
+                                                                                            setSchoolLabel(s.label);
+                                                                                            persistDraft('intended_school', String(s.id));
+                                                                                            persistDraft('intended_school_label', s.label);
+                                                                                            setOpenSchool(false);
                                                                                         }}
                                                                                     >
                                                                                         {s.label}
                                                                                     </CommandItem>
                                                                                 ))}
+
                                                                             </CommandGroup>
                                                                         )}
                                                                     </CommandList>
@@ -1614,11 +1651,8 @@ export default function Welcome() {
                                                                     className="w-full justify-between overflow-hidden"
                                                                     data-field="course"
                                                                 >
-                                                                    <span
-                                                                        className="flex-1 min-w-0 truncate text-left"  // <- truncate long value
-                                                                        title={course || undefined}                    // <- show full on hover
-                                                                    >
-                                                                        {course || "Choose course"}
+                                                                    <span className="flex-1 min-w-0 truncate text-left" title={courseLabel || undefined}>
+                                                                        {courseLabel || "Choose course"}
                                                                     </span>
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                                                                 </Button>
@@ -1642,15 +1676,18 @@ export default function Welcome() {
                                                                                     <CommandItem
                                                                                         key={c.id}
                                                                                         value={c.label}
-                                                                                        onSelect={(value) => {
-                                                                                            setCourse(value);
-                                                                                            persistDraft("course", value);
+                                                                                        onSelect={() => {
+                                                                                            setCourseId(c.id);
+                                                                                            setCourseLabel(c.label);
+                                                                                            persistDraft('course', String(c.id));
+                                                                                            persistDraft('course_label', c.label);
                                                                                             setOpenCourse(false);
                                                                                         }}
                                                                                     >
                                                                                         {c.label}
                                                                                     </CommandItem>
                                                                                 ))}
+
                                                                             </CommandGroup>
                                                                         )}
                                                                     </CommandList>
