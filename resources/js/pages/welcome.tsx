@@ -1,12 +1,25 @@
 // resources/js/Pages/welcome.tsx
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, ChevronUp, ChevronDownIcon } from 'lucide-react';
+import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Toaster, toast } from "sonner";
+import { router } from '@inertiajs/react'; import {
+    Dialog, DialogContent, DialogHeader, DialogTitle,
+    DialogDescription, DialogFooter, DialogClose
+} from "@/components/ui/dialog";
+import Confetti from "react-confetti";
+
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs"
 import {
     Command,
     CommandEmpty,
@@ -26,7 +39,7 @@ import { Calendar } from "@/components/ui/calendar"
 
 
 import BackToTopButton from '@/components/BackToTopButton';
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 type AyDeadline = {
     id: number;
@@ -35,33 +48,371 @@ type AyDeadline = {
 };
 
 export default function Welcome() {
-    
+
     const { auth, ayDeadline } = usePage<{ auth: SharedData['auth']; ayDeadline: AyDeadline }>().props;
-     const formattedDeadline = ayDeadline
+    const formattedDeadline = ayDeadline
         ? new Date(ayDeadline.deadline).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-          })
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+        })
         : "";
 
     const { appearance, updateAppearance } = useAppearance();
     const isDark = appearance === 'dark';
+    const appFormRef = useRef<HTMLInputElement | null>(null);
+    const [hasAppForm, setHasAppForm] = useState(false);
+
+    const [successOpen, setSuccessOpen] = useState(false);
+
+    // confetti viewport size
+    const [viewport, setViewport] = useState({ width: 0, height: 0 });
+    // control confetti run
+    const [showConfetti, setShowConfetti] = useState(false);
+
+    // keep canvas sized to window
+    useEffect(() => {
+        const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+        onResize();
+        window.addEventListener("resize", onResize, { passive: true });
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
+    // trigger confetti whenever the success dialog opens
+    useEffect(() => {
+        if (successOpen) {
+            setShowConfetti(true);
+            const t = setTimeout(() => setShowConfetti(false), 5000); // confetti for 5s
+            return () => clearTimeout(t);
+        } else {
+            setShowConfetti(false);
+        }
+    }, [successOpen]);
+
+    const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+    const [hasFileMap, setHasFileMap] = useState<Record<string, boolean>>({});
+
+    const proofIncomeRef = useRef<HTMLInputElement | null>(null);
+    const [hasProofIncome, setHasProofIncome] = useState(false);
+
+    const proofSpecialRef = useRef<HTMLInputElement | null>(null);
+    const [hasProofSpecial, setHasProofSpecial] = useState(false);
+
+    const guardianshipRef = useRef<HTMLInputElement | null>(null);
+    const [hasGuardianship, setHasGuardianship] = useState(false);
+
+    const [naSelected, setNaSelected] = useState(false);
+
+    // === error highlighting helpers ===
+    const INVALID_CLASS =
+        "ring-2 ring-red-500/40 border-red-500 focus:ring-red-300 focus:border-red-500";
+    const GROUP_INVALID_CLASS =
+        "ring-2 ring-red-500/40 border border-red-500 rounded-md";
+
+    const cssEscape = (v: string) =>
+        (window as any).CSS?.escape ? (window as any).CSS.escape(v) : v.replace(/"/g, '\\"');
+
+    const formEl = () =>
+        document.getElementById("cmspForm") as HTMLFormElement | null;
+
+    const clearInvalidMarks = () => {
+        const f = formEl();
+        if (!f) return;
+        // remove on regular controls
+        f.querySelectorAll<HTMLElement>("[data-invalid='true']").forEach((el) => {
+            el.dataset.invalid = "false";
+            el.classList.remove(...INVALID_CLASS.split(" "));
+            el.classList.remove(...GROUP_INVALID_CLASS.split(" "));
+            el.removeAttribute("aria-invalid");
+            el.removeAttribute("title");
+        });
+    };
+
+    const findTargetEl = (name: string): HTMLElement | null => {
+        const f = formEl();
+        if (!f) return null;
+
+        // 1) try exact name match (works for single inputs, files, hiddens, etc.)
+        let el = f.querySelector<HTMLElement>(`[name="${cssEscape(name)}"]`);
+        if (el) {
+            // radio/checkbox groups should highlight the group container instead
+            const input = el as HTMLInputElement;
+            if (input.type === "radio" || input.type === "checkbox") {
+                const group = f.querySelector<HTMLElement>(`[data-group="${cssEscape(name)}"]`);
+                if (group) return group;
+            }
+            return el;
+        }
+
+        // 2) try data-field="[name]" (for custom selects/buttons/popovers)
+        el = f.querySelector<HTMLElement>(`[data-field="${cssEscape(name)}"]`);
+        if (el) return el;
+
+        // 3) try group container by name (explicit)
+        el = f.querySelector<HTMLElement>(`[data-group="${cssEscape(name)}"]`);
+        if (el) return el;
+
+        return null;
+    };
+
+    const markInvalid = (name: string, message?: string) => {
+        const el = findTargetEl(name);
+        if (!el) return;
+        el.dataset.invalid = "true";
+        el.setAttribute("aria-invalid", "true");
+        if (message) el.setAttribute("title", message);
+
+        // choose class based on element kind
+        const isGroup = el.hasAttribute("data-group");
+        el.classList.add(...(isGroup ? GROUP_INVALID_CLASS : INVALID_CLASS).split(" "));
+    };
+
+    const scrollToFirstError = () => {
+        const f = formEl();
+        if (!f) return;
+        const first = f.querySelector<HTMLElement>("[data-invalid='true']");
+        if (first) {
+            first.scrollIntoView({ behavior: "smooth", block: "center" });
+            (first as HTMLElement).focus?.();
+        }
+    };
+
+    // Build a quick "required but empty" map using FormData
+    const buildClientRequiredErrors = (fd: FormData) => {
+        // Keep this list aligned with your Controller "required" rules
+        const REQUIRED = [
+            "incoming",
+            "lrn",
+            "email",
+            "contact_number",
+            "last_name",
+            "first_name",
+            "middle_name",
+            "birthdate",
+            "sex",
+            "province_municipality",
+            "barangay",
+            "purok_street",
+            "zip_code",
+            "district",
+            "intended_school",
+            "school_type",
+            "year_level",
+            "course",
+            "shs_name",
+            "shs_address",
+            "father_name",
+            "father_occupation",
+            "father_income_monthly",
+            "father_income_yearly_bracket",
+            "mother_name",
+            "mother_occupation",
+            "mother_income_monthly",
+            "mother_income_yearly_bracket",
+            "guardian_name",
+            "guardian_occupation",
+            "guardian_income_monthly",
+            "gwa_g11_s1",
+            "gwa_g11_s2",
+            "gwa_g12_s1",
+            "special_groups[]",
+            "consent",
+            // files
+            "application_form",
+            "grades_g11_s1",
+            "grades_g11_s2",
+            "grades_g12_s1",
+            "birth_certificate",
+            "proof_of_income",
+            // "proof_special_group" is conditional; server will enforce if needed
+        ] as const;
+
+        const errs: Record<string, string> = {};
+
+        for (const name of REQUIRED) {
+            if (name.endsWith("[]")) {
+                const vals = fd.getAll(name);
+                if (!vals.length) errs[name] = "This field is required.";
+                continue;
+            }
+
+            const val = fd.get(name);
+            if (val instanceof File) {
+                if (!val || val.size === 0) errs[name] = "Please upload a PDF.";
+            } else {
+                const s = (val ?? "").toString().trim();
+                if (!s) errs[name] = "This field is required.";
+            }
+        }
+        return errs;
+    };
+
+    const highlightInvalidFields = (errorMap: Record<string, string>) => {
+        clearInvalidMarks();
+        Object.entries(errorMap).forEach(([name, msg]) => markInvalid(name, msg));
+        scrollToFirstError();
+    };
+
+
+    // --- PERSIST DRAFT (all non-file fields) ---
+    const STORAGE_KEY = 'cmspFormDraft';
+    const draftRef = useRef<Record<string, any>>({});
+
+    const loadDraft = (): Record<string, any> => {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch {
+            return {};
+        }
+    };
+
+    const persistDraft = (name: string, value: any) => {
+        draftRef.current = { ...draftRef.current, [name]: value };
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(draftRef.current));
+        } catch { }
+    };
+
+    // Apply saved values to the DOM inputs that are NOT controlled by React
+    const applyDraftToForm = (data: Record<string, any>) => {
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
+
+        Object.entries(data).forEach(([name, value]) => {
+            // Skip files
+            const maybeFile = form.querySelector<HTMLInputElement>(`input[type="file"][name="${name}"]`);
+            if (maybeFile) return;
+
+            const radios = form.querySelectorAll<HTMLInputElement>(`input[type="radio"][name="${name}"]`);
+            const checkboxes = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${name}"]`);
+            const field = form.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${name}"]`);
+
+            if (radios.length) {
+                radios.forEach(r => (r.checked = r.value === String(value)));
+                return;
+            }
+            if (checkboxes.length) {
+                const arr = Array.isArray(value) ? value.map(String) : [String(value)];
+                checkboxes.forEach(c => (c.checked = arr.includes(c.value)));
+                return;
+            }
+            if (field) {
+                if (field.tagName === 'SELECT') {
+                    const sel = field as HTMLSelectElement;
+                    if (sel.multiple && Array.isArray(value)) {
+                        Array.from(sel.options).forEach(opt => (opt.selected = value.includes(opt.value)));
+                    } else {
+                        sel.value = value ?? '';
+                    }
+                } else {
+                    field.value = value ?? '';
+                }
+            }
+        });
+    };
+
+
 
     // Toggle for the compact requirements section (shown by default)
     const [showReqs, setShowReqs] = useState(true);
     const [incoming, setIncoming] = useState<string | null>(null);
 
     // States for dropdowns
-    const [nameExt, setNameExt] = useState<string>("")
-    const [province, setProvince] = useState<string>("")
-    const [district, setDistrict] = useState<string>("")
-    const [school, setSchool] = useState<string>("")
-    const [yearLevel, setYearLevel] = useState<string>("")
-    const [course, setCourse] = useState<string>("")
-
+    const [nameExt, setNameExt] = useState<string>("");
+    const [openNameExt, setOpenNameExt] = useState(false);
+    const [province, setProvince] = useState<string>("");
+    const [openProvince, setOpenProvince] = useState(false);
+    const [district, setDistrict] = useState<string>("");
+    const [openDistrict, setOpenDistrict] = useState(false);
+    const [school, setSchool] = useState<string>("");
+    const [openSchool, setOpenSchool] = useState(false);
+    const [yearLevel, setYearLevel] = useState<string>("Incoming First Year");
+    const [openYearLevel, setOpenYearLevel] = useState(false);
+    const [course, setCourse] = useState<string>("");
+    const [openCourse, setOpenCourse] = useState(false);
     const [locations, setLocations] = useState<{ id: number; label: string }[]>([]);
     const [loadingLocations, setLoadingLocations] = useState(true);
+
+
+    const formLocked = incoming === 'no';
+
+    const SPECIAL_GROUP_NAME = 'special_groups[]';
+
+
+
+    const enforceSpecialGroupRule = () => {
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
+
+        const boxes = Array.from(
+            form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${SPECIAL_GROUP_NAME}"]`)
+        );
+        const na = boxes.find((b) => b.value === 'N/A');
+
+        if (formLocked) {
+            // global lock wins
+            boxes.forEach((b) => (b.disabled = true));
+
+            return;
+        }
+
+        // normal N/A behavior
+        const naChecked = !!na?.checked;
+        if (na) na.disabled = false; // N/A itself stays clickable when not locked
+        boxes.forEach((b) => { if (b !== na) b.disabled = naChecked; });
+
+    };
+
+    const handleSpecialGroupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (formLocked) return;
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
+
+        const boxes = Array.from(
+            form.querySelectorAll<HTMLInputElement>(
+                `input[type="checkbox"][name="${SPECIAL_GROUP_NAME}"]`
+            )
+        );
+        const na = boxes.find((b) => b.value === 'N/A');
+        const clicked = e.currentTarget;
+
+        if (clicked === na && clicked.checked) {
+            // N/A picked -> uncheck + disable all others, disable proof uploader
+            boxes.forEach((b) => {
+                if (b !== na) {
+                    b.checked = false;
+                    b.disabled = true;
+                }
+            });
+
+        } else {
+            // Any other selection -> ensure N/A is off, enable others + proof uploader
+            if (na) na.checked = false;
+            boxes.forEach((b) => {
+                if (b !== na) b.disabled = false;
+            });
+
+        }
+
+        // Persist after enforcing the rule
+        const selected = boxes.filter((b) => b.checked).map((b) => b.value);
+        persistDraft(SPECIAL_GROUP_NAME, selected);
+        setNaSelected(selected.includes("N/A"));
+    };
+
+    useEffect(() => {
+        if ((formLocked || naSelected) && proofSpecialRef.current) {
+            proofSpecialRef.current.value = "";
+            if (hasProofSpecial) setHasProofSpecial(false);
+        }
+    }, [formLocked, naSelected, hasProofSpecial]);
+
+    useEffect(() => {
+        const onScroll = () => setOpen(false);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     useEffect(() => {
         fetch("/api/locations", {
@@ -127,9 +478,265 @@ export default function Welcome() {
             .finally(() => setLoadingCourses(false));
     }, []);
 
+    // Load saved draft on mount (also hydrate your controlled states)
+    useEffect(() => {
+        const saved = loadDraft();
+        draftRef.current = saved;
+        const sg = saved[SPECIAL_GROUP_NAME];
+        if (Array.isArray(sg)) setNaSelected(sg.includes("N/A"));
+
+        // hydrate controlled pieces
+        if (typeof saved.incoming === 'string') setIncoming(saved.incoming);
+        if (typeof saved.name_extension === 'string') setNameExt(saved.name_extension);
+        if (typeof saved.province_municipality === 'string') setProvince(saved.province_municipality);
+        if (typeof saved.district === 'string') setDistrict(saved.district);
+        if (typeof saved.intended_school === 'string') setSchool(saved.intended_school);
+        if (typeof saved.year_level === 'string') setYearLevel(saved.year_level);
+        if (typeof saved.course === 'string') setCourse(saved.course);
+
+
+        if (saved.birthdate) setDate(parseISO(saved.birthdate));
+
+        setTimeout(() => {
+            applyDraftToForm(saved);
+            enforceSpecialGroupRule();
+        }, 0);
+    }, []);
+
+    useEffect(() => {
+        if (!formLocked) return;
+
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
+
+        // clear every file input (temporarily enable so change event can fire)
+        const fileInputs = Array.from(
+            form.querySelectorAll<HTMLInputElement>('input[type="file"]')
+        );
+        fileInputs.forEach((input) => {
+            const wasDisabled = input.disabled;
+            if (wasDisabled) input.disabled = false;
+            input.value = '';
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            if (wasDisabled) input.disabled = true;
+        });
+
+        // reset your local flags
+        setHasAppForm(false);
+        setHasProofIncome(false);
+        setHasGuardianship(false);
+        setHasProofSpecial(false);
+        setHasFileMap({});
+    }, [formLocked]);
+
+    const clearFile = (input: HTMLInputElement | null, after?: () => void) => {
+        if (!input) return;
+        const wasDisabled = input.disabled;
+        if (wasDisabled) input.disabled = false;
+        input.value = '';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        if (wasDisabled) input.disabled = true;
+        after?.();
+        input.focus();
+    };
+
+    // Form-level change/input listeners: keep draft updated while the user types
+    useEffect(() => {
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
+
+        const handler = (e: Event) => {
+            const t = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+            if (!t || !t.name) return;
+
+            let value: any = '';
+            if (t instanceof HTMLInputElement && t.type === 'file') {
+                // cannot persist files
+                return;
+            }
+            if (t instanceof HTMLInputElement && t.type === 'checkbox') {
+                const all = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${t.name}"]`);
+                value = Array.from(all).filter(cb => cb.checked).map(cb => cb.value);
+            } else if (t instanceof HTMLInputElement && t.type === 'radio') {
+                const checked = form.querySelector<HTMLInputElement>(`input[type="radio"][name="${t.name}"]:checked`);
+                value = checked?.value ?? '';
+            } else if (t instanceof HTMLSelectElement && t.multiple) {
+                value = Array.from(t.selectedOptions).map(o => o.value);
+            } else {
+                value = (t as any).value ?? '';
+            }
+
+            persistDraft(t.name, value);
+        };
+
+        form.addEventListener('input', handler);
+        form.addEventListener('change', handler);
+        return () => {
+            form.removeEventListener('input', handler);
+            form.removeEventListener('change', handler);
+        };
+    }, []);
+
+    // Disable/enable all controls when incoming === "no", except the "incoming" radios
+    useEffect(() => {
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
+
+        const shouldDisable = incoming === 'no';
+
+        const controls = form.querySelectorAll<
+            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement
+        >('input, select, textarea, button');
+
+        controls.forEach((el) => {
+            // keep the "Incoming 1st year" radios interactive
+            if ((el as HTMLInputElement).name === 'incoming') return;
+
+            el.disabled = shouldDisable;
+
+            // optional: remove focus from disabled elements
+            if (shouldDisable) el.blur();
+        });
+        enforceSpecialGroupRule();
+    }, [incoming]);
+
+
+
+    // GWA validation (80–100, integers only)
+    const GWA_MIN = 80;
+    const GWA_MAX = 100;
+
+    const handleGwaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = e.target.value;
+        const toastId = `gwa-${e.target.name}`;
+
+        if (v === '') {
+            e.target.setCustomValidity('');
+            toast.dismiss(toastId);
+            return;
+        }
+
+        const n = Number(v);
+        const isInt = Number.isInteger(n);
+        const inRange = n >= GWA_MIN && n <= GWA_MAX;
+
+        if (!isInt || !inRange) {
+            e.target.setCustomValidity(`GWA must be a whole number between ${GWA_MIN} and ${GWA_MAX}.`);
+            toast.error(`GWA must be a whole number between ${GWA_MIN} and ${GWA_MAX}.`, { id: toastId });
+        } else {
+            e.target.setCustomValidity('');
+            toast.dismiss(toastId);
+        }
+    };
+
+
 
     const [open, setOpen] = useState(false)
     const [date, setDate] = useState<Date | undefined>(undefined)
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        if (!ayDeadline?.academic_year || !ayDeadline?.deadline) {
+            toast.error("Missing academic year or deadline. Please reload the page.");
+            return;
+        }
+
+        const form = e.currentTarget;
+        const fd = new FormData(form);
+
+        const deadlineYMD = new Date(ayDeadline.deadline).toLocaleDateString('en-CA');
+        fd.set('academic_year', ayDeadline.academic_year);
+        fd.set('deadline', deadlineYMD);
+
+
+
+        // Bridge UI state (from your Command/Popover, date picker, radios) → FormData
+        fd.set('incoming', incoming ?? '');                 // "yes" | "no"
+        fd.set('name_extension', nameExt || '');
+        fd.set('province_municipality', province || '');
+        fd.set('district', district || '');
+        fd.set('intended_school', school || '');
+        fd.set('year_level', yearLevel || '');
+        fd.set('course', course || '');
+        fd.set('birthdate', date ? format(date, 'yyyy-MM-dd') : '');
+
+        clearInvalidMarks();
+        const clientErrs = buildClientRequiredErrors(fd);
+        if (Object.keys(clientErrs).length) {
+            highlightInvalidFields(clientErrs);
+            toast.error("Please fill all required fields.", { id: "cmsp-submit" });
+            return;
+        }
+
+        // PDF check (Accomplished Application Form)
+        const pdf = fd.get('application_form') as File | null;
+        if (!pdf || pdf.size === 0) {
+            toast.error('Accomplished Application Form (PDF) is required.');
+            return;
+        }
+        if (pdf.type !== 'application/pdf') {
+            toast.error('The uploaded file must be a PDF.');
+            return;
+        }
+        if (pdf.size > 10 * 1024 * 1024) {
+            toast.error('Max file size is 10 MB.');
+            return;
+        }
+
+        // Optional: require consent checkbox
+        const consent = fd.get('consent') as string | null;
+        if (consent !== 'yes') {
+            toast.error('Please confirm the certification & data privacy consent.');
+            return;
+        }
+
+        // Optional: At least 1 Special Group (including "N/A")
+        if (!fd.getAll('special_groups[]').length) {
+            toast.error('Please select your Special Group (choose "N/A" if none).');
+            return;
+        }
+
+
+
+        toast.loading('Submitting application…', { id: 'cmsp-submit' });
+
+        router.post(route('cmsps.apply'), fd, {
+            forceFormData: true,
+            onSuccess: () => {
+                toast.success('Application submitted successfully!', { id: 'cmsp-submit' });
+                (document.getElementById('cmspForm') as HTMLFormElement)?.reset();
+                form.reset();
+                // clear saved draft
+                localStorage.removeItem(STORAGE_KEY);
+                draftRef.current = {};
+                clearInvalidMarks();
+
+                // reset controlled state
+                setIncoming(null);
+                setNameExt('');
+                setProvince('');
+                setDistrict('');
+                setSchool('');
+                setYearLevel('');
+                setCourse('');
+                setDate(undefined);
+
+                setSuccessOpen(true);
+            },
+            onError: (errors) => {
+                highlightInvalidFields(errors as Record<string, string>);
+                // Show first validation error
+                const first = Object.values(errors)[0] as string | undefined;
+                toast.error(first ?? 'Please review the highlighted fields.', { id: 'cmsp-submit' });
+                console.log(errors);
+            },
+            onFinish: () => {
+                // no-op
+            },
+        });
+    };
+
 
     return (
         <>
@@ -138,13 +745,96 @@ export default function Welcome() {
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
+            <Toaster richColors position="top-right" closeButton duration={4000} />
 
             {/* Offset for fixed navbar */}
             <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 pt-16 lg:pt-20 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
                 <header className="w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
                     {/* Fixed navbar with explicit height */}
-                    <nav className="fixed inset-x-0 top-0 z-20 h-16 lg:h-20 border-b border-gray-200 bg-[#1e3c72] dark:border-[#3E3E3A] dark:bg-[#161615]">
-                        <div className="mx-auto flex h-full max-w-screen-xl items-center justify-between px-4">
+
+                    {showConfetti && viewport.width > 0 && viewport.height > 0 && (
+                        <Confetti
+                            width={viewport.width}
+                            height={viewport.height}
+                            numberOfPieces={320}
+                            recycle={false}
+                            gravity={0.5}
+                            style={{ zIndex: 100000, pointerEvents: "none" }} // above overlays, no clicks blocked
+                        />
+                    )}
+
+                    <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+                        <DialogContent
+                            onInteractOutside={(e) => e.preventDefault()}
+                            className="
+                                sm:max-w-2xl lg:max-w-3xl p-0
+                                rounded-3xl border border-zinc-200/70 dark:border-zinc-800/60
+                                bg-white/85 dark:bg-zinc-950/75 backdrop-blur-md shadow-2xl [&>button:last-of-type]:hidden
+                                "
+                        >
+                            {/* top-right close */}
+                            <DialogClose asChild>
+                                <button
+                                    aria-label="Close"
+                                    className="
+                                        absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center
+                                        rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800
+                                        dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100
+                                        transition
+                                        "
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </DialogClose>
+
+                            <div className="px-8 py-10 md:px-12 md:py-14">
+                                {/* subtle success icon */}
+                                <motion.div
+                                    initial={{ scale: 0.95, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="mx-auto mb-6 flex h-16 w-16 items-center justify-center
+                    rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/30"
+                                    aria-hidden
+                                >
+                                    <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                                </motion.div>
+
+                                <DialogHeader className="items-center">
+                                    <DialogTitle className="text-center text-2xl md:text-3xl font-semibold tracking-tight">
+                                        Congratulations!
+                                    </DialogTitle>
+                                    <DialogDescription className="mt-2 max-w-2xl text-center text-[15px] text-zinc-600 dark:text-zinc-400">
+                                        You have successfully submitted your application. Please keep your email and phone active for updates.
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="mt-10 flex justify-center">
+                                    <DialogClose asChild>
+                                        <Button
+                                            type="button"
+                                            autoFocus
+                                            className="h-11 rounded-xl px-6 bg-[#1e3c73] hover:bg-[#25468a] text-white shadow-sm"
+                                        >
+                                            Close
+                                        </Button>
+                                    </DialogClose>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    <nav
+                        className="
+        fixed inset-x-0 top-0
+        z-[80] isolate                  /* keep nav above popovers/dialogs */
+        h-16 lg:h-20
+        border-b border-gray-200
+        bg-[#1e3c72]
+        dark:border-[#3E3E3A] dark:bg-[#161615]
+        "
+                    >
+                        <div className="mx-auto h-full max-w-screen-xl grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4">
                             <a href="/" className="flex items-center space-x-3 rtl:space-x-reverse">
                                 <img src="/ched_logo.png" className="h-8" alt="Logo" />
                                 <div className="flex flex-col">
@@ -163,13 +853,9 @@ export default function Welcome() {
                                 </div>
                             </a>
 
-                            <div className="flex items-center space-x-2 md:order-2 rtl:space-x-reverse">
-                                {/* <a
-                                    href={route('login')}
-                                    className="rounded-lg bg-blue-700 hover:bg-blue-800 focus:ring-blue-300 px-4 py-2 text-center text-sm font-medium text-white focus:ring-4 focus:outline-none dark:bg-[#EDEDEC] dark:text-[#1C1C1A] dark:hover:bg-white dark:hover:text-[#1C1C1A] dark:focus:ring-[#3E3E3A]"
-                                >
-                                    Log in
-                                </a> */}
+                            <div className="hidden sm:block" />
+
+                            <div className="col-start-3 justify-self-end flex items-center gap-2 rtl:space-x-reverse">
                                 <button
                                     onClick={() => updateAppearance(isDark ? 'light' : 'dark')}
                                     className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition-colors duration-300 hover:ring-2 hover:ring-blue-500 dark:bg-gray-800"
@@ -179,1351 +865,1899 @@ export default function Welcome() {
                                     <Moon className={`absolute h-4 w-4 text-blue-400 transition-opacity duration-300 ${isDark ? 'opacity-100' : 'opacity-0'}`} />
                                 </button>
                             </div>
+
                         </div>
                     </nav>
                 </header>
 
+
+
                 {/* Main */}
                 <div className="flex w-full items-center justify-center opacity-100 transition-opacity duration-700 lg:grow">
+
                     <main className="mx-auto flex w-full max-w-[380px] sm:max-w-md flex-col gap-6 lg:max-w-7xl">
-                        {/* Top CMSP card */}
-                        <section className="w-full mt-6">
-                            <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-center gap-2">
-                                        <Badge
-                                            variant="outline"
-                                            className="rounded-full border-green-200 bg-green-50 text-xs text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
-                                        >
-                                            Call for Application 
-                                        </Badge>
-                                        {ayDeadline && (
-                                            <Badge
-                                                variant="outline"
-                                                className="rounded-full border-blue-200 bg-blue-50 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300"
-                                            >
-                                                AY {ayDeadline.academic_year}
-                                            </Badge>
-                                        )}
-                                    </div>
 
-                                    <div className="mt-2 flex items-center gap-0">
-                                        <img src="/ched_logo.png" alt="CHED Logo" className="h-10 w-auto p-1" />
-                                        <img src="/bagong_pilipinas.png" alt="Bagong Pilipinas Logo" className="h-14 w-auto p-1" />
-                                        <div className="ml-3">
-                                            <CardTitle className="text-xl font-semibold tracking-tight">
-                                                CHED Merit Scholarship Program (CMSP)
-                                            </CardTitle>
-                                            <CardDescription className="text-sm text-zinc-600 dark:text-zinc-400">
-                                                CHED Regional Office XII
-                                            </CardDescription>
-                                        </div>
-                                    </div>
-                                </CardHeader>
+                        <Tabs defaultValue="form" className="w-full mt-4">
+                            <TabsList
+                                aria-label="CMSP sections"
+                                className="
+                                    -mx-1 mb-2 flex w-full items-center gap-1 overflow-x-auto  bg-transparent px-1
+                                    dark:border-zinc-800
+                                    [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
+                                    "
+                            >
+                                <TabsTrigger
+                                    value="form"
+                                    className="
+                                        group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium
+                                        text-zinc-600 transition-colors hover:text-zinc-900
+                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35
+                                        data-[state=active]:text-[#1e3c73]
+                                        data-[state=active]:bg-[#1e3c73]/10 dark:data-[state=active]:bg-[#1e3c73]/20
+                                        after:absolute after:left-2 after:right-2 after:-bottom-[11px] after:h-[2px] after:rounded-full
+                                        after:bg-transparent data-[state=active]:after:bg-[#1e3c73]
+                                    "
+                                >
+                                    <FileText className="h-4 w-4" />
+                                    <span className="whitespace-nowrap">Application Form</span>
+                                </TabsTrigger>
 
-                                <CardContent className="space-y-4 text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-200">
-                                    <p className="text-justify">
-                                        CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline.academic_year}.
-                                        Please be advised that this scholarship application is
-                                        <span className="ml-1 font-bold"> intended only for all incoming first year college students.</span>
-                                        Earned units and already in the college level are discouraged to apply. Please read the CHED Memorandum Order
-                                        below before proceeding to fill out the form.
-                                    </p>
+                                <TabsTrigger
+                                    value="req"
+                                    className="
+                                        group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium
+                                        text-zinc-600 transition-colors hover:text-zinc-900
+                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35
+                                        data-[state=active]:text-[#1e3c73]
+                                        data-[state=active]:bg-[#1e3c73]/10 dark:data-[state=active]:bg-[#1e3c73]/20
+                                        after:absolute after:left-2 after:right-2 after:-bottom-[11px] after:h-[2px] after:rounded-full
+                                        after:bg-transparent data-[state=active]:after:bg-[#1e3c73]
+                                    "
+                                >
+                                    <ShieldCheck className="h-4 w-4" />
+                                    <span className="whitespace-nowrap">Eligibility & Requirements</span>
+                                </TabsTrigger>
+                            </TabsList>
 
-                                    {/* NOTE card — amber */}
-                                    <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
-                                        <div className="flex items-start gap-3">
-                                            <div className="space-y-1">
-                                                <p className="font-semibold text-amber-900 dark:text-amber-200">NOTE</p>
-                                                <p className="text-justify text-zinc-800 dark:text-zinc-200">
-                                                    Please ensure that the course you are planning to enroll in is aligned with the priority courses.
-                                                </p>
-                                                <p className="text-justify text-zinc-700 dark:text-zinc-300">
-                                                    Additionally, check the completeness of your documents because only those with complete documents with at least{' '}
-                                                    <span className="font-semibold">93% General Weighted Average (GWA)</span> are allowed to proceed to the Online Application.
-                                                </p>
+                            <TabsContent value="form" forceMount className="mt-3 data-[state=inactive]:hidden">
 
-                                                <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                                <section className="w-full">
+                                    <Card className="relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/75 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-zinc-800/60 dark:bg-zinc-950/40">
+
+                                        <div className="absolute inset-x-0 top-0 h-1 bg-[#1e3c73]" />
+
+                                        <CardHeader className="py-3">
+                                            <div className="grid items-center gap-3 grid-cols-1 sm:grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr_auto]">
+                                                {/* logos */}
+                                                <div className="flex items-center gap-2 shrink-0 justify-center">
+                                                    <img src="/ched_logo.png" alt="CHED logo" className="h-8 w-auto md:h-9" />
+                                                    <img src="/bagong_pilipinas.png" alt="Bagong Pilipinas logo" className="h-11 w-auto md:h-12" />
+                                                </div>
+
+                                                {/* title (no truncation, wraps nicely) */}
+                                                <div className="min-w-0">
+                                                    <CardTitle
+                                                        className="
+                                                            text-base font-semibold leading-tight text-zinc-900 dark:text-zinc-100
+                                                            whitespace-normal break-words
+                                                        "
+                                                    >
+                                                        CALL FOR APPLICATION FOR THE CHED Merit Scholarship Program (CMSP)
+                                                    </CardTitle>
+                                                    <CardDescription className="text-xs text-zinc-600 dark:text-zinc-400">
+                                                        CHED Regional Office XII
+                                                    </CardDescription>
+                                                </div>
+
+                                                {/* badges */}
+                                                <div className="flex flex-wrap items-center gap-1 justify-center sm:col-span-2 lg:col-span-1 lg:justify-end">
                                                     {ayDeadline && (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                                                        >
-                                                            Deadline: {formattedDeadline}
-                                                        </Badge>
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                                                            </svg>
+                                                            AY {ayDeadline.academic_year}
+                                                        </span>
                                                     )}
 
-                                                    <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
-                                                        Late submissions will not be entertained.
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100/80 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                            <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+                                                        </svg>
+                                                        {ayDeadline ? `Deadline: ${formattedDeadline}` : "Deadline: TBA"}
                                                     </span>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    <p className="pt-1 text-[12px] text-zinc-500 dark:text-zinc-400">Thank you!</p>
-                                    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                                            CMSP APPLICATION FORM
-                                        </p>
-                                        <a
-                                            href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="mt-1 inline-block text-sm text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                        >
-                                            Download Application Form / Qualification form
-                                        </a>
-                                    </div>
+                                        </CardHeader>
+                                    </Card>
+                                </section>
 
-                                </CardContent>
-                            </Card>
-                        </section>
 
-                        {/* Toggleable compact row — 3 columns: 1 (Ineligible) + 2 (Qualifications in 2-inner-cols) */}
-                        <section className="w-full">
-                            <div className="mb-2 flex items-center justify-between">
-                                <h2
-                                    className={`text-sm font-semibold ${showReqs
-                                        ? "text-zinc-700 dark:text-zinc-300"
-                                        : "text-zinc-400 dark:text-zinc-500"
-                                        }`}
-                                >
-                                    Eligibility & Requirements
-                                </h2>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    aria-expanded={showReqs}
-                                    onClick={() => setShowReqs((s) => !s)}
-                                    className="h-8 rounded-full px-3 flex items-center gap-1"
-                                >
-                                    <motion.div
-                                        animate={{ rotate: showReqs ? 180 : 0 }}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        <ChevronDown className="h-4 w-4" />
-                                    </motion.div>
-                                    {showReqs ? "Hide" : "Show"}
-                                </Button>
 
-                            </div>
 
-                            <AnimatePresence initial={false}>
-                                {showReqs && (
-                                    <motion.div
-                                        key="reqs"
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                                        className="overflow-hidden"
-                                    >
+                                <form id="cmspForm" onSubmit={handleSubmit} encType="multipart/form-data" noValidate>
+                                    <input type="hidden" name="academic_year" value={ayDeadline?.academic_year ?? ""} />
+                                    <input type="hidden" name="deadline" value={ayDeadline?.deadline ?? ""} />
 
-                                        <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
-                                            {/* Col 1: Ineligible Applicant */}
-                                            <Card className="flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                                <CardHeader className="pb-2">
-                                                    <CardTitle className="text-sm font-semibold tracking-tight">INELIGIBLE APPLICANT</CardTitle>
-                                                    <CardDescription className="text-xs text-zinc-600 dark:text-zinc-400">
-                                                        The following applicants are ineligible to apply:
-                                                    </CardDescription>
-                                                </CardHeader>
-                                                <CardContent className="flex-1 text-[12px] leading-snug text-zinc-800 dark:text-zinc-200">
-                                                    <ul className="list-none space-y-1.5">
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.1</span>
-                                                            <span>Foreign students;</span>
-                                                        </li>
+                                    <section className="w-full mt-4">
+                                        <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="text-sm font-semibold tracking-tight">
+                                                    Applicant Information
+                                                </CardTitle>
+                                            </CardHeader>
 
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.2</span>
-                                                            <span>Applicants who are not incoming or current first year undergraduate students;</span>
-                                                        </li>
+                                            <CardContent className="space-y-6">
 
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.3</span>
-                                                            <span>Applicants who will or are enrolled in priority programs but not granted government recognition or -certification by CHED;</span>
-                                                        </li>
-
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.4</span>
-                                                            <span>Applicants who will or intend to enroll in a non-priority program;</span>
-                                                        </li>
-
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.5</span>
-                                                            <span>Transferees and Shiftees;</span>
-                                                        </li>
-
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.6</span>
-                                                            <span>
-                                                                An existing recipient of any nationally government-funded scholarships or grants, including Tertiary Education Subsidy (TES) or
-                                                                Tulong Dunong Program (TDP). Grantees under the One-time Grants are exempted;
-                                                            </span>
-                                                        </li>
-
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.7</span>
-                                                            <span>Applicants who has completed an undergraduate degree program or a second course taker; and</span>
-                                                        </li>
-
-                                                        <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                            <span className="font-medium tabular-nums text-right">5.8</span>
-                                                            <span>Applicants who submitted tampered and/or falsified application documents, including documentary requirements.</span>
-                                                        </li>
-                                                    </ul>
-                                                </CardContent>
-
-                                            </Card>
-
-                                            {/* Cols 2–3 */}
-                                            <Card className="col-span-1 flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm lg:col-span-2 dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                                <CardHeader className="pb-2">
-                                                    <CardTitle className="text-sm font-semibold tracking-tight">
-                                                        QUALIFICATIONS
-                                                    </CardTitle>
-                                                </CardHeader>
-
-                                                {/* Three inner columns on lg+; stacked on mobile */}
-                                                <CardContent className="flex-1 text-[12px] leading-snug text-zinc-800 dark:text-zinc-200">
-                                                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-
-                                                        {/* Col 1: I & II */}
-                                                        <div className="space-y-3">
-                                                            <div>
-                                                                <h3 className="mb-1 text-[12px] font-semibold">I. Priority Programs:</h3>
-                                                                <ol className="list-decimal pl-5 space-y-1">
-                                                                    <li>National – CMO No. 7, s. 2023 entitled “List of Identified Priority Programs for AYs 2023-2024 to 2027-2028”;</li>
-                                                                    <li>Regional – Memorandum from the Office of the Chairperson on Regional Priority Programs dated September 17, 2021; and</li>
-                                                                    <li>Gender and Development (GAD) – Memorandum from the Chairperson on GAD StuFAPs Allocation dated April 4, 2011.</li>
-                                                                </ol>
-                                                            </div>
-
-                                                            <div>
-                                                                <h3 className="mb-1 text-[12px] font-semibold">II. Eligibility Requirements:</h3>
-                                                                <ol className="list-decimal pl-5 space-y-1">
-                                                                    <li>Filipino Citizen;</li>
-                                                                    <li>Senior High school graduate with a minimum general weighted average (GWA) of 93% or its equivalent; and</li>
-                                                                    <li>Combined annual gross income of parents, or legal guardian should not exceed PhP500,000.00;</li>
-                                                                </ol>
-                                                            </div>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                                    {/* Incoming 1st Year */}
+                                                    <div>
+                                                        <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                                            Are you an incoming 1st year college? <span className="text-red-500">*</span>
+                                                        </p>
+                                                        <div className="flex flex-col gap-2" data-group="incoming">
+                                                            <label className="flex items-center gap-2 text-sm">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="incoming"
+                                                                    value="yes"
+                                                                    checked={incoming === "yes"}
+                                                                    onChange={(e) => {
+                                                                        setIncoming(e.target.value);
+                                                                        persistDraft('incoming', e.target.value);
+                                                                    }}
+                                                                    className="h-4 w-4"
+                                                                />{" "}
+                                                                Yes
+                                                            </label>
+                                                            <label className="flex items-center gap-2 text-sm">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="incoming"
+                                                                    value="no"
+                                                                    checked={incoming === "no"}
+                                                                    onChange={(e) => {
+                                                                        setIncoming(e.target.value);
+                                                                        persistDraft('incoming', e.target.value);
+                                                                    }}
+                                                                    className="h-4 w-4"
+                                                                />{" "}
+                                                                If NO, you are not qualified to apply.
+                                                            </label>
                                                         </div>
+                                                        {incoming === 'no' && (
+                                                            <p className="mt-2 text-xs text-red-600">
+                                                                You are not eligible. All fields have been disabled.
+                                                            </p>
+                                                        )}
 
-                                                        {/* Col 2: III (1–4) */}
-                                                        <div className="space-y-3">
-                                                            <div>
-                                                                <h3 className="mb-1 text-[12px] font-semibold">III. Documentary Requirements:</h3>
-                                                                <ol className="list-decimal pl-5 space-y-1">
-                                                                    <li>Accomplished Application Form;</li>
-                                                                    <li>Copy of Birth certificate issued by NSO or PSA;</li>
-                                                                    <li>Certified true copy of Form 138 (SF9), duly signed by the registrar;</li>
-                                                                    <li>
-                                                                        Financial - submit any one (1) of the following:
-                                                                        <ul className="mt-1 list-[circle] pl-5 space-y-1">
-                                                                            <li>Latest Income Tax Return (ITR) of parents or guardian</li>
-                                                                            <li>Certificate of Tax Exemption/Non-Filer from BIR;</li>
-                                                                            <li>Certified true copy of contract/proof of income (OFW/Seafarers);</li>
-                                                                            <li>Social Case Study Report from CSWD/MSWD.</li>
-                                                                        </ul>
-                                                                    </li>
-                                                                </ol>
-                                                            </div>
-                                                        </div>
+                                                    </div>
 
-                                                        {/* Col 3: III (5–6) */}
-                                                        <div className="space-y-3">
-                                                            <ol start={5} className="list-decimal pl-5 space-y-1">
-                                                                <li>
-                                                                    Other Requirements, if applicable
-                                                                    <ul className="mt-1 list-[circle] pl-5 space-y-1">
-                                                                        <li>PWD ID issued by CSWD/MSWD or Certification from PDAO;</li>
-                                                                        <li>Solo Parent ID from CSWD/MSWD;</li>
-                                                                        <li>Senior Citizen ID from CSWD/MSWD;</li>
-                                                                        <li>Underprivileged/Homeless certification from DHSUD/CSWD/MSWD;</li>
-                                                                        <li>Social Case Study Report under Magna Carta of the Poor / First-Gen Students</li>
-                                                                        <li>Indigenous Peoples Certification from NCIP.</li>
-                                                                    </ul>
-                                                                </li>
-                                                                <li>Notarized Certificate of Guardianship, if applicable.</li>
-                                                            </ol>
-                                                        </div>
+                                                    {/* LRN (Learner Reference Number) */}
+                                                    <div className="md:col-span-1">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Learner Reference Number (LRN) <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="lrn"
+                                                            placeholder="Enter your 12-digit LRN"
+                                                            maxLength={12}
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                                            dark:border-zinc-700 dark:bg-zinc-900"
+                                                            required
+                                                        />
+                                                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                            Your LRN is a 12-digit number issued by DepEd.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+
+
+
+
+                                                {/* Grid 2–3 cols */}
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+                                                    {/* Email */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Email (Active Email Address) <span className="text-red-500">*</span></label>
+                                                        <input type="email" name="email" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                    </div>
+
+                                                    {/* Contact Number */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Contact Number (Active Contact Number) <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            name="contact_number"
+                                                            placeholder="09XXXXXXXXX"
+                                                            required
+                                                            inputMode="numeric"
+                                                            autoComplete="tel-national"
+                                                            maxLength={11}
+                                                            pattern="^\d{11}$"
+                                                            title="Enter exactly 11 digits (e.g., 09XXXXXXXXX)"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                                            dark:border-zinc-700 dark:bg-zinc-900"
+                                                            onInput={(e) => {
+                                                                const t = e.currentTarget;
+                                                                // keep digits only; hard cap at 11
+                                                                t.value = t.value.replace(/\D/g, '').slice(0, 11);
+                                                                // clear any previous custom error
+                                                                t.setCustomValidity('');
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                const t = e.currentTarget;
+                                                                if (t.value.length !== 11) {
+                                                                    t.setCustomValidity('Contact number must be exactly 11 digits.');
+                                                                } else {
+                                                                    t.setCustomValidity('');
+                                                                }
+                                                            }}
+                                                        />
 
                                                     </div>
 
 
-                                                </CardContent>
-                                            </Card>
-                                            <div className="lg:col-span-3">
-                                                <label className="mb-1 block text-sm font-medium">
-                                                    CHED Memorandum Order No. 07 Series of 2023
-                                                </label>
+                                                    {/* Last Name */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Last Name <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="last_name" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                    </div>
 
-                                                <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
+                                                    {/* First Name */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">First Name <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="first_name" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                    </div>
 
-                                                    {/* Thumbnails row - centered */}
-                                                    <div className="flex justify-center gap-4 overflow-x-auto pb-2">
-                                                        {[
-                                                            "/files/CMO-NO.-7-S.-2023_page-0001.jpg",
-                                                            "/files/CMO-NO.-7-S.-2023_page-0002.jpg",
-                                                            "/files/CMO-NO.-7-S.-2023_page-0003.jpg",
-                                                            "/files/CMO-NO.-7-S.-2023_page-0004.jpg",
-                                                            "/files/CMO-NO.-7-S.-2023_page-0005.jpg",
-                                                        ].map((src, idx) => (
+                                                    {/* Middle Name */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Middle Name <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="middle_name" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                    </div>
+
+                                                    {/* Maiden Name */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Maiden Name (for Married Women)</label>
+                                                        <input type="text" name="maiden_name" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                    </div>
+
+                                                    {/* Name Extension (Command searchable) */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Name Extension</label>
+                                                        <Popover open={openNameExt} onOpenChange={setOpenNameExt}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className="w-full justify-between"
+                                                                    data-field="name_extension"
+                                                                >
+                                                                    {nameExt || "Select extension"}
+                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent
+                                                                className="w-[var(--radix-popover-trigger-width)] p-0"
+                                                                align="start"
+                                                                sideOffset={8}
+                                                            >
+                                                                <Command>
+                                                                    <CommandInput placeholder="Search extension..." />
+                                                                    <CommandList>
+                                                                        <CommandEmpty>No result</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            {["Jr", "III", "Others", "N/A"].map((ext) => (
+                                                                                <CommandItem
+                                                                                    key={ext}
+                                                                                    value={ext}
+                                                                                    onSelect={(value) => {
+                                                                                        setNameExt(value);
+                                                                                        persistDraft('name_extension', value);
+                                                                                        setOpenNameExt(false);
+                                                                                    }}
+                                                                                >
+                                                                                    {ext}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </div>
+
+
+                                                    {/* Birthdate */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Birthdate <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <Popover open={open} onOpenChange={setOpen}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    id="date"
+                                                                    className="w-48 justify-between font-normal"
+                                                                    data-field="birthdate"
+                                                                >
+                                                                    {date ? format(date, "dd/MM/yyyy") : "Select date"}
+                                                                    <ChevronDownIcon />
+                                                                </Button>
+                                                            </PopoverTrigger>
+
+                                                            <PopoverContent className=" z-[60] w-auto p-0" align="start">
+                                                                <Calendar
+                                                                    mode="single"
+                                                                    selected={date}
+                                                                    onSelect={(date) => {
+                                                                        setDate(date);
+                                                                        setOpen(false);
+                                                                        if (date) {
+                                                                            // store ISO date (yyyy-MM-dd)
+                                                                            persistDraft('birthdate', format(date, 'yyyy-MM-dd'));
+                                                                        }
+                                                                    }}
+                                                                    captionLayout="dropdown"
+                                                                    classNames={{
+                                                                        caption_dropdowns: "flex gap-2 items-center justify-center",
+                                                                        dropdown:
+                                                                            "rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm focus:outline-none",
+                                                                        caption_label: "hidden",
+                                                                    }}
+                                                                />
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </div>
+
+
+
+                                                    {/* Sex (Radio) */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Sex <span className="text-red-500">*</span></label>
+                                                        <div className="flex flex-col gap-2" data-group="sex">
+                                                            <label className="flex items-center gap-2 text-sm">
+                                                                <input type="radio" name="sex" className="h-4 w-4" value="male" /> Male
+                                                            </label>
+                                                            <label className="flex items-center gap-2 text-sm">
+                                                                <input type="radio" name="sex" className="h-4 w-4" value="female" /> Female
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Province & Municipality */}
+                                                    <div className="md:col-span-2">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Province & Municipality <span className="text-red-500">*</span>
+                                                        </label>
+
+                                                        <Popover open={openProvince} onOpenChange={setOpenProvince}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className="w-full justify-between"
+                                                                    data-field="province_municipality"
+                                                                >
+                                                                    {province || "Select location"}
+                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+
+                                                            <PopoverContent
+                                                                className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
+                                                                align="start"
+                                                                sideOffset={8}
+                                                            >
+                                                                <Command>
+                                                                    <CommandInput placeholder="Search location..." />
+                                                                    <CommandList>
+                                                                        {loadingLocations ? (
+                                                                            <CommandEmpty>Loading...</CommandEmpty>
+                                                                        ) : locations.length === 0 ? (
+                                                                            <CommandEmpty>No results found.</CommandEmpty>
+                                                                        ) : (
+                                                                            <CommandGroup heading="Province & Municipality">
+                                                                                {locations.map((loc) => (
+                                                                                    <CommandItem
+                                                                                        key={loc.id}
+                                                                                        value={loc.label}
+                                                                                        onSelect={(value) => {
+                                                                                            setProvince(value);
+                                                                                            persistDraft('province_municipality', value);
+                                                                                            setOpenProvince(false); // close after picking
+                                                                                        }}
+                                                                                    >
+                                                                                        {loc.label}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        )}
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </div>
+
+
+
+                                                    {/* Address Fields */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Barangay <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="barangay" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Purok/Street <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="purok_street" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">ZIP Code <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="zip_code" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                    </div>
+
+                                                    {/* District */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            District <span className="text-red-500">*</span>
+                                                        </label>
+
+                                                        <Popover open={openDistrict} onOpenChange={setOpenDistrict}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className="w-full justify-between"
+                                                                    data-field="district"
+                                                                >
+                                                                    {district || "Select district"}
+                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+
+                                                            <PopoverContent
+                                                                className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
+                                                                align="start"
+                                                                sideOffset={8}
+                                                            >
+                                                                <Command>
+                                                                    <CommandInput placeholder="Search district..." />
+                                                                    <CommandList>
+                                                                        {loadingDistricts ? (
+                                                                            <CommandEmpty>Loading...</CommandEmpty>
+                                                                        ) : districts.length === 0 ? (
+                                                                            <CommandEmpty>No results found.</CommandEmpty>
+                                                                        ) : (
+                                                                            <CommandGroup heading="Districts">
+                                                                                {districts.map((d) => (
+                                                                                    <CommandItem
+                                                                                        key={d.id}
+                                                                                        value={d.label}
+                                                                                        onSelect={(value) => {
+                                                                                            setDistrict(value);
+                                                                                            persistDraft('district', value);
+                                                                                            setOpenDistrict(false); // close after selecting
+                                                                                        }}
+                                                                                    >
+                                                                                        {d.label}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        )}
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </div>
+
+
+
+
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </section>
+
+                                    {/* BARMM B Section */}
+                                    <section className="w-full mt-4">
+                                        <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="text-sm font-semibold tracking-tight">
+                                                    For Applicants from <span className="font-bold">BARMM B</span>
+                                                </CardTitle>
+                                            </CardHeader>
+
+                                            <CardContent className="space-y-6">
+                                                {/* Address Fields */}
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                    {/* Province */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Province</label>
+                                                        <input
+                                                            type="text"
+                                                            name="barmm_province"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+
+                                                    {/* Municipality */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Municipality</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Your answer"
+                                                            name="barmm_municipality"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+
+                                                    {/* Barangay */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Barangay</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Your answer"
+                                                            name="barmm_barangay"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+
+                                                    {/* Purok/Street */}
+                                                    <div className="lg:col-span-2">
+                                                        <label className="mb-1 block text-sm font-medium">Purok/Street</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Your answer"
+                                                            name="barmm_purok_street"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Divider */}
+                                                <hr className="border-zinc-200 dark:border-zinc-700" />
+
+                                                {/* School / Year / Course Section */}
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+                                                    {/* School intended to enroll */}
+                                                    <div className="lg:col-span-2">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            School intended to enroll in College <span className="text-red-500">*</span>
+                                                        </label>
+
+                                                        <Popover open={openSchool} onOpenChange={setOpenSchool}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className="w-full justify-between"
+                                                                    data-field="intended_school"
+                                                                >
+                                                                    {school || "Choose school"}
+                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+
+                                                            <PopoverContent
+                                                                className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
+                                                                align="start"
+                                                                sideOffset={8}
+                                                            >
+                                                                <Command>
+                                                                    <CommandInput placeholder="Search school..." />
+                                                                    <CommandList>
+                                                                        {loadingSchools ? (
+                                                                            <CommandEmpty>Loading...</CommandEmpty>
+                                                                        ) : schools.length === 0 ? (
+                                                                            <CommandEmpty>No result</CommandEmpty>
+                                                                        ) : (
+                                                                            <CommandGroup heading="Schools">
+                                                                                {schools.map((s) => (
+                                                                                    <CommandItem
+                                                                                        key={s.id}
+                                                                                        value={s.label}
+                                                                                        onSelect={(value) => {
+                                                                                            setSchool(value);
+                                                                                            persistDraft('intended_school', value);
+                                                                                            setOpenSchool(false); // close after selecting
+                                                                                        }}
+                                                                                    >
+                                                                                        {s.label}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        )}
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </div>
+
+
+
+                                                    {/* Type of School */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Type of School <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <div className="flex flex-col gap-2 text-sm" data-group="school_type">
+                                                            {["Public", "LUC", "Private"].map((type) => (
+                                                                <label key={type} className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="school_type"
+                                                                        value={type}
+                                                                        className="h-4 w-4"
+                                                                    />
+                                                                    {type}
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+
+                                                    {/* If not indicated */}
+                                                    <div className="lg:col-span-3">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            If your school was not indicated, please specify here.{" "}
+                                                            <span className="italic text-xs">(Do not abbreviate!)</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="other_school"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                                            dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+
+                                                    {/* Year Level */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Year Level <span className="text-red-500">*</span>
+                                                        </label>
+
+                                                        <Popover open={openYearLevel} onOpenChange={setOpenYearLevel}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className="w-full justify-between"
+                                                                    data-field="year_level"
+                                                                >
+                                                                    {yearLevel || "Choose"}
+                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+
+                                                            <PopoverContent
+                                                                className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
+                                                                align="start"
+                                                                sideOffset={8}
+                                                            >
+                                                                <Command>
+                                                                    <CommandInput placeholder="Search year level..." />
+                                                                    <CommandList>
+                                                                        <CommandEmpty>No result</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            {["Incoming First Year"].map((lvl) => (
+                                                                                <CommandItem
+                                                                                    key={lvl}
+                                                                                    value={lvl}
+                                                                                    onSelect={(value) => {
+                                                                                        setYearLevel(value);
+                                                                                        persistDraft('year_level', value);
+                                                                                        setOpenYearLevel(false); // 👈 close after selecting
+                                                                                    }}
+                                                                                >
+                                                                                    {lvl}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </div>
+
+
+                                                    {/* Course (CHED Priority) */}
+                                                    <div className="lg:col-span-2">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Course (CHED Priority Courses) <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
+                                                            Based on the:{" "}
                                                             <a
-                                                                key={idx}
-                                                                href={src}
+                                                                href="/files/CMO-NO.-7-S.-2023.pdf"
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="shrink-0"
+                                                                className="text-blue-600 underline dark:text-blue-400"
+                                                            >
+                                                                CHED Memorandum Order (CMO) No. 07 Series of 2023
+                                                            </a>
+                                                        </p>
+
+                                                        <Popover open={openCourse} onOpenChange={setOpenCourse}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className="w-full justify-between overflow-hidden"
+                                                                    data-field="course"
+                                                                >
+                                                                    <span
+                                                                        className="flex-1 min-w-0 truncate text-left"  // <- truncate long value
+                                                                        title={course || undefined}                    // <- show full on hover
+                                                                    >
+                                                                        {course || "Choose course"}
+                                                                    </span>
+                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+
+                                                            <PopoverContent
+                                                                className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
+                                                                align="start"
+                                                                sideOffset={8}
+                                                            >
+                                                                <Command>
+                                                                    <CommandInput placeholder="Search course..." />
+                                                                    <CommandList>
+                                                                        {loadingCourses ? (
+                                                                            <CommandEmpty>Loading...</CommandEmpty>
+                                                                        ) : courses.length === 0 ? (
+                                                                            <CommandEmpty>No result</CommandEmpty>
+                                                                        ) : (
+                                                                            <CommandGroup heading="CHED Priority Courses">
+                                                                                {courses.map((c) => (
+                                                                                    <CommandItem
+                                                                                        key={c.id}
+                                                                                        value={c.label}
+                                                                                        onSelect={(value) => {
+                                                                                            setCourse(value);
+                                                                                            persistDraft("course", value);
+                                                                                            setOpenCourse(false);
+                                                                                        }}
+                                                                                    >
+                                                                                        {c.label}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        )}
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </div>
+
+
+
+                                                    {/* === CHED Memorandum (Thumbnail) === */}
+                                                    <div className="lg:col-span-3">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            CHED Memorandum: Gender and Development StuFAPs Slot Allocation For SY 2011-2012
+                                                        </label>
+
+                                                        {/* Stack on mobile/tablet; row on large screens */}
+                                                        <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900 lg:flex-row lg:items-center">
+                                                            {/* Thumbnail */}
+                                                            <a
+                                                                href="/files/memorandum.jpg"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="shrink-0 self-center lg:self-auto"
                                                             >
                                                                 <img
-                                                                    src={src}
-                                                                    alt={`CHED Memorandum page ${idx + 1}`}
-                                                                    className="h-32 w-auto rounded-md border border-zinc-300 object-cover hover:opacity-90 dark:border-zinc-600"
+                                                                    src="/files/memorandum.jpg"
+                                                                    alt="CHED Memorandum"
+                                                                    loading="lazy"
+                                                                    className="h-24 w-auto rounded-md border border-zinc-300 object-cover hover:opacity-90 dark:border-zinc-600 md:h-28"
                                                                 />
                                                             </a>
-                                                        ))}
+
+                                                            {/* Right side: link + dropdown */}
+                                                            <div className="flex flex-1 min-w-0 flex-col gap-2">
+                                                                <a
+                                                                    href="/files/memorandum.jpg"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-sm text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 break-words"
+                                                                >
+                                                                    View Full Memorandum
+                                                                </a>
+
+                                                                <select
+                                                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900 lg:w-64"
+                                                                >
+                                                                    <option value="">Choose</option>
+                                                                    <option value="Bachelor of Marine and Transportation">
+                                                                        Bachelor of Marine and Transportation
+                                                                    </option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
-                                                    {/* Link to full PDF */}
-                                                    <div className="text-center">
+
+
+
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </section>
+
+                                    {/* Additional Information Section */}
+                                    <section className="w-full mt-4">
+                                        <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
+
+                                            <CardContent className="space-y-8">
+                                                {/* === Application Form Upload === */}
+                                                <div>
+                                                    <label className="mb-1 block text-sm font-medium">
+                                                        Accomplished Application Form (PDF file only){" "}
+                                                        <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
+                                                        Download:{" "}
                                                         <a
-                                                            href="/files/CMO-NO.-7-S.-2023.pdf"
+                                                            href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-sm text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                            className="text-blue-600 underline dark:text-blue-400"
                                                         >
-                                                            View Full CMO No. 07 Series of 2023 (PDF)
+                                                            Application Form / Qualification form
                                                         </a>
+                                                    </p>
+                                                    <div className="relative">
+                                                        <input
+                                                            ref={appFormRef}
+                                                            type="file"
+                                                            name="application_form"
+                                                            accept="application/pdf"
+                                                            onChange={(e) => setHasAppForm(!!e.currentTarget.files?.length)}
+                                                            className="
+        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
+        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
+        file:text-sm file:font-medium file:text-white 
+        hover:file:bg-[#25468a]
+        focus:border-blue-500 focus:ring focus:ring-blue-200
+        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+        /* Disabled look */
+        disabled:cursor-not-allowed disabled:opacity-60
+        disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
+        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
+        "
+                                                        />
+
+                                                        {hasAppForm && (
+                                                            <button
+                                                                type="button"
+                                                                aria-label="Clear file"
+                                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
+                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
+                    dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                onClick={() => {
+                                                                    if (!appFormRef.current || appFormRef.current.disabled) return;
+                                                                    appFormRef.current.value = '';
+                                                                    setHasAppForm(false);
+                                                                    appFormRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                                                                    appFormRef.current.focus();
+                                                                    clearFile(appFormRef.current, () => setHasAppForm(false));
+                                                                }}
+                                                                disabled={appFormRef.current?.disabled}
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+
+                                                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                        Upload 1 file only. Max size 10 MB.
+                                                    </p>
+                                                </div>
+
+
+                                                {/* === Senior High School === */}
+                                                <div>
+
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        <div className="lg:col-span-2">
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Name of Senior High School Attended/Graduated in (Strictly no abbreviation){" "}
+                                                                <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input type="text" name="shs_name" placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                            dark:border-zinc-700 dark:bg-zinc-900" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                School Address (Senior High School) <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input type="text" name="shs_address" placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                            dark:border-zinc-700 dark:bg-zinc-900" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* === Parents Information === */}
+                                                <div>
+
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        {/* Father */}
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Full Name <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="father_name" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Occupation <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="father_occupation" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Gross Monthly Income <span className="text-red-500">*</span></label>
+                                                            <input type="number" name="father_income_monthly" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Gross Yearly Income <span className="text-red-500">*</span></label>
+                                                            <select className="input-primary" name="father_income_yearly_bracket">
+                                                                <option value="">Choose</option>
+                                                                <option value="0-70,000">0 - 70,000</option>
+                                                                <option value="70,001-136,000">70,001 - 136,000</option>
+                                                                <option value="136,001-202,000">136,001 - 202,000</option>
+                                                                <option value="202,001-268,000">202,001 - 268,000</option>
+                                                                <option value="268,001-334,000">268,001 - 334,000</option>
+                                                                <option value="334,001-400,000">334,001 - 400,000</option>
+                                                                <option value="400,001-500,000">400,001 - 500,000</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {/* Mother */}
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Full Name <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="mother_name" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Occupation <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="mother_occupation" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Gross Monthly Income <span className="text-red-500">*</span></label>
+                                                            <input type="number" name="mother_income_monthly" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Gross Yearly Income <span className="text-red-500">*</span></label>
+                                                            <select className="input-primary" name="mother_income_yearly_bracket">
+                                                                <option value="">Choose</option>
+                                                                <option value="0-70,000">0 - 70,000</option>
+                                                                <option value="70,001-136,000">70,001 - 136,000</option>
+                                                                <option value="136,001-202,000">136,001 - 202,000</option>
+                                                                <option value="202,001-268,000">202,001 - 268,000</option>
+                                                                <option value="268,001-334,000">268,001 - 334,000</option>
+                                                                <option value="334,001-400,000">334,001 - 400,000</option>
+                                                                <option value="400,001-500,000">400,001 - 500,000</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* === Guardian Information === */}
+                                                <div>
+
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Guardian’s Full Name or N/A <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="guardian_name" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Guardian’s Occupation or N/A <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="guardian_occupation" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Guardian’s Gross Monthly Income or 0 <span className="text-red-500">*</span></label>
+                                                            <input type="number" name="guardian_income_monthly" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* === Academic Performance === */}
+                                                <div>
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                General Weighted Average (GWA) of 1st Semester Grade 11 <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                name="gwa_g11_s1"
+                                                                placeholder="Value (80-100)"
+                                                                className="input-primary"
+                                                                min={80}
+                                                                max={100}
+                                                                step={1}
+                                                                inputMode="numeric"
+                                                                onChange={handleGwaChange}
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                General Weighted Average (GWA) of 2nd Semester Grade 11 <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                name="gwa_g11_s2"
+                                                                placeholder="Value (80-100)"
+                                                                className="input-primary"
+                                                                min={80}
+                                                                max={100}
+                                                                step={1}
+                                                                inputMode="numeric"
+                                                                onChange={handleGwaChange}
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                General Weighted Average (GWA) of 1st Semester Grade 12 <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                name="gwa_g12_s1"
+                                                                placeholder="Value (80-100)"
+                                                                className="input-primary"
+                                                                min={80}
+                                                                max={100}
+                                                                step={1}
+                                                                inputMode="numeric"
+                                                                onChange={handleGwaChange}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* === Required Documents === */}
+                                                <div>
+                                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                                        {[
+                                                            { name: "grades_g11_s1", label: "Grades/Report Card of 1st Semester in Grade 11" },
+                                                            { name: "grades_g11_s2", label: "Grades/Report Card of 2nd Semester in Grade 11" },
+                                                            { name: "grades_g12_s1", label: "Grades/Report Card of 1st Semester in Grade 12" },
+                                                            { name: "birth_certificate", label: "Birth Certificate" },
+                                                        ].map(({ name, label }) => (
+                                                            <div key={name}>
+                                                                <label htmlFor={name} className="mb-1 block text-sm font-medium">
+                                                                    {label} <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+                                                                    NOTE: Whole page is readable and please do not crop!
+                                                                </p>
+                                                                <div className="relative">
+                                                                    <input
+                                                                        id={name}
+                                                                        name={name}
+                                                                        type="file"
+                                                                        required
+                                                                        accept="application/pdf"
+                                                                        ref={(el) => { fileRefs.current[name] = el; }}
+                                                                        onChange={(e) => {
+                                                                            const file = e.currentTarget.files?.[0];
+                                                                            if (!file) { setHasFileMap(m => ({ ...m, [name]: false })); return; }
+                                                                            const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                            if (!isPdf) {
+                                                                                toast.error("PDF only.");
+                                                                                e.currentTarget.value = "";
+                                                                                setHasFileMap(m => ({ ...m, [name]: false }));
+                                                                                return;
+                                                                            }
+                                                                            if (file.size > 10 * 1024 * 1024) {
+                                                                                toast.error("Max file size is 10 MB.");
+                                                                                e.currentTarget.value = "";
+                                                                                setHasFileMap(m => ({ ...m, [name]: false }));
+                                                                                return;
+                                                                            }
+                                                                            setHasFileMap(m => ({ ...m, [name]: true }));
+                                                                        }}
+                                                                        className="
+        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
+        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
+        file:text-sm file:font-medium file:text-white
+        hover:file:bg-[#25468a]
+        focus:border-blue-500 focus:ring focus:ring-blue-200
+        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+        /* Disabled look for the whole control and the native file button */
+        disabled:cursor-not-allowed disabled:opacity-60
+        disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
+        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
+        "
+                                                                    />
+
+                                                                    {hasFileMap[name] && (
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-label="Clear file"
+                                                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
+                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
+                    dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                            onClick={() => {
+                                                                                const el = fileRefs.current[name];
+                                                                                if (!el || el.disabled) return;
+                                                                                el.value = "";
+                                                                                setHasFileMap(m => ({ ...m, [name]: false }));
+                                                                                el.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                                el.focus();
+                                                                                clearFile(fileRefs.current[name], () =>
+                                                                                    setHasFileMap(m => ({ ...m, [name]: false }))
+                                                                                );
+                                                                            }}
+                                                                            disabled={fileRefs.current[name]?.disabled}
+                                                                        >
+                                                                            <X className="h-4 w-4" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* === Proof of Income === */}
+                                                <div>
+                                                    <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                                        Proof of Income  (any 1 of the following)  <span className="text-red-500">*</span>
+                                                    </h3>
+                                                    <ul className="mb-2 list-disc pl-5 text-xs text-zinc-600 dark:text-zinc-400">
+                                                        <li>Latest ITR of parents or guardian if employed</li>
+                                                        <li>Certificate of Tax Exemption/Non-Filer issued by BIR</li>
+                                                        <li>Certified true copy of latest contract or proof of income (for children of Overseas Filipino Workers and Seafarers)</li>
+                                                        <li>Social Case Study Report issued by CSWD/MSWD</li>
+                                                    </ul>
+                                                    <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                                                        NOTE: Whole page is readable and please do not crop!
+                                                    </p>
+                                                    <div className="relative">
+                                                        <input
+                                                            ref={proofIncomeRef}
+                                                            type="file"
+                                                            accept="application/pdf"
+                                                            name="proof_of_income"
+                                                            onChange={(e) => {
+                                                                const file = e.currentTarget.files?.[0];
+                                                                if (!file) { setHasProofIncome(false); return; }
+
+                                                                const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                if (!isPdf) {
+                                                                    toast.error("PDF only.");
+                                                                    e.currentTarget.value = "";
+                                                                    setHasProofIncome(false);
+                                                                    return;
+                                                                }
+                                                                if (file.size > 10 * 1024 * 1024) {
+                                                                    toast.error("Max file size is 10 MB.");
+                                                                    e.currentTarget.value = "";
+                                                                    setHasProofIncome(false);
+                                                                    return;
+                                                                }
+                                                                setHasProofIncome(true);
+                                                            }}
+                                                            className="
+        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
+        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 
+        file:text-sm file:font-medium file:text-white 
+        hover:file:bg-[#25468a] 
+        focus:border-blue-500 focus:ring focus:ring-blue-200 
+        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+        /* Disabled look */
+        disabled:cursor-not-allowed disabled:opacity-60
+        disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
+        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
+        "
+                                                        />
+
+                                                        {hasProofIncome && (
+                                                            <button
+                                                                type="button"
+                                                                aria-label="Clear file"
+                                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
+                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
+                    dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                onClick={() => {
+                                                                    if (!proofIncomeRef.current || proofIncomeRef.current.disabled) return;
+                                                                    proofIncomeRef.current.value = "";
+                                                                    setHasProofIncome(false);
+                                                                    proofIncomeRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                    proofIncomeRef.current.focus();
+                                                                }}
+                                                                disabled={proofIncomeRef.current?.disabled}
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Upload 1 supported PDF file. Max 10 MB.</p>
+                                                </div>
+
+                                                {/* === Special Group === */}
+                                                <div>
+                                                    <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                                        Check if the applicant belongs to a Special Group <span className="text-red-500">*</span>
+                                                    </h3>
+
+                                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm" data-group="special_groups[]">
+                                                        {/* Left column */}
+                                                        <div className="space-y-2">
+                                                            {[
+                                                                "Person With Disability (PWD)",
+                                                                "Solo Parent",
+                                                                "Dependent Solo Parent",
+                                                                "Underprivileged  and Homeless Citizens",
+                                                                "Magna Carta for the Poor",
+                                                            ].map((option, idx) => (
+                                                                <label key={idx} className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        name="special_groups[]"
+                                                                        value={option}
+                                                                        className="h-4 w-4"
+                                                                        onChange={handleSpecialGroupChange}
+                                                                    />
+                                                                    {option}
+                                                                </label>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* Right column */}
+                                                        <div className="space-y-2">
+                                                            {[
+                                                                "First Generation Students (first in the family to attend college or university)",
+                                                                "Student Senior Citizen",
+                                                                "Indigenous People (IP)",
+                                                                "N/A", // always last
+                                                            ].map((option, idx) => (
+                                                                <label key={idx} className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        name="special_groups[]"
+                                                                        value={option}
+                                                                        className="h-4 w-4"
+                                                                        onChange={handleSpecialGroupChange}
+                                                                    />
+                                                                    {option}
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+
+
+                                                {/* === Proof of Special Group & Certificate of Guardianship === */}
+                                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                                    {/* === Proof of Special Group === */}
+                                                    <div>
+                                                        <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                                            Proof of Special Group
+                                                        </h3>
+                                                        <ul className="mb-2 list-disc pl-5 text-xs text-zinc-600 dark:text-zinc-400">
+                                                            <li>PWD ID</li>
+                                                            <li>Solo parent ID</li>
+                                                            <li>Student Senior Citizen ID</li>
+                                                            <li>NCIP Certification</li>
+                                                            <li>Underprivileged and Homeless Citizens Certification issued by DHSUD or C/MSWD</li>
+                                                            <li>
+                                                                Social Case Study Report issued by C/MSWD covered under Magna Carta for the Poor and/or First Generation Students
+                                                            </li>
+                                                        </ul>
+                                                        <p className="text-xs text-justify text-zinc-500 dark:text-zinc-400">
+                                                            Additional five (5) points in the total score are given to applicants belonging
+                                                            to the special group of persons such as the Underprivileged and Homeless Citizens
+                                                            under Republic Act (RA) No. 7279, Persons with Disability (PWD) under RA No. 7277
+                                                            as amended, Solo Parents and/or their Dependents under RA 8972, Senior Citizens
+                                                            under RA 9994, and Indigenous Peoples under RA 8371, after complying with all the
+                                                            requirements herein set forth.
+                                                        </p>
+                                                        <p className="mb-2 mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+                                                            NOTE: Upload 1 supported file: PDF. Max 10 MB.
+                                                        </p>
+                                                        <div className="relative">
+                                                            <input
+                                                                ref={proofSpecialRef}
+                                                                type="file"
+                                                                accept="application/pdf"
+                                                                name="proof_special_group"
+                                                                disabled={formLocked || naSelected}
+                                                                onChange={(e) => {
+                                                                    const file = e.currentTarget.files?.[0];
+                                                                    if (!file) { setHasProofSpecial(false); return; }
+                                                                    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                    if (!isPdf) {
+                                                                        toast.error("PDF only.");
+                                                                        e.currentTarget.value = "";
+                                                                        setHasProofSpecial(false);
+                                                                        return;
+                                                                    }
+                                                                    if (file.size > 10 * 1024 * 1024) {
+                                                                        toast.error("Max file size is 10 MB.");
+                                                                        e.currentTarget.value = "";
+                                                                        setHasProofSpecial(false);
+                                                                        return;
+                                                                    }
+                                                                    setHasProofSpecial(true);
+                                                                }}
+                                                                className="
+        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
+        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
+        file:text-sm file:font-medium file:text-white
+        hover:file:bg-[#25468a]
+        focus:border-blue-500 focus:ring focus:ring-blue-200
+        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+        /* Disabled styling */
+        disabled:cursor-not-allowed disabled:opacity-60
+        disabled:file:bg-zinc-300 disabled:file:text-zinc-600
+        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400
+        "
+                                                            />
+
+                                                            {hasProofSpecial && (
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label="Clear file"
+                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
+                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
+                    dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                    onClick={() => {
+                                                                        if (!proofSpecialRef.current || proofSpecialRef.current.disabled) return;
+                                                                        proofSpecialRef.current.value = "";
+                                                                        setHasProofSpecial(false);
+                                                                        proofSpecialRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                        proofSpecialRef.current.focus();
+                                                                    }}
+                                                                    disabled={proofSpecialRef.current?.disabled}
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+
+                                                    </div>
+
+                                                    {/* === Certificate of Guardianship === */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Notarized Certificate of Guardianship, issued by the legal
+                                                            guardian of the student applicant, if applicable.
+                                                        </label>
+                                                        <div className="relative">
+                                                            <input
+                                                                ref={guardianshipRef}
+                                                                type="file"
+                                                                accept="application/pdf"
+                                                                name="guardianship_certificate"
+                                                                onChange={(e) => {
+                                                                    const file = e.currentTarget.files?.[0];
+                                                                    if (!file) { setHasGuardianship(false); return; }
+
+                                                                    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                    if (!isPdf) {
+                                                                        toast.error("PDF only.");
+                                                                        e.currentTarget.value = "";
+                                                                        setHasGuardianship(false);
+                                                                        return;
+                                                                    }
+                                                                    if (file.size > 10 * 1024 * 1024) {
+                                                                        toast.error("Max file size is 10 MB.");
+                                                                        e.currentTarget.value = "";
+                                                                        setHasGuardianship(false);
+                                                                        return;
+                                                                    }
+                                                                    setHasGuardianship(true);
+                                                                }}
+                                                                className="
+                                                                w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
+                                                                file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 
+                                                                file:text-sm file:font-medium file:text-white 
+                                                                hover:file:bg-[#25468a] 
+                                                                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                                dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+                                                                /* Disabled look */
+                                                                disabled:cursor-not-allowed disabled:opacity-60
+                                                                disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
+                                                                dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
+                                                                "
+                                                            />
+
+                                                            {hasGuardianship && (
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label="Clear file"
+                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
+                                                                            text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
+                                                                            dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                    onClick={() => {
+                                                                        if (!guardianshipRef.current || guardianshipRef.current.disabled) return;
+                                                                        guardianshipRef.current.value = "";
+                                                                        setHasGuardianship(false);
+                                                                        guardianshipRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                        guardianshipRef.current.focus();
+                                                                    }}
+                                                                    disabled={guardianshipRef.current?.disabled}
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+
+                                                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                            Upload 1 supported file: PDF. Max 10 MB.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+
+
+
+                                            </CardContent>
+                                        </Card>
+                                    </section>
+
+                                    {/* === Certification & Data Privacy Consent === */}
+                                    <section className="w-full mt-4">
+                                        <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
+
+
+                                            <CardContent className="space-y-6 text-sm text-zinc-700 dark:text-zinc-300">
+                                                {/* Ranking Info */}
+                                                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 text-sm 
+                                                                    dark:border-amber-900 dark:bg-amber-950/30">
+                                                    <p className="mb-2 text-amber-900 dark:text-amber-200">
+                                                        The ranking shall be used by selecting the most qualified applicants based on
+                                                        the requirements. The ranking shall be made according to the following
+                                                        percentage distribution:
+                                                    </p>
+                                                    <ul className="ml-4 list-disc space-y-1 text-amber-800 dark:text-amber-300">
+                                                        <li>
+                                                            Academic Performance – <span className="font-semibold">70%</span>
+                                                        </li>
+                                                        <li>
+                                                            Annual Gross Income – <span className="font-semibold">30%</span>
+                                                        </li>
+                                                        <li>
+                                                            TOTAL – <span className="font-semibold">100%</span>
+                                                        </li>
+                                                    </ul>
+                                                    <p className="mt-2 font-medium text-amber-900 dark:text-amber-200">
+                                                        Good luck and God bless!
+                                                    </p>
+                                                </div>
+
+
+                                                {/* Certification & Consent */}
+                                                <div>
+                                                    <p className="mb-3 text-justify text-sm leading-relaxed">
+                                                        I hereby certify that the foregoing statements are true and correct. Any
+                                                        misinformation or withholding of information will automatically disqualify me
+                                                        from the CHED Scholarship Program. I am willing to refund the financial
+                                                        benefits received if such information is discovered after acceptance of the
+                                                        award.
+                                                    </p>
+                                                    <p className="mb-3 text-justify text-sm leading-relaxed">
+                                                        I hereby express my consent for the Commission on Higher Education to collect,
+                                                        record, organize, update or modify, retrieve, consult, use, consolidate, block,
+                                                        erase, or destruct my personal data as part of my information. I hereby affirm
+                                                        my right to be informed, object to processing, access and rectify, suspend or
+                                                        withdraw my personal data and be indemnified in case of damages pursuant to the
+                                                        provisions of the Republic Act No. 10173 of the Philippines, Data Privacy Act
+                                                        of 2012 and its corresponding Implementing Rules and Regulations.
+                                                    </p>
+
+                                                    {/* Checkbox */}
+                                                    <label className="flex items-center gap-2 text-sm font-medium">
+                                                        <input type="checkbox" name="consent" className="h-4 w-4" value="yes" /> Yes <span className="text-red-500">*</span>
+                                                    </label>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </section>
+
+                                    {/* === Submit Button Section === */}
+                                    <section className="w-full">
+                                        <div className="flex justify-center pt-6">
+                                            <Button
+                                                type="submit"
+                                                disabled={incoming === "no" || incoming === null}
+                                                className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
+                                            hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
+                                            disabled:cursor-not-allowed disabled:opacity-50
+                                            dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
+                                            >
+                                                Submit Application
+                                            </Button>
+                                        </div>
+                                    </section>
+                                </form>
+
+                            </TabsContent>
+                            <TabsContent value="req" forceMount className="mt-3 data-[state=inactive]:hidden">
+
+                                {/* Top CMSP card */}
+                                <section className="w-full ">
+                                    <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-zinc-800/70 dark:bg-zinc-950/40">
+                                        <CardHeader className="pb-3">
+                                            <div className="flex items-center gap-2">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="rounded-full border-green-200 bg-green-50 text-xs text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
+                                                >
+                                                    Call for Application
+                                                </Badge>
+                                                {ayDeadline && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="rounded-full border-blue-200 bg-blue-50 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300"
+                                                    >
+                                                        AY {ayDeadline.academic_year}
+                                                    </Badge>
+                                                )}
+                                            </div>
+
+                                            <div className="mt-2 flex items-center gap-0">
+                                                <img src="/ched_logo.png" alt="CHED Logo" className="h-10 w-auto p-1" />
+                                                <img src="/bagong_pilipinas.png" alt="Bagong Pilipinas Logo" className="h-14 w-auto p-1" />
+                                                <div className="ml-3">
+                                                    <CardTitle className="text-xl font-semibold tracking-tight">
+                                                        CHED Merit Scholarship Program (CMSP)
+                                                    </CardTitle>
+                                                    <CardDescription className="text-sm text-zinc-600 dark:text-zinc-400">
+                                                        CHED Regional Office XII
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+
+                                        <CardContent className="space-y-4 text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-200">
+                                            <p className="text-justify">
+                                                CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline.academic_year}.
+                                                Please be advised that this scholarship application is
+                                                <span className="ml-1 font-bold"> intended only for all incoming first year college students.</span>
+                                                Earned units and already in the college level are discouraged to apply. Please read the CHED Memorandum Order
+                                                below before proceeding to fill out the form.
+                                            </p>
+
+                                            {/* NOTE card — amber */}
+                                            <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="space-y-1">
+                                                        <p className="font-semibold text-amber-900 dark:text-amber-200">NOTE</p>
+                                                        <p className="text-justify text-zinc-800 dark:text-zinc-200">
+                                                            Please ensure that the course you are planning to enroll in is aligned with the priority courses.
+                                                        </p>
+                                                        <p className="text-justify text-zinc-700 dark:text-zinc-300">
+                                                            Additionally, check the completeness of your documents because only those with complete documents with at least{' '}
+                                                            <span className="font-semibold">93% General Weighted Average (GWA)</span> are allowed to proceed to the Online Application.
+                                                        </p>
+
+                                                        <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                                                            {ayDeadline && (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                                                >
+                                                                    Deadline: {formattedDeadline}
+                                                                </Badge>
+                                                            )}
+
+                                                            <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
+                                                                Late submissions will not be entertained.
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </section>
-
-                        <section className="w-full">
-                            <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-semibold tracking-tight">
-                                        Applicant Information
-                                    </CardTitle>
-                                </CardHeader>
-
-                                <CardContent className="space-y-6">
-
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                                        {/* Incoming 1st Year */}
-                                        <div>
-                                            <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                                                Are you an incoming 1st year college? <span className="text-red-500">*</span>
-                                            </p>
-                                            <div className="flex flex-col gap-2">
-                                                <label className="flex items-center gap-2 text-sm">
-                                                    <input
-                                                        type="radio"
-                                                        name="incoming"
-                                                        value="yes"
-                                                        checked={incoming === "yes"}
-                                                        onChange={(e) => setIncoming(e.target.value)}
-                                                        className="h-4 w-4"
-                                                    />{" "}
-                                                    Yes
-                                                </label>
-                                                <label className="flex items-center gap-2 text-sm">
-                                                    <input
-                                                        type="radio"
-                                                        name="incoming"
-                                                        value="no"
-                                                        checked={incoming === "no"}
-                                                        onChange={(e) => setIncoming(e.target.value)}
-                                                        className="h-4 w-4"
-                                                    />{" "}
-                                                    If NO, you are not qualified to apply.
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        {/* LRN (Learner Reference Number) */}
-                                        <div className="md:col-span-1">
-                                            <label className="mb-1 block text-sm font-medium">
-                                                Learner Reference Number (LRN) <span className="text-red-500">*</span>
-                                            </label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter your 12-digit LRN"
-                                                maxLength={12}
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-        focus:border-blue-500 focus:ring focus:ring-blue-200 
-        dark:border-zinc-700 dark:bg-zinc-900"
-                                            />
-                                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                                Your LRN is a 12-digit number issued by DepEd.
-                                            </p>
-                                        </div>
-                                    </div>
-
-
-
-
-
-                                    {/* Grid 2–3 cols */}
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-                                        {/* Email */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Email (Active Email Address) <span className="text-red-500">*</span></label>
-                                            <input type="email" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        {/* Contact Number */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Contact Number (Active Contact Number) <span className="text-red-500">*</span></label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        {/* Last Name */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Last Name <span className="text-red-500">*</span></label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        {/* First Name */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">First Name <span className="text-red-500">*</span></label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        {/* Middle Name */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Middle Name <span className="text-red-500">*</span></label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        {/* Maiden Name */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Maiden Name (for Married Women)</label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        {/* Name Extension (Command searchable) */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Name Extension</label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        {nameExt || "Select extension"}
-                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                    align="start"
-                                                >
-                                                    <Command>
-                                                        <CommandInput placeholder="Search extension..." />
-                                                        <CommandList>
-                                                            <CommandEmpty>No result</CommandEmpty>
-                                                            <CommandGroup>
-                                                                {["Jr", "III", "Others", "N/A"].map((ext) => (
-                                                                    <CommandItem key={ext} onSelect={() => setNameExt(ext)}>
-                                                                        {ext}
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-
-                                            </Popover>
-                                        </div>
-
-                                        {/* Birthdate */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">
-                                                Birthdate <span className="text-red-500">*</span>
-                                            </label>
-                                            <Popover open={open} onOpenChange={setOpen}>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        id="date"
-                                                        className="w-48 justify-between font-normal"
-                                                    >
-                                                        {date ? format(date, "dd/MM/yyyy") : "Select date"}
-                                                        <ChevronDownIcon />
-                                                    </Button>
-                                                </PopoverTrigger>
-
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={date}
-                                                        onSelect={(date) => {
-                                                            setDate(date);
-                                                            setOpen(false);
-                                                        }}
-                                                        captionLayout="dropdown"
-                                                        classNames={{
-                                                            caption_dropdowns: "flex gap-2 items-center justify-center",
-                                                            dropdown:
-                                                                "rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm focus:outline-none",
-                                                            caption_label: "hidden",
-                                                        }}
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-
-
-
-                                        {/* Sex (Radio) */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Sex <span className="text-red-500">*</span></label>
-                                            <div className="flex flex-col gap-2">
-                                                <label className="flex items-center gap-2 text-sm">
-                                                    <input type="radio" name="sex" className="h-4 w-4" /> Male
-                                                </label>
-                                                <label className="flex items-center gap-2 text-sm">
-                                                    <input type="radio" name="sex" className="h-4 w-4" /> Female
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        {/* Province & Municipality */}
-                                        <div className="md:col-span-2">
-                                            <label className="mb-1 block text-sm font-medium">
-                                                Province & Municipality <span className="text-red-500">*</span>
-                                            </label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        {province || "Select location"}
-                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                    align="start"
-                                                >
-                                                    <Command>
-                                                        <CommandInput placeholder="Search location..." />
-                                                        <CommandList>
-                                                            {loadingLocations ? (
-                                                                <CommandEmpty>Loading...</CommandEmpty>
-                                                            ) : locations.length === 0 ? (
-                                                                <CommandEmpty>No results found.</CommandEmpty>
-                                                            ) : (
-                                                                <CommandGroup heading="Province & Municipality">
-                                                                    {locations.map((loc) => (
-                                                                        <CommandItem
-                                                                            key={loc.id}
-                                                                            onSelect={() => setProvince(loc.label)}
-                                                                        >
-                                                                            {loc.label}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            )}
-                                                        </CommandList>
-
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-
-
-                                        {/* Address Fields */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Barangay <span className="text-red-500">*</span></label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Purok/Street <span className="text-red-500">*</span></label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">ZIP Code <span className="text-red-500">*</span></label>
-                                            <input type="text" placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                        </div>
-
-                                        {/* District */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">
-                                                District <span className="text-red-500">*</span>
-                                            </label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        {district || "Select district"}
-                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                    align="start"
-                                                >
-                                                    <Command>
-                                                        <CommandInput placeholder="Search district..." />
-                                                        <CommandList>
-                                                            {loadingDistricts ? (
-                                                                <CommandEmpty>Loading...</CommandEmpty>
-                                                            ) : districts.length === 0 ? (
-                                                                <CommandEmpty>No results found.</CommandEmpty>
-                                                            ) : (
-                                                                <CommandGroup heading="Districts">
-                                                                    {districts.map((d) => (
-                                                                        <CommandItem
-                                                                            key={d.id}
-                                                                            onSelect={() => setDistrict(d.label)}
-                                                                        >
-                                                                            {d.label}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            )}
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-
-
-
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </section>
-
-                        {/* BARMM B Section */}
-                        <section className="w-full">
-                            <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-semibold tracking-tight">
-                                        For Applicants from <span className="font-bold">BARMM B</span>
-                                    </CardTitle>
-                                </CardHeader>
-
-                                <CardContent className="space-y-6">
-                                    {/* Address Fields */}
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                        {/* Province */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Province</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-              focus:border-blue-500 focus:ring focus:ring-blue-200 
-              dark:border-zinc-700 dark:bg-zinc-900"
-                                            />
-                                        </div>
-
-                                        {/* Municipality */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Municipality</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-              focus:border-blue-500 focus:ring focus:ring-blue-200 
-              dark:border-zinc-700 dark:bg-zinc-900"
-                                            />
-                                        </div>
-
-                                        {/* Barangay */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">Barangay</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-              focus:border-blue-500 focus:ring focus:ring-blue-200 
-              dark:border-zinc-700 dark:bg-zinc-900"
-                                            />
-                                        </div>
-
-                                        {/* Purok/Street */}
-                                        <div className="lg:col-span-2">
-                                            <label className="mb-1 block text-sm font-medium">Purok/Street</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-              focus:border-blue-500 focus:ring focus:ring-blue-200 
-              dark:border-zinc-700 dark:bg-zinc-900"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Divider */}
-                                    <hr className="border-zinc-200 dark:border-zinc-700" />
-
-                                    {/* School / Year / Course Section */}
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-                                        {/* School intended to enroll */}
-                                        <div className="lg:col-span-2">
-                                            <label className="mb-1 block text-sm font-medium">
-                                                School intended to enroll in College <span className="text-red-500">*</span>
-                                            </label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        {school || "Choose school"}
-                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                    align="start"
-                                                >
-                                                    <Command>
-                                                        <CommandInput placeholder="Search school..." />
-                                                        <CommandList>
-                                                            {loadingSchools ? (
-                                                                <CommandEmpty>Loading...</CommandEmpty>
-                                                            ) : schools.length === 0 ? (
-                                                                <CommandEmpty>No result</CommandEmpty>
-                                                            ) : (
-                                                                <CommandGroup heading="Schools">
-                                                                    {schools.map((s) => (
-                                                                        <CommandItem
-                                                                            key={s.id}
-                                                                            onSelect={() => setSchool(s.label)}
-                                                                        >
-                                                                            {s.label}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            )}
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-
-
-                                        {/* Type of School */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">
-                                                Type of School <span className="text-red-500">*</span>
-                                            </label>
-                                            <div className="flex flex-col gap-2 text-sm">
-                                                {["Public", "LUC", "Private"].map((type) => (
-                                                    <label key={type} className="flex items-center gap-2">
-                                                        <input
-                                                            type="radio"
-                                                            name="schoolType"
-                                                            value={type}
-                                                            className="h-4 w-4"
-                                                        />
-                                                        {type}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-
-
-                                        {/* If not indicated */}
-                                        <div className="lg:col-span-3">
-                                            <label className="mb-1 block text-sm font-medium">
-                                                If your school was not indicated, please specify here.{" "}
-                                                <span className="italic text-xs">(Do not abbreviate!)</span>
-                                            </label>
-                                            <input
-                                                type="text"
-                                                placeholder="Your answer"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-              focus:border-blue-500 focus:ring focus:ring-blue-200 
-              dark:border-zinc-700 dark:bg-zinc-900"
-                                            />
-                                        </div>
-
-                                        {/* Year Level */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">
-                                                Year Level <span className="text-red-500">*</span>
-                                            </label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        {yearLevel || "Choose"}
-                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                    align="start"
-                                                >
-                                                    <Command>
-                                                        <CommandInput placeholder="Search year level..." />
-                                                        <CommandList>
-                                                            <CommandEmpty>No result</CommandEmpty>
-                                                            <CommandGroup>
-                                                                {["Incoming First Year"].map((lvl) => (
-                                                                    <CommandItem key={lvl} onSelect={() => setYearLevel(lvl)}>
-                                                                        {lvl}
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-
-                                        {/* Course (CHED Priority) */}
-                                        <div className="lg:col-span-2">
-                                            <label className="mb-1 block text-sm font-medium">
-                                                Course (CHED Priority Courses) <span className="text-red-500">*</span>
-                                            </label>
-                                            <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
-                                                Based on the:{" "}
+                                            <p className="pt-1 text-[12px] text-zinc-500 dark:text-zinc-400">Thank you!</p>
+                                            <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                                                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                                    CMSP APPLICATION FORM
+                                                </p>
                                                 <a
-                                                    href="/files/CMO-NO.-7-S.-2023.pdf"
+                                                    href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="text-blue-600 underline dark:text-blue-400"
+                                                    className="mt-1 inline-block text-sm text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                                 >
-                                                    CHED Memorandum Order (CMO) No. 07 Series of 2023
+                                                    Download Application Form / Qualification form
                                                 </a>
-                                            </p>
+                                            </div>
 
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        {course || "Choose course"}
-                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                    align="start"
-                                                >
-                                                    <Command>
-                                                        <CommandInput placeholder="Search course..." />
-                                                        <CommandList>
-                                                            {loadingCourses ? (
-                                                                <CommandEmpty>Loading...</CommandEmpty>
-                                                            ) : courses.length === 0 ? (
-                                                                <CommandEmpty>No result</CommandEmpty>
-                                                            ) : (
-                                                                <CommandGroup heading="CHED Priority Courses">
-                                                                    {courses.map((c) => (
-                                                                        <CommandItem
-                                                                            key={c.id}
-                                                                            onSelect={() => setCourse(c.label)}
-                                                                        >
-                                                                            {c.label}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            )}
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
+                                        </CardContent>
+                                    </Card>
+                                </section>
+
+                                {/* Toggleable compact row — 3 columns: 1 (Ineligible) + 2 (Qualifications in 2-inner-cols) */}
+                                <section className="w-full mt-4">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <h2
+                                            className={`text-sm font-semibold ${showReqs
+                                                ? "text-zinc-700 dark:text-zinc-300"
+                                                : "text-zinc-400 dark:text-zinc-500"
+                                                }`}
+                                        >
+                                            Eligibility & Requirements
+                                        </h2>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            aria-expanded={showReqs}
+                                            onClick={() => setShowReqs((s) => !s)}
+                                            className="h-8 rounded-full px-3 flex items-center gap-1"
+                                        >
+                                            <motion.div
+                                                animate={{ rotate: showReqs ? 180 : 0 }}
+                                                transition={{ duration: 0.3 }}
+                                            >
+                                                <ChevronDown className="h-4 w-4" />
+                                            </motion.div>
+                                            {showReqs ? "Hide" : "Show"}
+                                        </Button>
+
+                                    </div>
+
+                                    <AnimatePresence initial={false}>
+                                        {showReqs && (
+                                            <motion.div
+                                                key="reqs"
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                                className="overflow-hidden"
+                                            >
+
+                                                <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
+                                                    {/* Col 1: Ineligible Applicant */}
+                                                    <Card className="flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
+                                                        <CardHeader className="pb-2">
+                                                            <CardTitle className="text-sm font-semibold tracking-tight">INELIGIBLE APPLICANT</CardTitle>
+                                                            <CardDescription className="text-xs text-zinc-600 dark:text-zinc-400">
+                                                                The following applicants are ineligible to apply:
+                                                            </CardDescription>
+                                                        </CardHeader>
+                                                        <CardContent className="flex-1 text-[12px] leading-snug text-zinc-800 dark:text-zinc-200">
+                                                            <ul className="list-none space-y-1.5">
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.1</span>
+                                                                    <span>Foreign students;</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.2</span>
+                                                                    <span>Applicants who are not incoming or current first year undergraduate students;</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.3</span>
+                                                                    <span>Applicants who will or are enrolled in priority programs but not granted government recognition or -certification by CHED;</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.4</span>
+                                                                    <span>Applicants who will or intend to enroll in a non-priority program;</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.5</span>
+                                                                    <span>Transferees and Shiftees;</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.6</span>
+                                                                    <span>
+                                                                        An existing recipient of any nationally government-funded scholarships or grants, including Tertiary Education Subsidy (TES) or
+                                                                        Tulong Dunong Program (TDP). Grantees under the One-time Grants are exempted;
+                                                                    </span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.7</span>
+                                                                    <span>Applicants who has completed an undergraduate degree program or a second course taker; and</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="font-medium tabular-nums text-right">5.8</span>
+                                                                    <span>Applicants who submitted tampered and/or falsified application documents, including documentary requirements.</span>
+                                                                </li>
+                                                            </ul>
+                                                        </CardContent>
+
+                                                    </Card>
+
+                                                    {/* Cols 2–3 */}
+                                                    <Card className="col-span-1 flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm lg:col-span-2 dark:border-zinc-800/70 dark:bg-zinc-950/40">
+                                                        <CardHeader className="pb-2">
+                                                            <CardTitle className="text-sm font-semibold tracking-tight">
+                                                                QUALIFICATIONS
+                                                            </CardTitle>
+                                                        </CardHeader>
+
+                                                        {/* Three inner columns on lg+; stacked on mobile */}
+                                                        <CardContent className="flex-1 text-[12px] leading-snug text-zinc-800 dark:text-zinc-200">
+                                                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+
+                                                                {/* Col 1: I & II */}
+                                                                <div className="space-y-3">
+                                                                    <div>
+                                                                        <h3 className="mb-1 text-[12px] font-semibold">I. Priority Programs:</h3>
+                                                                        <ol className="list-decimal pl-5 space-y-1">
+                                                                            <li>National – CMO No. 7, s. 2023 entitled “List of Identified Priority Programs for AYs 2023-2024 to 2027-2028”;</li>
+                                                                            <li>Regional – Memorandum from the Office of the Chairperson on Regional Priority Programs dated September 17, 2021; and</li>
+                                                                            <li>Gender and Development (GAD) – Memorandum from the Chairperson on GAD StuFAPs Allocation dated April 4, 2011.</li>
+                                                                        </ol>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <h3 className="mb-1 text-[12px] font-semibold">II. Eligibility Requirements:</h3>
+                                                                        <ol className="list-decimal pl-5 space-y-1">
+                                                                            <li>Filipino Citizen;</li>
+                                                                            <li>Senior High school graduate with a minimum general weighted average (GWA) of 93% or its equivalent; and</li>
+                                                                            <li>Combined annual gross income of parents, or legal guardian should not exceed PhP500,000.00;</li>
+                                                                        </ol>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Col 2: III (1–4) */}
+                                                                <div className="space-y-3">
+                                                                    <div>
+                                                                        <h3 className="mb-1 text-[12px] font-semibold">III. Documentary Requirements:</h3>
+                                                                        <ol className="list-decimal pl-5 space-y-1">
+                                                                            <li>Accomplished Application Form;</li>
+                                                                            <li>Copy of Birth certificate issued by NSO or PSA;</li>
+                                                                            <li>Certified true copy of Form 138 (SF9), duly signed by the registrar;</li>
+                                                                            <li>
+                                                                                Financial - submit any one (1) of the following:
+                                                                                <ul className="mt-1 list-[circle] pl-5 space-y-1">
+                                                                                    <li>Latest Income Tax Return (ITR) of parents or guardian</li>
+                                                                                    <li>Certificate of Tax Exemption/Non-Filer from BIR;</li>
+                                                                                    <li>Certified true copy of contract/proof of income (OFW/Seafarers);</li>
+                                                                                    <li>Social Case Study Report from CSWD/MSWD.</li>
+                                                                                </ul>
+                                                                            </li>
+                                                                        </ol>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Col 3: III (5–6) */}
+                                                                <div className="space-y-3">
+                                                                    <ol start={5} className="list-decimal pl-5 space-y-1">
+                                                                        <li>
+                                                                            Other Requirements, if applicable
+                                                                            <ul className="mt-1 list-[circle] pl-5 space-y-1">
+                                                                                <li>PWD ID issued by CSWD/MSWD or Certification from PDAO;</li>
+                                                                                <li>Solo Parent ID from CSWD/MSWD;</li>
+                                                                                <li>Senior Citizen ID from CSWD/MSWD;</li>
+                                                                                <li>Underprivileged/Homeless certification from DHSUD/CSWD/MSWD;</li>
+                                                                                <li>Social Case Study Report under Magna Carta of the Poor / First-Gen Students</li>
+                                                                                <li>Indigenous Peoples Certification from NCIP.</li>
+                                                                            </ul>
+                                                                        </li>
+                                                                        <li>Notarized Certificate of Guardianship, if applicable.</li>
+                                                                    </ol>
+                                                                </div>
+
+                                                            </div>
 
 
-                                        {/* === CHED Memorandum (Thumbnail) === */}
-                                        <div className="lg:col-span-3">
-                                            <label className="mb-1 block text-sm font-medium">
-                                                CHED Memorandum: Gender and Development StuFAPs Slot Allocation For SY 2011-2012
-                                            </label>
-                                            <div className="flex items-center gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
+                                                        </CardContent>
+                                                    </Card>
+                                                    <div className="lg:col-span-3">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            CHED Memorandum Order No. 07 Series of 2023
+                                                        </label>
 
-                                                {/* Thumbnail preview */}
-                                                <a
-                                                    href="/files/memorandum.jpg"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="shrink-0"
-                                                >
-                                                    <img
-                                                        src="/files/memorandum.jpg"
-                                                        alt="CHED Memorandum"
-                                                        className="h-20 w-16 rounded-md border border-zinc-300 object-cover hover:opacity-90 dark:border-zinc-600"
-                                                    />
-                                                </a>
+                                                        <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
 
-                                                {/* Right side: link + dropdown */}
-                                                <div className="flex flex-col flex-1 gap-2">
-                                                    <a
-                                                        href="/files/memorandum.jpg"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-sm text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                                    >
-                                                        View Full Memorandum
-                                                    </a>
+                                                            {/* Thumbnails row - centered */}
+                                                            <div className="flex justify-center gap-4 overflow-x-auto pb-2">
+                                                                {[
+                                                                    "/files/CMO-NO.-7-S.-2023_page-0001.jpg",
+                                                                    "/files/CMO-NO.-7-S.-2023_page-0002.jpg",
+                                                                    "/files/CMO-NO.-7-S.-2023_page-0003.jpg",
+                                                                    "/files/CMO-NO.-7-S.-2023_page-0004.jpg",
+                                                                    "/files/CMO-NO.-7-S.-2023_page-0005.jpg",
+                                                                ].map((src, idx) => (
+                                                                    <a
+                                                                        key={idx}
+                                                                        href={src}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="shrink-0"
+                                                                    >
+                                                                        <img
+                                                                            src={src}
+                                                                            alt={`CHED Memorandum page ${idx + 1}`}
+                                                                            className="h-32 w-auto rounded-md border border-zinc-300 object-cover hover:opacity-90 dark:border-zinc-600"
+                                                                        />
+                                                                    </a>
+                                                                ))}
+                                                            </div>
 
-                                                    <select
-                                                        className="w-full sm:w-64 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-      focus:border-blue-500 focus:ring focus:ring-blue-200 
-      dark:border-zinc-700 dark:bg-zinc-900"
-                                                    >
-                                                        <option value="">Choose</option>
-                                                        <option value="Bachelor of Marine and Transportation">Bachelor of Marine and Transportation</option>
-                                                    </select>
+                                                            {/* Link to full PDF */}
+                                                            <div className="text-center">
+                                                                <a
+                                                                    href="/files/CMO-NO.-7-S.-2023.pdf"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-sm text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                                >
+                                                                    View Full CMO No. 07 Series of 2023 (PDF)
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+
                                                 </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </section>
 
-                                            </div>
-                                        </div>
-
-
-
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </section>
-
-                        {/* Additional Information Section */}
-                        <section className="w-full">
-                            <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-
-                                <CardContent className="space-y-8">
-                                    {/* === Application Form Upload === */}
-                                    <div>
-                                        <label className="mb-1 block text-sm font-medium">
-                                            Accomplished Application Form (PDF file only){" "}
-                                            <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="file"
-                                            accept="application/pdf"
-                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm
-                                                file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
-                                                file:text-sm file:font-medium file:text-white 
-                                                hover:file:bg-[#25468a] 
-                                                focus:border-blue-500 focus:ring focus:ring-blue-200
-                                                dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]"
-                                        />
-                                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                            Upload 1 file only. Max size 10 MB.
-                                        </p>
-                                    </div>
-
-
-                                    {/* === Senior High School === */}
-                                    <div>
-
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                            <div className="lg:col-span-2">
-                                                <label className="mb-1 block text-sm font-medium">
-                                                    Name of Senior High School Attended/Graduated in (Strictly no abbreviation){" "}
-                                                    <span className="text-red-500">*</span>
-                                                </label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">
-                                                    School Address (Senior High School) <span className="text-red-500">*</span>
-                                                </label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* === Parents Information === */}
-                                    <div>
-
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                            {/* Father */}
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Father’s Full Name <span className="text-red-500">*</span></label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Father’s Occupation <span className="text-red-500">*</span></label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Father’s Gross Monthly Income <span className="text-red-500">*</span></label>
-                                                <input type="number" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Father’s Gross Yearly Income <span className="text-red-500">*</span></label>
-                                                <select className="input-primary">
-                                                    <option value="">Choose</option>
-                                                    <option value="0-70,000">0 - 70,000</option>
-                                                    <option value="70,001-136,000">70,001 - 136,000</option>
-                                                    <option value="136,001-202,000">136,001 - 202,000</option>
-                                                    <option value="202,001-268,000">202,001 - 268,000</option>
-                                                    <option value="268,001-334,000">268,001 - 334,000</option>
-                                                    <option value="334,001-400,000">334,001 - 400,000</option>
-                                                    <option value="400,001-500,000">400,001 - 500,000</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Mother */}
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Mother’s Full Name <span className="text-red-500">*</span></label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Mother’s Occupation <span className="text-red-500">*</span></label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Mother’s Gross Monthly Income <span className="text-red-500">*</span></label>
-                                                <input type="number" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Mother’s Gross Yearly Income <span className="text-red-500">*</span></label>
-                                                <select className="input-primary">
-                                                    <option value="">Choose</option>
-                                                    <option value="0-70,000">0 - 70,000</option>
-                                                    <option value="70,001-136,000">70,001 - 136,000</option>
-                                                    <option value="136,001-202,000">136,001 - 202,000</option>
-                                                    <option value="202,001-268,000">202,001 - 268,000</option>
-                                                    <option value="268,001-334,000">268,001 - 334,000</option>
-                                                    <option value="334,001-400,000">334,001 - 400,000</option>
-                                                    <option value="400,001-500,000">400,001 - 500,000</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* === Guardian Information === */}
-                                    <div>
-
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Guardian’s Full Name or N/A <span className="text-red-500">*</span></label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Guardian’s Occupation or N/A <span className="text-red-500">*</span></label>
-                                                <input type="text" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">Guardian’s Gross Monthly Income or N/A <span className="text-red-500">*</span></label>
-                                                <input type="number" placeholder="Your answer"
-                                                    className="input-primary" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* === Academic Performance === */}
-                                    <div>
-
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">General Weighted Average (GWA) of 1st Semester Grade 11 <span className="text-red-500">*</span></label>
-                                                <input type="number" placeholder="Value (80-100)" className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">General Weighted Average (GWA) of 2nd Semester Grade 11 <span className="text-red-500">*</span></label>
-                                                <input type="number" placeholder="Value (80-100)" className="input-primary" />
-                                            </div>
-                                            <div>
-                                                <label className="mb-1 block text-sm font-medium">General Weighted Average (GWA) of 1st Semester Grade 12 <span className="text-red-500">*</span></label>
-                                                <input type="number" placeholder="Value (80-100)" className="input-primary" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* === Required Documents === */}
-                                    <div>
-
-                                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                            {[
-                                                "Grades/Report Card of 1st Semester in Grade 11",
-                                                "Grades/Report Card of 2nd Semester in Grade 11",
-                                                "Grades/Report Card of 1st Semester in Grade 12",
-                                                "Birth Certificate",
-                                            ].map((label, idx) => (
-                                                <div key={idx}>
-                                                    <label className="mb-1 block text-sm font-medium">
-                                                        {label} <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">NOTE: Whole page is readable and please do not crop!</p>
-                                                    <input
-                                                        type="file"
-                                                        accept="application/pdf"
-                                                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm
-                                                            file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
-                                                            file:text-sm file:font-medium file:text-white
-                                                            hover:file:bg-[#25468a]
-                                                            focus:border-blue-500 focus:ring focus:ring-blue-200
-                                                            dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    {/* === Proof of Income === */}
-                                    <div>
-                                        <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                                            Proof of Income  (any 1 of the following)  <span className="text-red-500">*</span>
-                                        </h3>
-                                        <ul className="mb-2 list-disc pl-5 text-xs text-zinc-600 dark:text-zinc-400">
-                                            <li>Latest ITR of parents or guardian if employed</li>
-                                            <li>Certificate of Tax Exemption/Non-Filer issued by BIR</li>
-                                            <li>Certified true copy of latest contract or proof of income (for children of Overseas Filipino Workers and Seafarers)</li>
-                                            <li>Social Case Study Report issued by CSWD/MSWD</li>
-                                        </ul>
-                                        <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-                                            NOTE: Whole page is readable and please do not crop!
-                                        </p>
-                                        <input
-                                            type="file"
-                                            accept="application/pdf"
-                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm
-                                                file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 
-                                                file:text-sm file:font-medium file:text-white 
-                                                hover:file:bg-[#25468a] 
-                                                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]"
-                                        />
-                                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Upload 1 supported PDF file. Max 10 MB.</p>
-                                    </div>
-
-                                    {/* === Special Group === */}
-                                    <div>
-                                        <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                                            Check if the applicant belongs to a Special Group{" "}
-                                            <span className="text-red-500">*</span>
-                                        </h3>
-                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm">
-                                            {/* Left column */}
-                                            <div className="space-y-2">
-                                                {[
-                                                    "Person With Disability (PWD)",
-                                                    "Solo Parent",
-                                                    "Dependent Solo Parent",
-                                                    "Underprivileged  and Homeless Citizens",
-                                                    "Magna Carta for the Poor",
-                                                ].map((option, idx) => (
-                                                    <label key={idx} className="flex items-center gap-2">
-                                                        <input type="checkbox" className="h-4 w-4" />
-                                                        {option}
-                                                    </label>
-                                                ))}
-                                            </div>
-
-                                            {/* Right column */}
-                                            <div className="space-y-2">
-                                                {[
-
-                                                    "First Generation Students (first in the family to attend college or university)",
-                                                    "Student Senior Citizen",
-                                                    "Indigenous People (IP)",
-                                                    "N/A", // always last in the right column
-                                                ].map((option, idx) => (
-                                                    <label key={idx} className="flex items-center gap-2">
-                                                        <input type="checkbox" className="h-4 w-4" />
-                                                        {option}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-
-                                    {/* === Proof of Special Group & Certificate of Guardianship === */}
-                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                        {/* === Proof of Special Group === */}
-                                        <div>
-                                            <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                                                Proof of Special Group
-                                            </h3>
-                                            <ul className="mb-2 list-disc pl-5 text-xs text-zinc-600 dark:text-zinc-400">
-                                                <li>PWD ID</li>
-                                                <li>Solo parent ID</li>
-                                                <li>Student Senior Citizen ID</li>
-                                                <li>NCIP Certification</li>
-                                                <li>Underprivileged and Homeless Citizens Certification issued by DHSUD or C/MSWD</li>
-                                                <li>
-                                                    Social Case Study Report issued by C/MSWD covered under Magna Carta for the Poor and/or First Generation Students
-                                                </li>
-                                            </ul>
-                                            <p className="text-xs text-justify text-zinc-500 dark:text-zinc-400">
-                                                Additional five (5) points in the total score are given to applicants belonging
-                                                to the special group of persons such as the Underprivileged and Homeless Citizens
-                                                under Republic Act (RA) No. 7279, Persons with Disability (PWD) under RA No. 7277
-                                                as amended, Solo Parents and/or their Dependents under RA 8972, Senior Citizens
-                                                under RA 9994, and Indigenous Peoples under RA 8371, after complying with all the
-                                                requirements herein set forth.
-                                            </p>
-                                            <p className="mb-2 mt-4 text-xs text-zinc-500 dark:text-zinc-400">
-                                                NOTE: Upload 1 supported file: PDF. Max 10 MB.
-                                            </p>
-                                            <input
-                                                type="file"
-                                                accept="application/pdf"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm
-                                                    file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 
-                                                    file:text-sm file:font-medium file:text-white 
-                                                    hover:file:bg-[#25468a] 
-                                                    focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                    dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]"
-                                            />
-                                        </div>
-
-                                        {/* === Certificate of Guardianship === */}
-                                        <div>
-                                            <label className="mb-1 block text-sm font-medium">
-                                                Notarized Certificate of Guardianship, issued by the legal
-                                                guardian of the student applicant, if applicable.
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept="application/pdf"
-                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                    file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 
-                                                    file:text-sm file:font-medium file:text-white 
-                                                    hover:file:bg-[#25468a] 
-                                                    focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                    dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]"
-                                            />
-                                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                                Upload 1 supported file: PDF. Max 10 MB.
-                                            </p>
-                                        </div>
-                                    </div>
+                            </TabsContent>
+                        </Tabs>
 
 
 
 
-                                </CardContent>
-                            </Card>
-                        </section>
-
-                        {/* === Certification & Data Privacy Consent === */}
-                        <section className="w-full">
-                            <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
 
 
-                                <CardContent className="space-y-6 text-sm text-zinc-700 dark:text-zinc-300">
-                                    {/* Ranking Info */}
-                                    <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 text-sm 
-                dark:border-amber-900 dark:bg-amber-950/30">
-                                        <p className="mb-2 text-amber-900 dark:text-amber-200">
-                                            The ranking shall be used by selecting the most qualified applicants based on
-                                            the requirements. The ranking shall be made according to the following
-                                            percentage distribution:
-                                        </p>
-                                        <ul className="ml-4 list-disc space-y-1 text-amber-800 dark:text-amber-300">
-                                            <li>
-                                                Academic Performance – <span className="font-semibold">70%</span>
-                                            </li>
-                                            <li>
-                                                Annual Gross Income – <span className="font-semibold">30%</span>
-                                            </li>
-                                            <li>
-                                                TOTAL – <span className="font-semibold">100%</span>
-                                            </li>
-                                        </ul>
-                                        <p className="mt-2 font-medium text-amber-900 dark:text-amber-200">
-                                            Good luck and God bless!
-                                        </p>
-                                    </div>
-
-
-                                    {/* Certification & Consent */}
-                                    <div>
-                                        <p className="mb-3 text-justify text-sm leading-relaxed">
-                                            I hereby certify that the foregoing statements are true and correct. Any
-                                            misinformation or withholding of information will automatically disqualify me
-                                            from the CHED Scholarship Program. I am willing to refund the financial
-                                            benefits received if such information is discovered after acceptance of the
-                                            award.
-                                        </p>
-                                        <p className="mb-3 text-justify text-sm leading-relaxed">
-                                            I hereby express my consent for the Commission on Higher Education to collect,
-                                            record, organize, update or modify, retrieve, consult, use, consolidate, block,
-                                            erase, or destruct my personal data as part of my information. I hereby affirm
-                                            my right to be informed, object to processing, access and rectify, suspend or
-                                            withdraw my personal data and be indemnified in case of damages pursuant to the
-                                            provisions of the Republic Act No. 10173 of the Philippines, Data Privacy Act
-                                            of 2012 and its corresponding Implementing Rules and Regulations.
-                                        </p>
-
-                                        {/* Checkbox */}
-                                        <label className="flex items-center gap-2 text-sm font-medium">
-                                            <input type="checkbox" className="h-4 w-4" /> Yes <span className="text-red-500">*</span>
-                                        </label>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </section>
-
-                        {/* === Submit Button Section === */}
-                        <section className="w-full">
-                            <div className="flex justify-center pt-6">
-                                <Button
-                                    type="submit"
-                                    disabled={incoming === "no" || incoming === null}
-                                    className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
-                                        hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
-                                        disabled:cursor-not-allowed disabled:opacity-50
-                                        dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
-                                >
-                                    Submit Application
-                                </Button>
-                            </div>
-                        </section>
 
 
                     </main>
+
                 </div>
 
                 <div className="hidden h-14.5 lg:block"></div>

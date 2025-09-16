@@ -12,16 +12,17 @@ use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\SchoolController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\CmspApplicationController;
 
 
-Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
+Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
 Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
 Route::get('/api/schools', [SchoolController::class, 'index']);
 Route::get('/api/courses', [CourseController::class, 'index']);
 
-
+Route::post('/cmsps/apply', [CmspApplicationController::class, 'store'])->name('cmsps.apply');
 
 Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function () {
     
