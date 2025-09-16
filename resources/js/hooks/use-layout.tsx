@@ -5,7 +5,7 @@ export type LayoutOption = 'sidebar' | 'header';
 const STORAGE_KEY = 'layoutPreference';
 
 export function useLayout() {
-  const [layout, setLayout] = useState<LayoutOption>('sidebar');
+  const [layout, setLayout] = useState<LayoutOption>('header');
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as LayoutOption | null;

@@ -39,32 +39,24 @@ const handleSystemThemeChange = () => {
 };
 
 export function initializeTheme() {
-    const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'system';
-
+    const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'light'; // ✅ default light
     applyTheme(savedAppearance);
-
-    // Add the event listener for system theme changes...
     mediaQuery()?.addEventListener('change', handleSystemThemeChange);
 }
 
 export function useAppearance() {
-    const [appearance, setAppearance] = useState<Appearance>('system');
+    const [appearance, setAppearance] = useState<Appearance>('light'); // ✅ default light
 
     const updateAppearance = useCallback((mode: Appearance) => {
         setAppearance(mode);
-
-        // Store in localStorage for client-side persistence...
-        localStorage.setItem('appearance', mode);
-
-        // Store in cookie for SSR...
-        setCookie('appearance', mode);
-
+        localStorage.setItem('appearance', mode); // client persistence
+        setCookie('appearance', mode);            // SSR persistence
         applyTheme(mode);
     }, []);
 
     useEffect(() => {
         const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-        updateAppearance(savedAppearance || 'system');
+        updateAppearance(savedAppearance || 'light'); // ✅ fallback to light
 
         return () => mediaQuery()?.removeEventListener('change', handleSystemThemeChange);
     }, [updateAppearance]);
