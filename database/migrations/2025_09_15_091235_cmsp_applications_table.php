@@ -34,12 +34,25 @@ return new class extends Migration {
             $table->string('zip_code', 12)->nullable();
             $table->string('district');
 
+
+                 // Address for BARMM B applicants (optional)
+            $table->string('barmm_province')->nullable();
+            $table->string('barmm_municipality')->nullable();
+            $table->string('barmm_barangay')->nullable();
+            $table->string('barmm_purok_street')->nullable();
+            $table->string('barmm_zip_code', 12)->nullable();
+
+
+
             // Education choices
             $table->string('intended_school');
             $table->enum('school_type', ['Public','LUC','Private']);
             $table->string('other_school')->nullable();
             $table->string('year_level');
             $table->string('course');
+
+            // CHED Memorandum dropdown (optional)
+            $table->string('gad_stufaps_course')->nullable();
 
             // Senior High School
             $table->string('shs_name');

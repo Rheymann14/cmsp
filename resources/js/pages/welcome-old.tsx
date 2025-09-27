@@ -1,8 +1,7 @@
 // resources/js/Pages/welcome.tsx
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
-import { useState, useEffect, useRef, useMemo } from 'react';
-
+import { useState, useEffect, useRef } from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
 import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -65,8 +64,6 @@ export default function Welcome() {
     const [hasAppForm, setHasAppForm] = useState(false);
 
     const [successOpen, setSuccessOpen] = useState(false);
-
-
 
     // confetti viewport size
     const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -181,9 +178,9 @@ export default function Welcome() {
     };
 
     // Build a quick "required but empty" map using FormData
-    const buildClientRequiredErrors = (fd: FormData, region: string) => {
-        // keep base rules
-        const BASE_REQUIRED = [
+    const buildClientRequiredErrors = (fd: FormData) => {
+        // Keep this list aligned with your Controller "required" rules
+        const REQUIRED = [
             "incoming",
             "lrn",
             "email",
@@ -193,18 +190,17 @@ export default function Welcome() {
             "middle_name",
             "birthdate",
             "sex",
-            "maiden_name",
-
-            "ethnicity",
-            "religion",
-            // address fields are added per region below
+            "province_municipality",
+            "barangay",
+            "purok_street",
+            "zip_code",
+            "district",
             "intended_school",
             "school_type",
             "year_level",
             "course",
             "shs_name",
             "shs_address",
-            "shs_school_type",
             "father_name",
             "father_occupation",
             "father_income_monthly",
@@ -216,38 +212,19 @@ export default function Welcome() {
             "guardian_name",
             "guardian_occupation",
             "guardian_income_monthly",
+            "gwa_g11_s1",
+            "gwa_g11_s2",
             "gwa_g12_s1",
-            "gwa_g12_s2",
             "special_groups[]",
             "consent",
             // files
             "application_form",
+            "grades_g11_s1",
+            "grades_g11_s2",
             "grades_g12_s1",
-            "grades_g12_s2",
             "birth_certificate",
             "proof_of_income",
-        ] as const;
-
-        const REGION_XII_REQUIRED = [
-            "province_municipality",
-            "barangay",
-            "purok_street",
-            "zip_code",
-            "district",
-        ] as const;
-
-        const BARMM_REQUIRED = [
-            "barmm_province",
-            "barmm_municipality",
-            "barmm_barangay",
-            "barmm_purok_street",
-            "barmm_zip_code",
-        ] as const;
-
-        const REQUIRED = [
-            ...BASE_REQUIRED,
-            ...(region === "Region XII" ? REGION_XII_REQUIRED : []),
-            ...(region === "BARMM" ? BARMM_REQUIRED : []),
+            // "proof_special_group" is conditional; server will enforce if needed
         ] as const;
 
         const errs: Record<string, string> = {};
@@ -258,6 +235,7 @@ export default function Welcome() {
                 if (!vals.length) errs[name] = "This field is required.";
                 continue;
             }
+
             const val = fd.get(name);
             if (val instanceof File) {
                 if (!val || val.size === 0) errs[name] = "Please upload a PDF.";
@@ -268,7 +246,6 @@ export default function Welcome() {
         }
         return errs;
     };
-
 
     const highlightInvalidFields = (errorMap: Record<string, string>) => {
         clearInvalidMarks();
@@ -346,21 +323,6 @@ export default function Welcome() {
     const [openNameExt, setOpenNameExt] = useState(false);
     const [nameRegion, setRegion] = useState<string>("");
     const [openRegion, setOpenRegion] = useState(false);
-
-    // --- Ethnicity
-    const [ethnicityId, setEthnicityId] = useState<number | null>(null);
-    const [ethnicityLabel, setEthnicityLabel] = useState<string>("");
-    const [openEthnicity, setOpenEthnicity] = useState(false);
-    const [ethnicities, setEthnicities] = useState<{ id: number; label: string }[]>([]);
-    const [loadingEthnicities, setLoadingEthnicities] = useState(true);
-
-    // --- Religion
-    const [religionId, setReligionId] = useState<number | null>(null);
-    const [religionLabel, setReligionLabel] = useState<string>("");
-    const [openReligion, setOpenReligion] = useState(false);
-    const [religions, setReligions] = useState<{ id: number; label: string }[]>([]);
-    const [loadingReligions, setLoadingReligions] = useState(true);
-
     const [provinceId, setProvinceId] = useState<number | null>(null);
     const [provinceLabel, setProvinceLabel] = useState<string>("");
     const [openProvince, setOpenProvince] = useState(false);
@@ -370,44 +332,16 @@ export default function Welcome() {
     const [schoolId, setSchoolId] = useState<number | null>(null);
     const [schoolLabel, setSchoolLabel] = useState<string>("");
     const [openSchool, setOpenSchool] = useState(false);
-    const [schoolQuery, setSchoolQuery] = useState("");
-    const OTHERS_LABEL = "OTHERS";
     const [yearLevel, setYearLevel] = useState<string>("Incoming First Year");
     const [openYearLevel, setOpenYearLevel] = useState(false);
-    const [sex, setSex] = useState<'' | 'male' | 'female'>('');
     const [courseId, setCourseId] = useState<number | null>(null);
     const [courseLabel, setCourseLabel] = useState<string>("");
     const [openCourse, setOpenCourse] = useState(false);
     const [locations, setLocations] = useState<{ id: number; label: string }[]>([]);
     const [loadingLocations, setLoadingLocations] = useState(true);
 
-    // --- Parents income helpers ---
-    const [fatherMonthly, setFatherMonthly] = useState<string>("");
-    const [motherMonthly, setMotherMonthly] = useState<string>("");
 
-    const getYearly = (m: string) => {
-        const v = Number((m || "").replace(/\D/g, ""));
-        return Number.isFinite(v) ? v * 12 : 0;
-    };
-    const fmt = (n: number) => n.toLocaleString("en-PH");
-
-
-    const formLocked = false;
-
-    function clearFile(
-        input: HTMLInputElement | null | undefined,
-        onCleared?: () => void
-    ) {
-        if (!input) return;
-        // clear the file input
-        input.value = "";
-        // make sure any listeners update their state
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-        // optional callback to flip local state (e.g., hasFileMap[name] = false)
-        onCleared?.();
-        // return focus for accessibility
-        input.focus();
-    }
+    const formLocked = incoming === 'no';
 
     const SPECIAL_GROUP_NAME = 'special_groups[]';
 
@@ -422,13 +356,19 @@ export default function Welcome() {
         );
         const na = boxes.find((b) => b.value === 'N/A');
 
-        const naChecked = !!na?.checked;
-        if (na) na.disabled = false;        // N/A itself always clickable
-        boxes.forEach((b) => {              // Others disabled only when N/A is checked
-            if (b !== na) b.disabled = naChecked;
-        });
-    };
+        if (formLocked) {
+            // global lock wins
+            boxes.forEach((b) => (b.disabled = true));
 
+            return;
+        }
+
+        // normal N/A behavior
+        const naChecked = !!na?.checked;
+        if (na) na.disabled = false; // N/A itself stays clickable when not locked
+        boxes.forEach((b) => { if (b !== na) b.disabled = naChecked; });
+
+    };
 
     const handleSpecialGroupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (formLocked) return;
@@ -468,12 +408,11 @@ export default function Welcome() {
     };
 
     useEffect(() => {
-        if (naSelected && proofSpecialRef.current) {
+        if ((formLocked || naSelected) && proofSpecialRef.current) {
             proofSpecialRef.current.value = "";
             if (hasProofSpecial) setHasProofSpecial(false);
         }
-    }, [naSelected, hasProofSpecial]);
-
+    }, [formLocked, naSelected, hasProofSpecial]);
 
     useEffect(() => {
         const onScroll = () => setOpen(false);
@@ -528,61 +467,6 @@ export default function Welcome() {
             .finally(() => setLoadingSchools(false));
     }, []);
 
-    // Ethnicities
-    useEffect(() => {
-        fetch("/api/ethnicities", {
-            headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
-        })
-            .then((res) => res.json())
-            .then((data) => setEthnicities(data.data || []))
-            .catch(() => setEthnicities([]))
-            .finally(() => setLoadingEthnicities(false));
-    }, []);
-
-    // Religions
-    useEffect(() => {
-        fetch("/api/religions", {
-            headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
-        })
-            .then((res) => res.json())
-            .then((data) => setReligions(data.data || []))
-            .catch(() => setReligions([]))
-            .finally(() => setLoadingReligions(false));
-    }, []);
-
-
-    const sortedSchools = useMemo(() => {
-        return [...schools].sort((a, b) => {
-            const aIsOthers = a.label?.trim().toLowerCase() === "others";
-            const bIsOthers = b.label?.trim().toLowerCase() === "others";
-            if (aIsOthers && !bIsOthers) return 1;
-            if (!aIsOthers && bIsOthers) return -1;
-            return (a.label || "").localeCompare(b.label || "");
-        });
-    }, [schools]);
-
-    const othersId = useMemo(
-        () => schools.find(s => s.label?.trim().toLowerCase() === "others")?.id ?? null,
-        [schools]
-    );
-
-    const isOthersSelected = useMemo(() => {
-        const byId = othersId !== null && schoolId === othersId;
-        const byLabel = (schoolLabel || "").trim().toLowerCase() === "others";
-        return byId || byLabel;
-    }, [othersId, schoolId, schoolLabel]);
-
-    useEffect(() => {
-        if (!isOthersSelected) {
-            const el = document.querySelector<HTMLInputElement>('[name="other_school"]');
-            if (el) {
-                el.value = "";
-                // fire a change so your draft persister picks it up
-                el.dispatchEvent(new Event("change", { bubbles: true }));
-            }
-        }
-    }, [isOthersSelected]);
-
 
     const [courses, setCourses] = useState<{ id: number; label: string; category?: string }[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
@@ -606,23 +490,10 @@ export default function Welcome() {
         draftRef.current = saved;
         const sg = saved[SPECIAL_GROUP_NAME];
         if (Array.isArray(sg)) setNaSelected(sg.includes("N/A"));
-        if (typeof saved.region === 'string') setRegion(saved.region);
-        if (typeof saved.sex === 'string') setSex(saved.sex as 'male' | 'female' | '');
+
         // hydrate controlled pieces
         if (typeof saved.incoming === 'string') setIncoming(saved.incoming);
         if (typeof saved.name_extension === 'string') setNameExt(saved.name_extension);
-        if (typeof saved.ethnicity === "string") {
-            const n = Number(saved.ethnicity);
-            setEthnicityId(Number.isFinite(n) ? n : null);
-        }
-        if (typeof saved.ethnicity_label === "string") setEthnicityLabel(saved.ethnicity_label);
-
-        if (typeof saved.religion === "string") {
-            const n = Number(saved.religion);
-            setReligionId(Number.isFinite(n) ? n : null);
-        }
-        if (typeof saved.religion_label === "string") setReligionLabel(saved.religion_label);
-
         if (typeof saved.province_municipality === 'string') {
             const n = Number(saved.province_municipality);
             setProvinceId(Number.isFinite(n) ? n : null);
@@ -654,13 +525,6 @@ export default function Welcome() {
             setCourseLabel(saved.course_label);
         }
 
-        if (typeof saved.father_income_monthly === 'string') {
-            setFatherMonthly(saved.father_income_monthly);
-        }
-        if (typeof saved.mother_income_monthly === 'string') {
-            setMotherMonthly(saved.mother_income_monthly);
-        }
-
 
         if (saved.birthdate) setDate(parseISO(saved.birthdate));
 
@@ -671,16 +535,41 @@ export default function Welcome() {
     }, []);
 
     useEffect(() => {
-        if (sex === 'female') {
-            const form = document.getElementById('cmspForm') as HTMLFormElement | null;
-            const saved = draftRef.current || {};
-            if (form && typeof saved.maiden_name === 'string') {
-                const el = form.querySelector<HTMLInputElement>('[name="maiden_name"]');
-                if (el) el.value = saved.maiden_name;
-            }
-        }
-    }, [sex]);
+        if (!formLocked) return;
 
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
+
+        // clear every file input (temporarily enable so change event can fire)
+        const fileInputs = Array.from(
+            form.querySelectorAll<HTMLInputElement>('input[type="file"]')
+        );
+        fileInputs.forEach((input) => {
+            const wasDisabled = input.disabled;
+            if (wasDisabled) input.disabled = false;
+            input.value = '';
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            if (wasDisabled) input.disabled = true;
+        });
+
+        // reset your local flags
+        setHasAppForm(false);
+        setHasProofIncome(false);
+        setHasGuardianship(false);
+        setHasProofSpecial(false);
+        setHasFileMap({});
+    }, [formLocked]);
+
+    const clearFile = (input: HTMLInputElement | null, after?: () => void) => {
+        if (!input) return;
+        const wasDisabled = input.disabled;
+        if (wasDisabled) input.disabled = false;
+        input.value = '';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        if (wasDisabled) input.disabled = true;
+        after?.();
+        input.focus();
+    };
 
     // Form-level change/input listeners: keep draft updated while the user types
     useEffect(() => {
@@ -719,7 +608,28 @@ export default function Welcome() {
         };
     }, []);
 
+    // Disable/enable all controls when incoming === "no", except the "incoming" radios
+    useEffect(() => {
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) return;
 
+        const shouldDisable = incoming === 'no';
+
+        const controls = form.querySelectorAll<
+            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement
+        >('input, select, textarea, button');
+
+        controls.forEach((el) => {
+            // keep the "Incoming 1st year" radios interactive
+            if ((el as HTMLInputElement).name === 'incoming') return;
+
+            el.disabled = shouldDisable;
+
+            // optional: remove focus from disabled elements
+            if (shouldDisable) el.blur();
+        });
+        enforceSpecialGroupRule();
+    }, [incoming]);
 
 
 
@@ -775,9 +685,6 @@ export default function Welcome() {
         // Bridge UI state (from your Command/Popover, date picker, radios) → FormData
         fd.set('incoming', incoming ?? '');                 // "yes" | "no"
         fd.set('name_extension', nameExt || '');
-        fd.set("ethnicity", ethnicityId ? String(ethnicityId) : "");
-        fd.set("religion", religionId ? String(religionId) : "");
-
         fd.set('province_municipality', provinceId ? String(provinceId) : '');
         fd.set('district', districtId ? String(districtId) : '');
         fd.set('intended_school', schoolId ? String(schoolId) : '');
@@ -786,8 +693,7 @@ export default function Welcome() {
         fd.set('birthdate', date ? format(date, 'yyyy-MM-dd') : '');
 
         clearInvalidMarks();
-        const clientErrs = buildClientRequiredErrors(fd, nameRegion || "");
-
+        const clientErrs = buildClientRequiredErrors(fd);
         if (Object.keys(clientErrs).length) {
             highlightInvalidFields(clientErrs);
             toast.error("Please fill all required fields.", { id: "cmsp-submit" });
@@ -846,7 +752,6 @@ export default function Welcome() {
                 setYearLevel('');
                 setCourseId(null); setCourseLabel('');
                 setDate(undefined);
-                setSex('');
 
                 setSuccessOpen(true);
             },
@@ -1109,18 +1014,8 @@ export default function Welcome() {
                                     <section className="w-full mt-4">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
-                                                <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
-                                                    <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
-                                                        aria-hidden
-                                                    >
-                                                        1
-                                                    </span>
-                                                    Step 1: Eligibility & Region
+                                                <CardTitle className="text-sm font-semibold tracking-tight">
+                                                    Applicant Information
                                                 </CardTitle>
                                             </CardHeader>
 
@@ -1161,7 +1056,11 @@ export default function Welcome() {
                                                                 If NO, you are not qualified to apply.
                                                             </label>
                                                         </div>
-
+                                                        {incoming === 'no' && (
+                                                            <p className="mt-2 text-xs text-red-600">
+                                                                You are not eligible. All fields have been disabled.
+                                                            </p>
+                                                        )}
                                                     </div>
 
                                                     {/* Select Region */}
@@ -1218,25 +1117,15 @@ export default function Welcome() {
                                     <section className="w-full mt-4">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
-                                                    <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
-                                                        aria-hidden
-                                                    >
-                                                        2
-                                                    </span>
-                                                    Step 2: Personal Information
+                                                <CardTitle className="text-sm font-semibold tracking-tight">
+                                                    Applicant Information
                                                 </CardTitle>
                                             </CardHeader>
 
                                             <CardContent className="space-y-6">
 
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
+                                           
 
                                                     {/* LRN (Learner Reference Number) */}
                                                     <div className="md:col-span-1">
@@ -1257,12 +1146,22 @@ export default function Welcome() {
                                                             Your LRN is a 12-digit number issued by DepEd.
                                                         </p>
                                                     </div>
+                                                </div>
+
+
+
+
+
+                                                {/* Grid 2–3 cols */}
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
                                                     {/* Email */}
                                                     <div>
                                                         <label className="mb-1 block text-sm font-medium">Email (Active Email Address) <span className="text-red-500">*</span></label>
                                                         <input type="email" name="email" placeholder="Your answer"
                                                             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
                                                     </div>
+
                                                     {/* Contact Number */}
                                                     <div>
                                                         <label className="mb-1 block text-sm font-medium">
@@ -1299,18 +1198,6 @@ export default function Welcome() {
                                                         />
 
                                                     </div>
-                                                </div>
-
-
-
-
-
-                                                {/* Grid 2–3 cols */}
-                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-
-
-
 
 
                                                     {/* Last Name */}
@@ -1334,65 +1221,12 @@ export default function Welcome() {
                                                             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
                                                     </div>
 
-                                                    {/* Sex (Radio) */}
+                                                    {/* Maiden Name */}
                                                     <div>
-                                                        <label className="mb-1 block text-sm font-medium">
-                                                            Sex <span className="text-red-500">*</span>
-                                                        </label>
-                                                        <div className="flex flex-row gap-6" data-group="sex">
-                                                            <label className="flex items-center gap-2 text-sm">
-                                                                <input
-                                                                    type="radio"
-                                                                    name="sex"
-                                                                    className="h-4 w-4"
-                                                                    value="male"
-                                                                    checked={sex === 'male'}
-                                                                    onChange={(e) => {
-                                                                        setSex('male');
-                                                                        persistDraft('sex', 'male');
-                                                                        // clear any previously typed maiden name if switching away from female
-                                                                        persistDraft('maiden_name', '');
-                                                                        const el = document.querySelector<HTMLInputElement>('[name="maiden_name"]');
-                                                                        if (el) el.value = '';
-                                                                    }}
-                                                                />
-                                                                Male
-                                                            </label>
-                                                            <label className="flex items-center gap-2 text-sm">
-                                                                <input
-                                                                    type="radio"
-                                                                    name="sex"
-                                                                    className="h-4 w-4"
-                                                                    value="female"
-                                                                    checked={sex === 'female'}
-                                                                    onChange={(e) => {
-                                                                        setSex('female');
-                                                                        persistDraft('sex', 'female');
-                                                                    }}
-                                                                />
-                                                                Female
-                                                            </label>
-                                                        </div>
+                                                        <label className="mb-1 block text-sm font-medium">Maiden Name (for Married Women)</label>
+                                                        <input type="text" name="maiden_name" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
                                                     </div>
-
-                                                    {/* Maiden Name (only when Female) */}
-                                                    {sex === 'female' && (
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Maiden Name (for Married Women) <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="maiden_name"
-                                                                placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
-
-                                                                required
-                                                                onChange={(e) => persistDraft('maiden_name', e.currentTarget.value)}
-                                                            />
-                                                        </div>
-                                                    )}
-
 
                                                     {/* Name Extension (Command searchable) */}
                                                     <div>
@@ -1482,55 +1316,67 @@ export default function Welcome() {
                                                         </Popover>
                                                     </div>
 
-                                                    <label className="flex items-center gap-2 text-sm font-medium">
-                                                        <input type="checkbox" name="working" className="h-4 w-4" value="yes" />
-                                                        I am a working student
-                                                    </label>
 
-                                                    {/* Ethnicity (searchable) */}
+
+                                                    {/* Sex (Radio) */}
                                                     <div>
+                                                        <label className="mb-1 block text-sm font-medium">Sex <span className="text-red-500">*</span></label>
+                                                        <div className="flex flex-col gap-2" data-group="sex">
+                                                            <label className="flex items-center gap-2 text-sm">
+                                                                <input type="radio" name="sex" className="h-4 w-4" value="male" /> Male
+                                                            </label>
+                                                            <label className="flex items-center gap-2 text-sm">
+                                                                <input type="radio" name="sex" className="h-4 w-4" value="female" /> Female
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Province & Municipality */}
+                                                    <div className="md:col-span-2">
                                                         <label className="mb-1 block text-sm font-medium">
-                                                            Ethnicity <span className="text-red-500">*</span>
+                                                            Province & Municipality <span className="text-red-500">*</span>
                                                         </label>
-                                                        <Popover open={openEthnicity} onOpenChange={setOpenEthnicity}>
+
+                                                        <Popover open={openProvince} onOpenChange={setOpenProvince}>
                                                             <PopoverTrigger asChild>
                                                                 <Button
                                                                     variant="outline"
                                                                     role="combobox"
                                                                     className="w-full justify-between"
-                                                                    data-field="ethnicity"
+                                                                    data-field="province_municipality"
                                                                 >
-                                                                    {ethnicityLabel || "Select ethnicity"}
+                                                                    {provinceLabel || "Select location"}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
+
                                                             <PopoverContent
-                                                                className="w-[var(--radix-popover-trigger-width)] p-0"
+                                                                className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
                                                                 align="start"
                                                                 sideOffset={8}
                                                             >
                                                                 <Command>
-                                                                    <CommandInput placeholder="Search ethnicity..." />
+                                                                    <CommandInput placeholder="Search location..." />
                                                                     <CommandList>
-                                                                        {loadingEthnicities ? (
+                                                                        {loadingLocations ? (
                                                                             <CommandEmpty>Loading...</CommandEmpty>
-                                                                        ) : ethnicities.length === 0 ? (
-                                                                            <CommandEmpty>No result</CommandEmpty>
+                                                                        ) : locations.length === 0 ? (
+                                                                            <CommandEmpty>No results found.</CommandEmpty>
                                                                         ) : (
-                                                                            <CommandGroup heading="Ethnicities">
-                                                                                {ethnicities.map((e) => (
+                                                                            <CommandGroup heading="Province & Municipality">
+                                                                                {locations.map((loc) => (
                                                                                     <CommandItem
-                                                                                        key={e.id}
-                                                                                        value={e.label}
+                                                                                        key={loc.id}
+                                                                                        value={loc.label}
                                                                                         onSelect={() => {
-                                                                                            setEthnicityId(e.id);
-                                                                                            setEthnicityLabel(e.label);
-                                                                                            persistDraft("ethnicity", String(e.id));
-                                                                                            persistDraft("ethnicity_label", e.label);
-                                                                                            setOpenEthnicity(false);
+                                                                                            setProvinceId(loc.id);
+                                                                                            setProvinceLabel(loc.label);
+                                                                                            persistDraft('province_municipality', String(loc.id));
+                                                                                            persistDraft('province_municipality_label', loc.label);
+                                                                                            setOpenProvince(false);
                                                                                         }}
                                                                                     >
-                                                                                        {e.label}
+                                                                                        {loc.label}
                                                                                     </CommandItem>
                                                                                 ))}
                                                                             </CommandGroup>
@@ -1541,52 +1387,76 @@ export default function Welcome() {
                                                         </Popover>
                                                     </div>
 
-                                                    {/* Religion (searchable) */}
+
+
+                                                    {/* Address Fields */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Barangay <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="barangay" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Purok/Street <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="purok_street" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">ZIP Code <span className="text-red-500">*</span></label>
+                                                        <input type="text" name="zip_code" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                    </div>
+
+                                                    {/* District */}
                                                     <div>
                                                         <label className="mb-1 block text-sm font-medium">
-                                                            Religion <span className="text-red-500">*</span>
+                                                            District <span className="text-red-500">*</span>
                                                         </label>
-                                                        <Popover open={openReligion} onOpenChange={setOpenReligion}>
+
+                                                        <Popover open={openDistrict} onOpenChange={setOpenDistrict}>
                                                             <PopoverTrigger asChild>
                                                                 <Button
                                                                     variant="outline"
                                                                     role="combobox"
                                                                     className="w-full justify-between"
-                                                                    data-field="religion"
+                                                                    data-field="district"
                                                                 >
-                                                                    {religionLabel || "Select religion"}
+                                                                    {districtLabel || "Select district"}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
+
                                                             <PopoverContent
-                                                                className="w-[var(--radix-popover-trigger-width)] p-0"
+                                                                className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
                                                                 align="start"
                                                                 sideOffset={8}
                                                             >
                                                                 <Command>
-                                                                    <CommandInput placeholder="Search religion..." />
+                                                                    <CommandInput placeholder="Search district..." />
                                                                     <CommandList>
-                                                                        {loadingReligions ? (
+                                                                        {loadingDistricts ? (
                                                                             <CommandEmpty>Loading...</CommandEmpty>
-                                                                        ) : religions.length === 0 ? (
-                                                                            <CommandEmpty>No result</CommandEmpty>
+                                                                        ) : districts.length === 0 ? (
+                                                                            <CommandEmpty>No results found.</CommandEmpty>
                                                                         ) : (
-                                                                            <CommandGroup heading="Religions">
-                                                                                {religions.map((r) => (
+                                                                            <CommandGroup heading="Districts">
+                                                                                {districts.map((d) => (
                                                                                     <CommandItem
-                                                                                        key={r.id}
-                                                                                        value={r.label}
+                                                                                        key={d.id}
+                                                                                        value={d.label}
                                                                                         onSelect={() => {
-                                                                                            setReligionId(r.id);
-                                                                                            setReligionLabel(r.label);
-                                                                                            persistDraft("religion", String(r.id));
-                                                                                            persistDraft("religion_label", r.label);
-                                                                                            setOpenReligion(false);
+                                                                                            setDistrictId(d.id);
+                                                                                            setDistrictLabel(d.label);
+                                                                                            persistDraft('district', String(d.id));
+                                                                                            persistDraft('district_label', d.label);
+                                                                                            setOpenDistrict(false);
                                                                                         }}
                                                                                     >
-                                                                                        {r.label}
+                                                                                        {d.label}
                                                                                     </CommandItem>
                                                                                 ))}
+
                                                                             </CommandGroup>
                                                                         )}
                                                                     </CommandList>
@@ -1594,6 +1464,8 @@ export default function Welcome() {
                                                             </PopoverContent>
                                                         </Popover>
                                                     </div>
+
+
 
 
                                                 </div>
@@ -1601,293 +1473,78 @@ export default function Welcome() {
                                         </Card>
                                     </section>
 
-                                    {nameRegion === "Region XII" && (
-                                        <section className="w-full mt-4">
-                                            <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                                <CardHeader className="pb-2">
-                                                    <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
-                                                        <span
-                                                            className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
-                                                            aria-hidden
-                                                        >
-                                                            3
-                                                        </span>
-                                                        Step 3: Address
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="rounded-full border-blue-300 bg-blue-50 text-xs font-semibold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300"
-                                                        >
-                                                            For Applicants from <span className="font-bold">REGION XII</span>
-                                                        </Badge>
-                                                    </CardTitle>
-                                                </CardHeader>
-
-                                                <CardContent className="space-y-6">
-
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
-                                                        {/* Province & Municipality */}
-                                                        <div className="md:col-span-2">
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Province & Municipality <span className="text-red-500">*</span>
-                                                            </label>
-
-                                                            <Popover open={openProvince} onOpenChange={setOpenProvince}>
-                                                                <PopoverTrigger asChild>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        role="combobox"
-                                                                        className="w-full justify-between"
-                                                                        data-field="province_municipality"
-                                                                    >
-                                                                        {provinceLabel || "Select location"}
-                                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                                    </Button>
-                                                                </PopoverTrigger>
-
-                                                                <PopoverContent
-                                                                    className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
-                                                                    align="start"
-                                                                    sideOffset={8}
-                                                                >
-                                                                    <Command>
-                                                                        <CommandInput placeholder="Search location..." />
-                                                                        <CommandList>
-                                                                            {loadingLocations ? (
-                                                                                <CommandEmpty>Loading...</CommandEmpty>
-                                                                            ) : locations.length === 0 ? (
-                                                                                <CommandEmpty>No results found.</CommandEmpty>
-                                                                            ) : (
-                                                                                <CommandGroup heading="Province & Municipality">
-                                                                                    {locations.map((loc) => (
-                                                                                        <CommandItem
-                                                                                            key={loc.id}
-                                                                                            value={loc.label}
-                                                                                            onSelect={() => {
-                                                                                                setProvinceId(loc.id);
-                                                                                                setProvinceLabel(loc.label);
-                                                                                                persistDraft('province_municipality', String(loc.id));
-                                                                                                persistDraft('province_municipality_label', loc.label);
-                                                                                                setOpenProvince(false);
-                                                                                            }}
-                                                                                        >
-                                                                                            {loc.label}
-                                                                                        </CommandItem>
-                                                                                    ))}
-                                                                                </CommandGroup>
-                                                                            )}
-                                                                        </CommandList>
-                                                                    </Command>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                        </div>
-
-
-
-                                                        {/* Address Fields */}
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">Barangay <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="barangay" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">Purok/Street <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="purok_street" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">ZIP Code <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="zip_code" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
-                                                        </div>
-
-                                                        {/* District */}
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                District <span className="text-red-500">*</span>
-                                                            </label>
-
-                                                            <Popover open={openDistrict} onOpenChange={setOpenDistrict}>
-                                                                <PopoverTrigger asChild>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        role="combobox"
-                                                                        className="w-full justify-between"
-                                                                        data-field="district"
-                                                                    >
-                                                                        {districtLabel || "Select district"}
-                                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                                    </Button>
-                                                                </PopoverTrigger>
-
-                                                                <PopoverContent
-                                                                    className="z-[60] w-[var(--radix-popover-trigger-width)] p-0"
-                                                                    align="start"
-                                                                    sideOffset={8}
-                                                                >
-                                                                    <Command>
-                                                                        <CommandInput placeholder="Search district..." />
-                                                                        <CommandList>
-                                                                            {loadingDistricts ? (
-                                                                                <CommandEmpty>Loading...</CommandEmpty>
-                                                                            ) : districts.length === 0 ? (
-                                                                                <CommandEmpty>No results found.</CommandEmpty>
-                                                                            ) : (
-                                                                                <CommandGroup heading="Districts">
-                                                                                    {districts.map((d) => (
-                                                                                        <CommandItem
-                                                                                            key={d.id}
-                                                                                            value={d.label}
-                                                                                            onSelect={() => {
-                                                                                                setDistrictId(d.id);
-                                                                                                setDistrictLabel(d.label);
-                                                                                                persistDraft('district', String(d.id));
-                                                                                                persistDraft('district_label', d.label);
-                                                                                                setOpenDistrict(false);
-                                                                                            }}
-                                                                                        >
-                                                                                            {d.label}
-                                                                                        </CommandItem>
-                                                                                    ))}
-
-                                                                                </CommandGroup>
-                                                                            )}
-                                                                        </CommandList>
-                                                                    </Command>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                        </div>
-
-                                                    </div>
-
-                                                </CardContent>
-                                            </Card>
-                                        </section>
-                                    )}
-
-
                                     {/* BARMM B Section */}
-                                    {nameRegion === "BARMM" && (
-                                        <section className="w-full mt-4">
-                                            <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                                <CardHeader className="pb-2">
-
-                                                    <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
-                                                        <span
-                                                            className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
-                                                            aria-hidden
-                                                        >
-                                                            3
-                                                        </span>
-                                                        Step 3: Address
-
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="rounded-full border-purple-300 bg-purple-50 text-xs font-semibold text-purple-700 dark:border-purple-900/50 dark:bg-purple-950/20 dark:text-purple-300"
-                                                        >
-                                                            For Applicants from <span className="font-bold">BARMM B</span>
-                                                        </Badge>
-                                                    </CardTitle>
-                                                </CardHeader>
-
-                                                <CardContent className="space-y-6">
-                                                    {/* Address Fields */}
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                        {/* Province */}
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">Province <span className="text-red-500">*</span></label>
-                                                            <input
-                                                                type="text"
-                                                                name="barmm_province"
-                                                                placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
-                                                            />
-                                                        </div>
-
-                                                        {/* Municipality */}
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">Municipality <span className="text-red-500">*</span></label>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Your answer"
-                                                                name="barmm_municipality"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
-                                                            />
-                                                        </div>
-
-                                                        {/* Barangay */}
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">Barangay <span className="text-red-500">*</span></label>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Your answer"
-                                                                name="barmm_barangay"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
-                                                            />
-                                                        </div>
-
-                                                        {/* Purok/Street */}
-                                                        <div className="lg:col-span-2">
-                                                            <label className="mb-1 block text-sm font-medium">Purok/Street <span className="text-red-500">*</span></label>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Your answer"
-                                                                name="barmm_purok_street"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">ZIP Code <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="barmm_zip_code" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
-                                                        </div>
-                                                    </div>
-
-                                                </CardContent>
-                                            </Card>
-                                        </section>
-                                    )}
-
                                     <section className="w-full mt-4">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
-
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
-                                                    <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
-                                                        aria-hidden
-                                                    >
-                                                        4
-                                                    </span>
-                                                    Step 4: School & Course
-
-
+                                                <CardTitle className="text-sm font-semibold tracking-tight">
+                                                    For Applicants from <span className="font-bold">BARMM B</span>
                                                 </CardTitle>
                                             </CardHeader>
 
                                             <CardContent className="space-y-6">
+                                                {/* Address Fields */}
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                    {/* Province */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Province</label>
+                                                        <input
+                                                            type="text"
+                                                            name="barmm_province"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+
+                                                    {/* Municipality */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Municipality</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Your answer"
+                                                            name="barmm_municipality"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+
+                                                    {/* Barangay */}
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">Barangay</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Your answer"
+                                                            name="barmm_barangay"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+
+                                                    {/* Purok/Street */}
+                                                    <div className="lg:col-span-2">
+                                                        <label className="mb-1 block text-sm font-medium">Purok/Street</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Your answer"
+                                                            name="barmm_purok_street"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                dark:border-zinc-700 dark:bg-zinc-900"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="mb-1 block text-sm font-medium">ZIP Code </label>
+                                                        <input type="text" name="barmm_zip_code" placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                    </div>
+                                                </div>
+
+                                                {/* Divider */}
+                                                <hr className="border-zinc-200 dark:border-zinc-700" />
 
                                                 {/* School / Year / Course Section */}
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1917,57 +1574,34 @@ export default function Welcome() {
                                                                 sideOffset={8}
                                                             >
                                                                 <Command>
-                                                                    <CommandInput
-                                                                        placeholder="Search school..."
-                                                                        value={schoolQuery}
-                                                                        onValueChange={(v) => {
-                                                                            setSchoolQuery(v);
-                                                                            const normalized = v.trim().toLowerCase();
-                                                                            if (normalized === "others" || normalized === "other") {
-                                                                                const others = schools.find(
-                                                                                    (s) => s.label?.trim().toLowerCase() === "others"
-                                                                                );
-                                                                                if (others) {
-                                                                                    setSchoolId(others.id);
-                                                                                    setSchoolLabel(others.label);
-                                                                                    persistDraft("intended_school", String(others.id));
-                                                                                    persistDraft("intended_school_label", others.label);
-                                                                                    setOpenSchool(false);
-                                                                                }
-                                                                            }
-                                                                        }}
-                                                                    />
+                                                                    <CommandInput placeholder="Search school..." />
                                                                     <CommandList>
-
                                                                         {loadingSchools ? (
                                                                             <CommandEmpty>Loading...</CommandEmpty>
                                                                         ) : schools.length === 0 ? (
                                                                             <CommandEmpty>No result</CommandEmpty>
                                                                         ) : (
                                                                             <CommandGroup heading="Schools">
-
-                                                                                {sortedSchools.map((s) => (
-
+                                                                                {schools.map((s) => (
                                                                                     <CommandItem
                                                                                         key={s.id}
                                                                                         value={s.label}
                                                                                         onSelect={() => {
                                                                                             setSchoolId(s.id);
                                                                                             setSchoolLabel(s.label);
-                                                                                            persistDraft("intended_school", String(s.id));
-                                                                                            persistDraft("intended_school_label", s.label);
+                                                                                            persistDraft('intended_school', String(s.id));
+                                                                                            persistDraft('intended_school_label', s.label);
                                                                                             setOpenSchool(false);
-                                                                                            setSchoolQuery(""); // clear search for next time
                                                                                         }}
                                                                                     >
                                                                                         {s.label}
                                                                                     </CommandItem>
                                                                                 ))}
+
                                                                             </CommandGroup>
                                                                         )}
                                                                     </CommandList>
                                                                 </Command>
-
                                                             </PopoverContent>
                                                         </Popover>
                                                     </div>
@@ -1995,24 +1629,21 @@ export default function Welcome() {
                                                     </div>
 
 
-
                                                     {/* If not indicated */}
-                                                    {isOthersSelected && (
-                                                        <div className="lg:col-span-3">
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                If your school was not indicated, please specify here.{" "}
-                                                                <span className="italic text-xs">(Do not abbreviate!)</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="other_school"
-                                                                placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                    <div className="lg:col-span-3">
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            If your school was not indicated, please specify here.{" "}
+                                                            <span className="italic text-xs">(Do not abbreviate!)</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="other_school"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
                                                                             focus:border-blue-500 focus:ring focus:ring-blue-200 
                                                                             dark:border-zinc-700 dark:bg-zinc-900"
-                                                            />
-                                                        </div>
-                                                    )}
+                                                        />
+                                                    </div>
 
                                                     {/* Year Level */}
                                                     <div>
@@ -2134,100 +1765,6 @@ export default function Welcome() {
                                                         </Popover>
                                                     </div>
 
-                                                    {/* === Senior High School === */}
-
-
-                                                    {/* SHS Information Card */}
-                                                    <div className="lg:col-span-3">
-                                                        <Card className="mb-2 rounded-xl border border-blue-200 bg-blue-50/60 shadow-none dark:border-blue-900/40 dark:bg-blue-950/20">
-                                                            <CardHeader className="py-2 px-4">
-                                                                <CardTitle className="text-sm font-semibold text-blue-900 dark:text-blue-200">
-                                                                    Senior High School (SHS) Information
-                                                                </CardTitle>
-                                                                <CardDescription className="text-xs text-blue-800 dark:text-blue-300">
-                                                                    Please provide details about your Senior High School. Strictly no abbreviations.
-                                                                </CardDescription>
-                                                            </CardHeader>
-                                                            <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-3 px-4 pb-4">
-                                                                <div className="lg:col-span-2">
-                                                                    <label className="mb-1 block text-sm font-medium">
-                                                                        Name of Senior High School Attended/Graduated in (Strictly no abbreviation){" "}
-                                                                        <span className="text-red-500">*</span>
-                                                                    </label>
-                                                                    <input type="text" name="shs_name" placeholder="Your answer"
-                                                                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                        focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                        dark:border-zinc-700 dark:bg-zinc-900" />
-                                                                </div>
-                                                                <div className="lg:col-span-1">
-                                                                    <label className="mb-1 block text-sm font-medium">
-                                                                        School Address (Senior High School) <span className="text-red-500">*</span>
-                                                                    </label>
-                                                                    <input type="text" name="shs_address" placeholder="Your answer"
-                                                                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                        focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                        dark:border-zinc-700 dark:bg-zinc-900" />
-                                                                </div>
-                                                                {/* Type of School */}
-                                                                <div className="lg:col-span-1">
-                                                                    <label className="mb-1 block text-sm font-medium">
-                                                                        Type of School <span className="text-red-500">*</span>
-                                                                    </label>
-                                                                    <div className="flex flex-row gap-4 text-sm" data-group="shs_school_type">
-                                                                        {["Public", "Private"].map((type) => (
-                                                                            <label key={type} className="flex items-center gap-2">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    name="shs_school_type"
-                                                                                    value={type}
-                                                                                    className="h-4 w-4"
-                                                                                />
-                                                                                {type}
-                                                                            </label>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-
-                                                                <div>
-                                                                    <label className="mb-1 block text-sm font-medium">
-                                                                        General Weighted Average (GWA) of<br />
-                                                                        1st Semester Grade 12 <span className="text-red-500">*</span>
-                                                                    </label>
-                                                                    <input
-                                                                        type="number"
-                                                                        name="gwa_g12_s1"
-                                                                        placeholder="Value (80-100)"
-                                                                        className="input-primary"
-                                                                        min={80}
-                                                                        max={100}
-                                                                        step={1}
-                                                                        inputMode="numeric"
-                                                                        onChange={handleGwaChange}
-                                                                    />
-                                                                </div>
-                                                                <div>
-                                                                    <label className="mb-1 block text-sm font-medium">
-                                                                        General Weighted Average (GWA) of<br />
-                                                                        2nd Semester Grade 12 <span className="text-red-500">*</span>
-                                                                    </label>
-                                                                    <input
-                                                                        type="number"
-                                                                        name="gwa_g12_s2"
-                                                                        placeholder="Value (80-100)"
-                                                                        className="input-primary"
-                                                                        min={80}
-                                                                        max={100}
-                                                                        step={1}
-                                                                        inputMode="numeric"
-                                                                        onChange={handleGwaChange}
-                                                                    />
-                                                                </div>
-                                                            </CardContent>
-                                                        </Card>
-                                                    </div>
-
-
-
 
 
                                                     {/* === CHED Memorandum (Thumbnail) === */}
@@ -2285,265 +1822,15 @@ export default function Welcome() {
                                         </Card>
                                     </section>
 
-
+                                    {/* Additional Information Section */}
                                     <section className="w-full mt-4">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                            <CardHeader className="pb-2">
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
-                                                    <span
-                                                        className="flex h-7 w-7 items-center justify-center rounded-full
-                     bg-[#1e3c73] text-white font-bold text-base shadow
-                     border-2 border-[#25468a]"
-                                                        aria-hidden
-                                                    >
-                                                        5
-                                                    </span>
-                                                    Step 5: Parents & Guardian Information
-                                                </CardTitle>
-                                            </CardHeader>
 
-                                            <CardContent className="space-y-10">
-                                                {/* === Father Information === */}
-                                                <div>
-                                                    <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
-                                                        Father’s Information
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Full Name <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="father_name"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Occupation <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="father_occupation"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Monthly Income <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="father_income_monthly"
-                                                                placeholder="e.g., 10000"
-                                                                className="input-primary"
-                                                                inputMode="numeric"
-                                                                onInput={(e) => {
-                                                                    const t = e.currentTarget;
-                                                                    // keep digits only
-                                                                    t.value = t.value.replace(/\D/g, "");
-                                                                    setFatherMonthly(t.value);
-                                                                }}
-                                                                required
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Yearly Income <span className="text-red-500">*</span>
-                                                            </label>
-
-                                                            {/* Visible, non-editable display */}
-                                                            <input
-                                                                type="text"
-                                                                className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
-                                                                value={fatherMonthly ? fmt(getYearly(fatherMonthly)) : ""}
-                                                                placeholder="Auto-calculated"
-                                                                disabled
-                                                                aria-readonly="true"
-                                                                aria-disabled="true"
-                                                                tabIndex={-1}
-                                                            />
-                                                            <span className="text-xs text-gray-500 italic block mt-1">
-                                                                Auto-calculated from monthly income (read-only)
-                                                            </span>
-
-                                                            {/* Hidden field that actually submits the numeric yearly value */}
-                                                            <input
-                                                                type="hidden"
-                                                                name="father_income_yearly_bracket"
-                                                                value={fatherMonthly ? String(getYearly(fatherMonthly)) : ""}
-                                                                required
-                                                            />
-                                                        </div>
-
-                                                    </div>
-                                                </div>
-
-                                                {/* === Mother Information === */}
-                                                <div>
-                                                    <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
-                                                        Mother’s Information
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Full Name <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="mother_name"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Occupation <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="mother_occupation"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Monthly Income <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="mother_income_monthly"
-                                                                placeholder="e.g., 10000"
-                                                                className="input-primary"
-                                                                inputMode="numeric"
-                                                                onInput={(e) => {
-                                                                    const t = e.currentTarget;
-                                                                    t.value = t.value.replace(/\D/g, "");
-                                                                    setMotherMonthly(t.value);
-                                                                }}
-                                                                required
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Yearly Income <span className="text-red-500">*</span>
-                                                            </label>
-
-                                                            {/* Visible, non-editable display */}
-                                                            <input
-                                                                type="text"
-                                                                className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
-                                                                value={motherMonthly ? fmt(getYearly(motherMonthly)) : ""}
-                                                                placeholder="Auto-calculated"
-                                                                disabled
-                                                                aria-readonly="true"
-                                                                aria-disabled="true"
-                                                                tabIndex={-1}
-                                                            />
-                                                            <span className="text-xs text-gray-500 italic block mt-1">
-                                                                Auto-calculated from monthly income (read-only)
-                                                            </span>
-
-                                                            {/* Hidden field that actually submits the numeric yearly value */}
-                                                            <input
-                                                                type="hidden"
-                                                                name="mother_income_yearly_bracket"
-                                                                value={motherMonthly ? String(getYearly(motherMonthly)) : ""}
-                                                                required
-                                                            />
-                                                        </div>
-
-                                                    </div>
-                                                </div>
-
-                                                {/* === Guardian Information === */}
-                                                <div>
-                                                    <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
-                                                        Guardian’s Information
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Full Name  <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="guardian_name"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Occupation  <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="guardian_occupation"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Monthly Income  <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                name="guardian_income_monthly"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </section>
-
-
-                                    <section className="w-full mt-4">
-                                        <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-                                            <CardHeader className="pb-2">
-
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
-                                                    <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
-                                                        aria-hidden
-                                                    >
-                                                        6
-                                                    </span>
-                                                    Step 6: Attachments
-
-
-                                                </CardTitle>
-                                            </CardHeader>
                                             <CardContent className="space-y-8">
-
-                                                <div className="rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-200">
-                                                    <strong>NOTE:</strong> All uploaded documents must be:
-                                                    <ul className="mt-1 list-disc pl-5 space-y-0.5">
-                                                        <li>Whole page readable — do not crop the document.</li>
-                                                        <li>Uploaded as <strong>1 PDF file only</strong> per field.</li>
-                                                        <li>Maximum file size: <strong>10 MB</strong>.</li>
-                                                    </ul>
-                                                </div>
-
-
                                                 {/* === Application Form Upload === */}
                                                 <div>
                                                     <label className="mb-1 block text-sm font-medium">
-                                                        Accomplished Application Form {" "}
+                                                        Accomplished Application Form (PDF file only){" "}
                                                         <span className="text-red-500">*</span>
                                                     </label>
                                                     <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
@@ -2601,24 +1888,198 @@ export default function Welcome() {
                                                     </div>
 
 
+                                                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                        Upload 1 file only. Max size 10 MB.
+                                                    </p>
+                                                </div>
 
+
+                                                {/* === Senior High School === */}
+                                                <div>
+
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        <div className="lg:col-span-2">
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Name of Senior High School Attended/Graduated in (Strictly no abbreviation){" "}
+                                                                <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input type="text" name="shs_name" placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                            dark:border-zinc-700 dark:bg-zinc-900" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                School Address (Senior High School) <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input type="text" name="shs_address" placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
+                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                            dark:border-zinc-700 dark:bg-zinc-900" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* === Parents Information === */}
+                                                <div>
+
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        {/* Father */}
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Full Name <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="father_name" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Occupation <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="father_occupation" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Gross Monthly Income <span className="text-red-500">*</span></label>
+                                                            <input type="number" name="father_income_monthly" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Father’s Gross Yearly Income <span className="text-red-500">*</span></label>
+                                                            <select className="input-primary" name="father_income_yearly_bracket">
+                                                                <option value="">Choose</option>
+                                                                <option value="0-70,000">0 - 70,000</option>
+                                                                <option value="70,001-136,000">70,001 - 136,000</option>
+                                                                <option value="136,001-202,000">136,001 - 202,000</option>
+                                                                <option value="202,001-268,000">202,001 - 268,000</option>
+                                                                <option value="268,001-334,000">268,001 - 334,000</option>
+                                                                <option value="334,001-400,000">334,001 - 400,000</option>
+                                                                <option value="400,001-500,000">400,001 - 500,000</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {/* Mother */}
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Full Name <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="mother_name" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Occupation <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="mother_occupation" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Gross Monthly Income <span className="text-red-500">*</span></label>
+                                                            <input type="number" name="mother_income_monthly" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Mother’s Gross Yearly Income <span className="text-red-500">*</span></label>
+                                                            <select className="input-primary" name="mother_income_yearly_bracket">
+                                                                <option value="">Choose</option>
+                                                                <option value="0-70,000">0 - 70,000</option>
+                                                                <option value="70,001-136,000">70,001 - 136,000</option>
+                                                                <option value="136,001-202,000">136,001 - 202,000</option>
+                                                                <option value="202,001-268,000">202,001 - 268,000</option>
+                                                                <option value="268,001-334,000">268,001 - 334,000</option>
+                                                                <option value="334,001-400,000">334,001 - 400,000</option>
+                                                                <option value="400,001-500,000">400,001 - 500,000</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* === Guardian Information === */}
+                                                <div>
+
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Guardian’s Full Name or N/A <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="guardian_name" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Guardian’s Occupation or N/A <span className="text-red-500">*</span></label>
+                                                            <input type="text" name="guardian_occupation" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Guardian’s Gross Monthly Income or 0 <span className="text-red-500">*</span></label>
+                                                            <input type="number" name="guardian_income_monthly" placeholder="Your answer"
+                                                                className="input-primary" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* === Academic Performance === */}
+                                                <div>
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                General Weighted Average (GWA) of 1st Semester Grade 11 <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                name="gwa_g11_s1"
+                                                                placeholder="Value (80-100)"
+                                                                className="input-primary"
+                                                                min={80}
+                                                                max={100}
+                                                                step={1}
+                                                                inputMode="numeric"
+                                                                onChange={handleGwaChange}
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                General Weighted Average (GWA) of 2nd Semester Grade 11 <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                name="gwa_g11_s2"
+                                                                placeholder="Value (80-100)"
+                                                                className="input-primary"
+                                                                min={80}
+                                                                max={100}
+                                                                step={1}
+                                                                inputMode="numeric"
+                                                                onChange={handleGwaChange}
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                General Weighted Average (GWA) of 1st Semester Grade 12 <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                name="gwa_g12_s1"
+                                                                placeholder="Value (80-100)"
+                                                                className="input-primary"
+                                                                min={80}
+                                                                max={100}
+                                                                step={1}
+                                                                inputMode="numeric"
+                                                                onChange={handleGwaChange}
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
 
                                                 {/* === Required Documents === */}
                                                 <div>
                                                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                                         {[
-
+                                                            { name: "grades_g11_s1", label: "Grades/Report Card of 1st Semester in Grade 11" },
+                                                            { name: "grades_g11_s2", label: "Grades/Report Card of 2nd Semester in Grade 11" },
                                                             { name: "grades_g12_s1", label: "Grades/Report Card of 1st Semester in Grade 12" },
-                                                            { name: "grades_g12_s2", label: "Grades/Report Card of 2nd Semester in Grade 12" },
                                                             { name: "birth_certificate", label: "Birth Certificate" },
                                                         ].map(({ name, label }) => (
                                                             <div key={name}>
                                                                 <label htmlFor={name} className="mb-1 block text-sm font-medium">
                                                                     {label} <span className="text-red-500">*</span>
                                                                 </label>
-
-
+                                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+                                                                    NOTE: Whole page is readable and please do not crop!
+                                                                </p>
                                                                 <div className="relative">
                                                                     <input
                                                                         id={name}
@@ -2691,28 +2152,18 @@ export default function Welcome() {
 
                                                 {/* === Proof of Income === */}
                                                 <div>
-                                                    <h3 className="mb-3 text-sm font-semibold dark:text-zinc-200">
-                                                        Proof of Income <span className="text-red-500">*</span>
+                                                    <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                                        Proof of Income  (any 1 of the following)  <span className="text-red-500">*</span>
                                                     </h3>
-
-                                                    {/* Strong Emphasis */}
-                                                    <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800 dark:border-blue-600 dark:bg-blue-900/30 dark:text-blue-200">
-                                                        You are required to upload <strong>ONLY ONE</strong> of the following documents:
-                                                    </div>
-
-                                                    {/* List of options */}
-                                                    <ul className="mb-3 list-disc pl-5 text-xs text-zinc-700 dark:text-zinc-300 space-y-1">
+                                                    <ul className="mb-2 list-disc pl-5 text-xs text-zinc-600 dark:text-zinc-400">
                                                         <li>Latest ITR of parents or guardian if employed</li>
                                                         <li>Certificate of Tax Exemption/Non-Filer issued by BIR</li>
-                                                        <li>
-                                                            Certified true copy of latest contract or proof of income (for children of Overseas Filipino Workers and Seafarers)
-                                                        </li>
+                                                        <li>Certified true copy of latest contract or proof of income (for children of Overseas Filipino Workers and Seafarers)</li>
                                                         <li>Social Case Study Report issued by CSWD/MSWD</li>
                                                     </ul>
-
-
-
-                                                    {/* File Upload */}
+                                                    <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                                                        NOTE: Whole page is readable and please do not crop!
+                                                    </p>
                                                     <div className="relative">
                                                         <input
                                                             ref={proofIncomeRef}
@@ -2745,10 +2196,11 @@ export default function Welcome() {
         hover:file:bg-[#25468a] 
         focus:border-blue-500 focus:ring focus:ring-blue-200 
         dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+        /* Disabled look */
         disabled:cursor-not-allowed disabled:opacity-60
         disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
         dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
-      "
+        "
                                                         />
 
                                                         {hasProofIncome && (
@@ -2756,8 +2208,8 @@ export default function Welcome() {
                                                                 type="button"
                                                                 aria-label="Clear file"
                                                                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
-                   text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
-                   dark:hover:bg-zinc-800 disabled:opacity-50"
+                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
+                    dark:hover:bg-zinc-800 disabled:opacity-50"
                                                                 onClick={() => {
                                                                     if (!proofIncomeRef.current || proofIncomeRef.current.disabled) return;
                                                                     proofIncomeRef.current.value = "";
@@ -2772,9 +2224,8 @@ export default function Welcome() {
                                                         )}
                                                     </div>
 
-
+                                                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Upload 1 supported PDF file. Max 10 MB.</p>
                                                 </div>
-
 
                                                 {/* === Special Group === */}
                                                 <div>
@@ -2855,14 +2306,16 @@ export default function Welcome() {
                                                             under RA 9994, and Indigenous Peoples under RA 8371, after complying with all the
                                                             requirements herein set forth.
                                                         </p>
-
+                                                        <p className="mb-2 mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+                                                            NOTE: Upload 1 supported file: PDF. Max 10 MB.
+                                                        </p>
                                                         <div className="relative">
                                                             <input
                                                                 ref={proofSpecialRef}
                                                                 type="file"
                                                                 accept="application/pdf"
                                                                 name="proof_special_group"
-                                                                disabled={naSelected}
+                                                                disabled={formLocked || naSelected}
                                                                 onChange={(e) => {
                                                                     const file = e.currentTarget.files?.[0];
                                                                     if (!file) { setHasProofSpecial(false); return; }
@@ -2882,17 +2335,17 @@ export default function Welcome() {
                                                                     setHasProofSpecial(true);
                                                                 }}
                                                                 className="
-                                                                w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
-                                                                file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
-                                                                file:text-sm file:font-medium file:text-white
-                                                                hover:file:bg-[#25468a]
-                                                                focus:border-blue-500 focus:ring focus:ring-blue-200
-                                                                dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
-                                                                /* Disabled styling */
-                                                                disabled:cursor-not-allowed disabled:opacity-60
-                                                                disabled:file:bg-zinc-300 disabled:file:text-zinc-600
-                                                                dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400
-                                                                "
+        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
+        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
+        file:text-sm file:font-medium file:text-white
+        hover:file:bg-[#25468a]
+        focus:border-blue-500 focus:ring focus:ring-blue-200
+        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+        /* Disabled styling */
+        disabled:cursor-not-allowed disabled:opacity-60
+        disabled:file:bg-zinc-300 disabled:file:text-zinc-600
+        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400
+        "
                                                             />
 
                                                             {hasProofSpecial && (
@@ -2986,7 +2439,9 @@ export default function Welcome() {
                                                         </div>
 
 
-
+                                                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                            Upload 1 supported file: PDF. Max 10 MB.
+                                                        </p>
                                                     </div>
                                                 </div>
 
@@ -3061,11 +2516,11 @@ export default function Welcome() {
                                         <div className="flex justify-center pt-6">
                                             <Button
                                                 type="submit"
-                                                disabled={incoming === null}
+                                                disabled={incoming === "no" || incoming === null}
                                                 className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
-                                                hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
-                                                disabled:cursor-not-allowed disabled:opacity-50
-                                                dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
+                                            hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
+                                            disabled:cursor-not-allowed disabled:opacity-50
+                                            dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
                                             >
                                                 Submit Application
                                             </Button>

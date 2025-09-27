@@ -48,11 +48,19 @@ class CmspApplicationController extends Controller
             'zip_code' => ['nullable','string','max:12'],
             'district' => ['required','integer'],
 
+            'barmm_province'     => ['nullable','string','max:150'],
+            'barmm_municipality' => ['nullable','string','max:150'],
+            'barmm_barangay'     => ['nullable','string','max:150'],
+            'barmm_purok_street' => ['nullable','string','max:150'],
+            'barmm_zip_code'     => ['nullable','string','max:12'],
+
             'intended_school' => ['required','integer'],
             'school_type' => ['required', Rule::in(['Public','LUC','Private'])],
             'other_school' => ['nullable','string','max:200'],
             'year_level' => ['required','string','max:100'],
             'course' => ['required','integer'],
+
+            'gad_stufaps_course' => ['nullable','string','max:255'],
 
             'shs_name' => ['required','string','max:200'],
             'shs_address' => ['required','string','max:200'],
@@ -149,6 +157,13 @@ class CmspApplicationController extends Controller
             'zip_code' => $validated['zip_code'] ?? null,
             'district' => $validated['district'],
 
+            'barmm_province'     => $validated['barmm_province']     ?? null,
+            'barmm_municipality' => $validated['barmm_municipality'] ?? null,
+            'barmm_barangay'     => $validated['barmm_barangay']     ?? null,
+            'barmm_purok_street' => $validated['barmm_purok_street'] ?? null,
+            'barmm_zip_code'     => $validated['barmm_zip_code']     ?? null,
+            'gad_stufaps_course' => $validated['gad_stufaps_course'] ?? null,
+
             'intended_school' => $validated['intended_school'],
             'school_type' => $validated['school_type'],
             'other_school' => $validated['other_school'] ?? null,
@@ -187,4 +202,34 @@ class CmspApplicationController extends Controller
 
         return back()->with('success', 'Application submitted!');
     }
+    
+public function indexJson(\Illuminate\Http\Request $request)
+{
+    $perPage = (int) $request->integer('per_page', 10);
+
+    $q = \App\Models\CmspApplication::query()->latest(); 
+
+    if ($s = trim((string) $request->get('search'))) {
+        $q->where(function ($w) use ($s) {
+            $w->where('last_name','like',"%{$s}%")
+              ->orWhere('first_name','like',"%{$s}%")
+              ->orWhere('course','like',"%{$s}%");
+        });
+    }
+
+    $apps = $q->paginate($perPage)->appends($request->all());
+
+    return response()->json([
+        'data' => $apps->items(),
+        'meta' => [
+            'current_page' => $apps->currentPage(),
+            'per_page'     => $apps->perPage(),
+            'total'        => $apps->total(),
+            'last_page'    => $apps->lastPage(),
+        ],
+    ]);
+}
+
+
+
 }

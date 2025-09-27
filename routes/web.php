@@ -13,6 +13,8 @@ use App\Http\Controllers\SchoolController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\CmspApplicationController;
+use App\Http\Controllers\EthnicityController;
+use App\Http\Controllers\ReligionController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -21,6 +23,8 @@ Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
 Route::get('/api/schools', [SchoolController::class, 'index']);
 Route::get('/api/courses', [CourseController::class, 'index']);
+Route::get('/api/ethnicities', [EthnicityController::class, 'index']);
+Route::get('/api/religions',   [ReligionController::class, 'index']);
 
 Route::post('/cmsps/apply', [CmspApplicationController::class, 'store'])->name('cmsps.apply');
 
@@ -55,7 +59,8 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     ->name('users.resetPassword');
 
     
-
+    Route::get('/cmsp-applications/json', [CmspApplicationController::class, 'indexJson'])
+        ->name('cmsp-applications.index.json');
 
 
 
