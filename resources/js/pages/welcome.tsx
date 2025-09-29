@@ -4,7 +4,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { router } from '@inertiajs/react'; import {
     DialogDescription, DialogFooter, DialogClose
 } from "@/components/ui/dialog";
 import Confetti from "react-confetti";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import {
     Tabs,
@@ -100,6 +101,110 @@ export default function Welcome() {
 
     const proofSpecialRef = useRef<HTMLInputElement | null>(null);
     const [hasProofSpecial, setHasProofSpecial] = useState(false);
+
+    const [fatherNA, setFatherNA] = useState(false);
+    const [fatherDeceased, setFatherDeceased] = useState(false);
+    const [motherNA, setMotherNA] = useState(false);
+    const [motherDeceased, setMotherDeceased] = useState(false);
+
+    const fatherDisabled = fatherNA || fatherDeceased;
+    const motherDisabled = motherNA || motherDeceased;
+    const showGuardian = fatherDisabled && motherDisabled;
+
+    // refs to clear uncontrolled inputs
+    const fatherNameRef = useRef<HTMLInputElement>(null);
+    const fatherOccRef = useRef<HTMLInputElement>(null);
+    const fatherMonthlyRef = useRef<HTMLInputElement>(null);
+
+    const motherNameRef = useRef<HTMLInputElement>(null);
+    const motherOccRef = useRef<HTMLInputElement>(null);
+    const motherMonthlyRef = useRef<HTMLInputElement>(null);
+
+    // helpers
+    const clearFatherInputs = () => {
+        if (fatherNameRef.current) fatherNameRef.current.value = "";
+        if (fatherOccRef.current) fatherOccRef.current.value = "";
+        if (fatherMonthlyRef.current) fatherMonthlyRef.current.value = "";
+        setFatherMonthly(""); // you already have this state
+    };
+    const clearMotherInputs = () => {
+        if (motherNameRef.current) motherNameRef.current.value = "";
+        if (motherOccRef.current) motherOccRef.current.value = "";
+        if (motherMonthlyRef.current) motherMonthlyRef.current.value = "";
+        setMotherMonthly(""); // you already have this state
+    };
+
+    // effects: clear only when N/A is turned on
+    useEffect(() => { if (fatherNA) clearFatherInputs(); }, [fatherNA]);
+    useEffect(() => { if (motherNA) clearMotherInputs(); }, [motherNA]);
+
+
+
+    // Father N/A
+    const onFatherNAChange = (v: boolean | 'indeterminate') => {
+        const val = v === true;
+        setFatherNA(val);
+        if (val) {
+            setFatherDeceased(false);
+            // clear inputs when N/A is turned on
+            if (fatherNameRef.current) fatherNameRef.current.value = '';
+            if (fatherOccRef.current) fatherOccRef.current.value = '';
+            if (fatherMonthlyRef.current) fatherMonthlyRef.current.value = '';
+            setFatherMonthly('');
+
+            // persist draft
+            persistDraft('father_na', val ? 1 : 0);
+            persistDraft('father_deceased', 0);
+            persistDraft('father_name', '');
+            persistDraft('father_occupation', '');
+            persistDraft('father_income_monthly', '');
+            persistDraft('father_income_yearly_bracket', '');
+        } else {
+            persistDraft('father_na', 0);
+        }
+    };
+
+    // Father Deceased
+    const onFatherDeceasedChange = (v: boolean | 'indeterminate') => {
+        const val = v === true;
+        setFatherDeceased(val);
+        if (val) setFatherNA(false);
+
+        // persist draft (keep existing values when Deceased)
+        persistDraft('father_deceased', val ? 1 : 0);
+        if (val) persistDraft('father_na', 0);
+    };
+
+    // Mother N/A
+    const onMotherNAChange = (v: boolean | 'indeterminate') => {
+        const val = v === true;
+        setMotherNA(val);
+        if (val) {
+            setMotherDeceased(false);
+            if (motherNameRef.current) motherNameRef.current.value = '';
+            if (motherOccRef.current) motherOccRef.current.value = '';
+            if (motherMonthlyRef.current) motherMonthlyRef.current.value = '';
+            setMotherMonthly('');
+            persistDraft('mother_na', val ? 1 : 0);
+            persistDraft('mother_deceased', 0);
+            persistDraft('mother_name', '');
+            persistDraft('mother_occupation', '');
+            persistDraft('mother_income_monthly', '');
+            persistDraft('mother_income_yearly_bracket', '');
+        } else {
+            persistDraft('mother_na', 0);
+        }
+    };
+
+    // Mother Deceased
+    const onMotherDeceasedChange = (v: boolean | 'indeterminate') => {
+        const val = v === true;
+        setMotherDeceased(val);
+        if (val) setMotherNA(false);
+        persistDraft('mother_deceased', val ? 1 : 0);
+        if (val) persistDraft('mother_na', 0);
+    };
+
 
     const guardianshipRef = useRef<HTMLInputElement | null>(null);
     const [hasGuardianship, setHasGuardianship] = useState(false);
@@ -193,7 +298,7 @@ export default function Welcome() {
             "middle_name",
             "birthdate",
             "sex",
-            "maiden_name",
+
 
             "ethnicity",
             "religion",
@@ -205,17 +310,7 @@ export default function Welcome() {
             "shs_name",
             "shs_address",
             "shs_school_type",
-            "father_name",
-            "father_occupation",
-            "father_income_monthly",
-            "father_income_yearly_bracket",
-            "mother_name",
-            "mother_occupation",
-            "mother_income_monthly",
-            "mother_income_yearly_bracket",
-            "guardian_name",
-            "guardian_occupation",
-            "guardian_income_monthly",
+
             "gwa_g12_s1",
             "gwa_g12_s2",
             "special_groups[]",
@@ -244,10 +339,39 @@ export default function Welcome() {
             "barmm_zip_code",
         ] as const;
 
+        const fatherDisabled =
+            (fd.get("father_na") === "1") || (fd.get("father_deceased") === "1");
+        const motherDisabled =
+            (fd.get("mother_na") === "1") || (fd.get("mother_deceased") === "1");
+        const showGuardian = fatherDisabled && motherDisabled;
+
+        const FATHER_REQUIRED = [
+            "father_name",
+            "father_occupation",
+            "father_income_monthly",
+            "father_income_yearly_bracket",
+        ] as const;
+
+        const MOTHER_REQUIRED = [
+            "mother_name",
+            "mother_occupation",
+            "mother_income_monthly",
+            "mother_income_yearly_bracket",
+        ] as const;
+
+        const GUARDIAN_REQUIRED = [
+            "guardian_name",
+            "guardian_occupation",
+            "guardian_income_monthly",
+        ] as const;
+
         const REQUIRED = [
             ...BASE_REQUIRED,
             ...(region === "Region XII" ? REGION_XII_REQUIRED : []),
             ...(region === "BARMM" ? BARMM_REQUIRED : []),
+            ...(!fatherDisabled ? FATHER_REQUIRED : []),
+            ...(!motherDisabled ? MOTHER_REQUIRED : []),
+            ...(showGuardian ? GUARDIAN_REQUIRED : []),
         ] as const;
 
         const errs: Record<string, string> = {};
@@ -266,6 +390,13 @@ export default function Welcome() {
                 if (!s) errs[name] = "This field is required.";
             }
         }
+
+        const sexVal = String(fd.get("sex") ?? "").toLowerCase();
+        if (sexVal === "female") {
+            const mv = (fd.get("maiden_name") ?? "").toString().trim();
+            if (!mv) errs["maiden_name"] = "This field is required.";
+        }
+
         return errs;
     };
 
@@ -310,6 +441,22 @@ export default function Welcome() {
             const radios = form.querySelectorAll<HTMLInputElement>(`input[type="radio"][name="${name}"]`);
             const checkboxes = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${name}"]`);
             const field = form.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${name}"]`);
+
+            if (checkboxes.length) {
+                // ✅ single boolean checkbox (e.g., father_na)
+                if (checkboxes.length === 1) {
+                    const c = checkboxes[0];
+                    const truthy =
+                        value === true || value === 1 || value === '1' || value === 'true' || value === 'on';
+                    c.checked = !!truthy;
+                    return;
+                }
+
+                // ✅ multi checkbox (e.g., special_groups[])
+                const arr = Array.isArray(value) ? value.map(String) : [String(value)];
+                checkboxes.forEach((c) => (c.checked = arr.includes(String(c.value))));
+                return;
+            }
 
             if (radios.length) {
                 radios.forEach(r => (r.checked = r.value === String(value)));
@@ -605,6 +752,16 @@ export default function Welcome() {
         const saved = loadDraft();
         draftRef.current = saved;
         const sg = saved[SPECIAL_GROUP_NAME];
+
+        const T = (v: any) =>
+            v === true || v === 1 || v === '1' || v === 'true' || v === 'on';
+
+        // if you already have these states in your component
+        setFatherNA(T(saved.father_na));
+        setFatherDeceased(T(saved.father_deceased));
+        setMotherNA(T(saved.mother_na));
+        setMotherDeceased(T(saved.mother_deceased));
+
         if (Array.isArray(sg)) setNaSelected(sg.includes("N/A"));
         if (typeof saved.region === 'string') setRegion(saved.region);
         if (typeof saved.sex === 'string') setSex(saved.sex as 'male' | 'female' | '');
@@ -1811,8 +1968,9 @@ export default function Welcome() {
                                                                 name="barmm_province"
                                                                 placeholder="Your answer"
                                                                 className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
+                                                                focus:border-blue-500 focus:ring focus:ring-blue-200 
+                                                                dark:border-zinc-700 dark:bg-zinc-900"
+
                                                             />
                                                         </div>
 
@@ -2291,221 +2449,299 @@ export default function Welcome() {
                                             <CardHeader className="pb-2">
                                                 <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
                                                     <span
-                                                        className="flex h-7 w-7 items-center justify-center rounded-full
-                     bg-[#1e3c73] text-white font-bold text-base shadow
-                     border-2 border-[#25468a]"
+                                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e3c73] text-white font-bold text-base shadow border-2 border-[#25468a]"
                                                         aria-hidden
                                                     >
                                                         5
                                                     </span>
-                                                    Step 5: Parents & Guardian Information
+                                                    Step 5: Parents &amp; Guardian Information
                                                 </CardTitle>
                                             </CardHeader>
 
                                             <CardContent className="space-y-10">
+
                                                 {/* === Father Information === */}
                                                 <div>
-                                                    <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
-                                                        Father’s Information
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Full Name <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="father_name"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Occupation <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="father_occupation"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Monthly Income <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="father_income_monthly"
-                                                                placeholder="e.g., 10000"
-                                                                className="input-primary"
-                                                                inputMode="numeric"
-                                                                onInput={(e) => {
-                                                                    const t = e.currentTarget;
-                                                                    // keep digits only
-                                                                    t.value = t.value.replace(/\D/g, "");
-                                                                    setFatherMonthly(t.value);
-                                                                }}
-                                                                required
-                                                            />
-                                                        </div>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
+                                                            Father’s Information
+                                                        </h3>
 
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Yearly Income <span className="text-red-500">*</span>
+                                                        <div className="flex items-center gap-5">
+                                                            <label htmlFor="father-na" className="flex items-center gap-2 text-sm">
+                                                                <Checkbox id="father-na" checked={fatherNA} onCheckedChange={onFatherNAChange} />
+                                                                <span>N/A</span>
                                                             </label>
+                                                            <label htmlFor="father-deceased" className="flex items-center gap-2 text-sm">
+                                                                <Checkbox id="father-deceased" checked={fatherDeceased} onCheckedChange={onFatherDeceasedChange} />
+                                                                <span>Deceased</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
 
-                                                            {/* Visible, non-editable display */}
-                                                            <input
-                                                                type="text"
-                                                                className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
-                                                                value={fatherMonthly ? fmt(getYearly(fatherMonthly)) : ""}
-                                                                placeholder="Auto-calculated"
-                                                                disabled
-                                                                aria-readonly="true"
-                                                                aria-disabled="true"
-                                                                tabIndex={-1}
-                                                            />
-                                                            <span className="text-xs text-gray-500 italic block mt-1">
-                                                                Auto-calculated from monthly income (read-only)
-                                                            </span>
+                                                    <div className="relative">
 
-                                                            {/* Hidden field that actually submits the numeric yearly value */}
-                                                            <input
-                                                                type="hidden"
-                                                                name="father_income_yearly_bracket"
-                                                                value={fatherMonthly ? String(getYearly(fatherMonthly)) : ""}
-                                                                required
-                                                            />
+
+                                                        {/* REPLACE the wrapper around the grid with this (remove the overlay entirely) */}
+                                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Full Name <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    ref={fatherNameRef}
+                                                                    type="text"
+                                                                    name="father_name"
+                                                                    placeholder="Your answer"
+                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    disabled={fatherDisabled}
+                                                                    aria-disabled={fatherDisabled}
+                                                                    title={fatherDisabled ? (fatherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
+                                                                    required={!fatherDisabled}
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Occupation <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    ref={fatherOccRef}
+                                                                    type="text"
+                                                                    name="father_occupation"
+                                                                    placeholder="Your answer"
+                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    disabled={fatherDisabled}
+                                                                    aria-disabled={fatherDisabled}
+                                                                    title={fatherDisabled ? (fatherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
+                                                                    required={!fatherDisabled}
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Gross Monthly Income <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    ref={fatherMonthlyRef}
+                                                                    type="text"
+                                                                    name="father_income_monthly"
+                                                                    placeholder="e.g., 10000"
+                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    inputMode="numeric"
+                                                                    onInput={(e) => {
+                                                                        const t = e.currentTarget;
+                                                                        t.value = t.value.replace(/\D/g, "");
+                                                                        setFatherMonthly(t.value);
+                                                                    }}
+                                                                    disabled={fatherDisabled}
+                                                                    aria-disabled={fatherDisabled}
+                                                                    title={fatherDisabled ? (fatherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
+                                                                    required={!fatherDisabled}
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Gross Yearly Income <span className="text-red-500">*</span>
+                                                                </label>
+                                                                {/* Visible, non-editable display */}
+                                                                <input
+                                                                    type="text"
+                                                                    className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
+                                                                    value={!fatherNA && fatherMonthly ? fmt(getYearly(fatherMonthly)) : ""}
+                                                                    placeholder="Auto-calculated"
+                                                                    disabled
+                                                                    aria-readonly="true"
+                                                                    aria-disabled="true"
+                                                                    tabIndex={-1}
+                                                                />
+                                                                <span className="text-xs text-gray-500 italic block mt-1">
+                                                                    Auto-calculated from monthly income (read-only)
+                                                                </span>
+
+                                                                <input
+                                                                    type="hidden"
+                                                                    name="father_income_yearly_bracket"
+                                                                    value={!fatherNA && fatherMonthly ? String(getYearly(fatherMonthly)) : ""}
+                                                                />
+                                                            </div>
                                                         </div>
 
                                                     </div>
+
+                                                    {/* Optional: send flags */}
+                                                    <input type="hidden" name="father_na" value={fatherNA ? "1" : "0"} />
+                                                    <input type="hidden" name="father_deceased" value={fatherDeceased ? "1" : "0"} />
                                                 </div>
+
 
                                                 {/* === Mother Information === */}
                                                 <div>
-                                                    <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
-                                                        Mother’s Information
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Full Name <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="mother_name"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Occupation <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="mother_occupation"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Monthly Income <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="mother_income_monthly"
-                                                                placeholder="e.g., 10000"
-                                                                className="input-primary"
-                                                                inputMode="numeric"
-                                                                onInput={(e) => {
-                                                                    const t = e.currentTarget;
-                                                                    t.value = t.value.replace(/\D/g, "");
-                                                                    setMotherMonthly(t.value);
-                                                                }}
-                                                                required
-                                                            />
-                                                        </div>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
+                                                            Mother’s Information
+                                                        </h3>
 
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Yearly Income <span className="text-red-500">*</span>
+                                                        <div className="flex items-center gap-5">
+                                                            <label htmlFor="mother-na" className="flex items-center gap-2 text-sm">
+                                                                <Checkbox id="mother-na" checked={motherNA} onCheckedChange={onMotherNAChange} />
+                                                                <span>N/A</span>
                                                             </label>
+                                                            <label htmlFor="mother-deceased" className="flex items-center gap-2 text-sm">
+                                                                <Checkbox id="mother-deceased" checked={motherDeceased} onCheckedChange={onMotherDeceasedChange} />
+                                                                <span>Deceased</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
 
-                                                            {/* Visible, non-editable display */}
-                                                            <input
-                                                                type="text"
-                                                                className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
-                                                                value={motherMonthly ? fmt(getYearly(motherMonthly)) : ""}
-                                                                placeholder="Auto-calculated"
-                                                                disabled
-                                                                aria-readonly="true"
-                                                                aria-disabled="true"
-                                                                tabIndex={-1}
-                                                            />
-                                                            <span className="text-xs text-gray-500 italic block mt-1">
-                                                                Auto-calculated from monthly income (read-only)
-                                                            </span>
+                                                    <div className="relative">
 
-                                                            {/* Hidden field that actually submits the numeric yearly value */}
-                                                            <input
-                                                                type="hidden"
-                                                                name="mother_income_yearly_bracket"
-                                                                value={motherMonthly ? String(getYearly(motherMonthly)) : ""}
-                                                                required
-                                                            />
+                                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Full Name <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    ref={motherNameRef}
+                                                                    type="text"
+                                                                    name="mother_name"
+                                                                    placeholder="Your answer"
+                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    disabled={motherDisabled}
+                                                                    aria-disabled={motherDisabled}
+                                                                    title={motherDisabled ? (motherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
+                                                                    required={!motherDisabled}
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Occupation <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    ref={motherOccRef}
+                                                                    type="text"
+                                                                    name="mother_occupation"
+                                                                    placeholder="Your answer"
+                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    disabled={motherDisabled}
+                                                                    aria-disabled={motherDisabled}
+                                                                    title={motherDisabled ? (motherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
+                                                                    required={!motherDisabled}
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Gross Monthly Income <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    ref={motherMonthlyRef}
+                                                                    type="text"
+                                                                    name="mother_income_monthly"
+                                                                    placeholder="e.g., 10000"
+                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    inputMode="numeric"
+                                                                    onInput={(e) => {
+                                                                        const t = e.currentTarget;
+                                                                        t.value = t.value.replace(/\D/g, "");
+                                                                        setMotherMonthly(t.value);
+                                                                    }}
+                                                                    disabled={motherDisabled}
+                                                                    aria-disabled={motherDisabled}
+                                                                    title={motherDisabled ? (motherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
+                                                                    required={!motherDisabled}
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Gross Yearly Income <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
+                                                                    value={!motherNA && motherMonthly ? fmt(getYearly(motherMonthly)) : ""}
+                                                                    placeholder="Auto-calculated"
+                                                                    disabled
+                                                                    aria-readonly="true"
+                                                                    aria-disabled="true"
+                                                                    tabIndex={-1}
+                                                                />
+                                                                <span className="text-xs text-gray-500 italic block mt-1">
+                                                                    Auto-calculated from monthly income (read-only)
+                                                                </span>
+
+                                                                <input
+                                                                    type="hidden"
+                                                                    name="mother_income_yearly_bracket"
+                                                                    value={!motherNA && motherMonthly ? String(getYearly(motherMonthly)) : ""}
+                                                                />
+                                                            </div>
                                                         </div>
 
                                                     </div>
+
+                                                    <input type="hidden" name="mother_na" value={motherNA ? "1" : "0"} />
+                                                    <input type="hidden" name="mother_deceased" value={motherDeceased ? "1" : "0"} />
                                                 </div>
+
 
                                                 {/* === Guardian Information === */}
-                                                <div>
-                                                    <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
-                                                        Guardian’s Information
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Full Name  <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="guardian_name"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Occupation  <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                name="guardian_occupation"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="mb-1 block text-sm font-medium">
-                                                                Gross Monthly Income  <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                name="guardian_income_monthly"
-                                                                placeholder="Your answer"
-                                                                className="input-primary"
-                                                            />
+                                                {showGuardian && (
+                                                    <div>
+                                                        <h3 className="mb-3 text-sm font-semibold text-[#1e3c73] dark:text-zinc-200">
+                                                            Guardian’s Information
+                                                        </h3>
+
+                                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Full Name <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    name="guardian_name"
+                                                                    placeholder="Your answer"
+                                                                    className="input-primary"
+                                                                    required
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Occupation <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    name="guardian_occupation"
+                                                                    placeholder="Your answer"
+                                                                    className="input-primary"
+                                                                    required
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-medium">
+                                                                    Gross Monthly Income <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    name="guardian_income_monthly"
+                                                                    placeholder="Your answer"
+                                                                    className="input-primary"
+                                                                    required
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
+                                                )}
+
                                             </CardContent>
                                         </Card>
                                     </section>
+
 
 
                                     <section className="w-full mt-4">
@@ -2534,7 +2770,7 @@ export default function Welcome() {
                                                     <strong>NOTE:</strong> All uploaded documents must be:
                                                     <ul className="mt-1 list-disc pl-5 space-y-0.5">
                                                         <li>Whole page readable — do not crop the document.</li>
-                                                        <li>Uploaded as <strong>1 PDF file only</strong> per field.</li>
+                                                        <li>Upload only <strong>1 PDF file</strong> per field.</li>
                                                         <li>Maximum file size: <strong>10 MB</strong>.</li>
                                                     </ul>
                                                 </div>
@@ -2847,7 +3083,7 @@ export default function Welcome() {
                                                                 Social Case Study Report issued by C/MSWD covered under Magna Carta for the Poor and/or First Generation Students
                                                             </li>
                                                         </ul>
-                                                        <p className="text-xs text-justify text-zinc-500 dark:text-zinc-400">
+                                                        <p className="text-xs text-justify rounded-md border border-green-200 bg-green-50 px-3 py-2 text-green-800 dark:border-green-600 dark:bg-green-900/30 dark:text-green-200">
                                                             Additional five (5) points in the total score are given to applicants belonging
                                                             to the special group of persons such as the Underprivileged and Homeless Citizens
                                                             under Republic Act (RA) No. 7279, Persons with Disability (PWD) under RA No. 7277
@@ -2856,7 +3092,7 @@ export default function Welcome() {
                                                             requirements herein set forth.
                                                         </p>
 
-                                                        <div className="relative">
+                                                        <div className="relative mt-2">
                                                             <input
                                                                 ref={proofSpecialRef}
                                                                 type="file"
@@ -3061,7 +3297,7 @@ export default function Welcome() {
                                         <div className="flex justify-center pt-6">
                                             <Button
                                                 type="submit"
-                                                disabled={incoming === null}
+
                                                 className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
                                                 hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
                                                 disabled:cursor-not-allowed disabled:opacity-50
