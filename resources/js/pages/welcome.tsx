@@ -1,10 +1,11 @@
 // resources/js/Pages/welcome.tsx
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
+import type { Page } from '@inertiajs/core';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin } from 'lucide-react';
+import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,12 @@ type TrackData = {
 
 const TRACKING_RAW_REGEX = /^[A-Z0-9]{5}\d{4}$/;
 
+type WelcomePageProps = {
+    auth: SharedData['auth'];
+    ayDeadline: AyDeadline;
+    flash?: { trackingNo?: string | null };
+};
+
 const normalizeTrackingInput = (value: string) => {
     const up = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     const left = up.slice(0, 5);
@@ -108,7 +115,7 @@ const toHyphenatedTracking = (raw: string) =>
 
 export default function Welcome() {
 
-    const { auth, ayDeadline } = usePage<{ auth: SharedData['auth']; ayDeadline: AyDeadline }>().props;
+    const { auth, ayDeadline, flash } = usePage<WelcomePageProps>().props;
     const formattedDeadline = ayDeadline
         ? new Date(ayDeadline.deadline).toLocaleDateString("en-US", {
             year: "numeric",
@@ -123,6 +130,7 @@ export default function Welcome() {
     const [hasAppForm, setHasAppForm] = useState(false);
 
     const [successOpen, setSuccessOpen] = useState(false);
+    const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(flash?.trackingNo ?? null);
 
     const [trackOpen, setTrackOpen] = useState(false);
     const [trackingCode, setTrackingCode] = useState("");
@@ -190,6 +198,24 @@ export default function Welcome() {
         }
     };
 
+    const handleSuccessOpenChange = (open: boolean) => {
+        setSuccessOpen(open);
+        if (!open) {
+            setGeneratedTrackingNo(null);
+        }
+    };
+
+    const handleCopyTracking = async () => {
+        if (!generatedTrackingNo) return;
+        try {
+            await navigator.clipboard.writeText(generatedTrackingNo);
+            toast.success('Tracking number copied to clipboard.');
+        } catch (error) {
+            console.error('Clipboard copy failed', error);
+            toast.error('Unable to copy the tracking number. Please copy it manually.');
+        }
+    };
+
 
 
     // focus the first OTP cell when dialog opens
@@ -200,6 +226,12 @@ export default function Welcome() {
         }, 50);
         return () => clearTimeout(t);
     }, [trackOpen]);
+
+    useEffect(() => {
+        if (flash?.trackingNo) {
+            setGeneratedTrackingNo(flash.trackingNo);
+        }
+    }, [flash?.trackingNo]);
 
 
     // confetti viewport size
@@ -1118,7 +1150,7 @@ export default function Welcome() {
 
         router.post(route('cmsps.apply'), fd, {
             forceFormData: true,
-            onSuccess: () => {
+            onSuccess: (page: Page<Record<string, unknown>>) => {
                 toast.success('Application submitted successfully!', { id: 'cmsp-submit' });
                 (document.getElementById('cmspForm') as HTMLFormElement)?.reset();
                 form.reset();
@@ -1138,6 +1170,9 @@ export default function Welcome() {
                 setDate(undefined);
                 setSex('');
 
+                const pageProps = page.props as unknown as WelcomePageProps | undefined;
+                const trackingNo = pageProps?.flash?.trackingNo ?? null;
+                setGeneratedTrackingNo(trackingNo);
                 setSuccessOpen(true);
             },
             onError: (errors) => {
@@ -1179,7 +1214,7 @@ export default function Welcome() {
                         />
                     )}
 
-                    <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+                    <Dialog open={successOpen} onOpenChange={handleSuccessOpenChange}>
                         <DialogContent
                             onInteractOutside={(e) => e.preventDefault()}
                             className="
@@ -1224,6 +1259,32 @@ export default function Welcome() {
                                         You have successfully submitted your application. Please keep your email and phone active for updates.
                                     </DialogDescription>
                                 </DialogHeader>
+
+                                {generatedTrackingNo && (
+                                    <div className="mt-8 flex flex-col items-center gap-4">
+                                        <span className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+                                            Your tracking number
+                                        </span>
+                                        <div className="flex flex-col items-center gap-3 sm:flex-row">
+                                            <span className="rounded-2xl bg-zinc-100 px-6 py-2 text-lg font-semibold tracking-[0.3em] text-zinc-800 shadow-sm dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-none">
+                                                {generatedTrackingNo}
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={handleCopyTracking}
+                                                className="h-11 rounded-xl px-5"
+                                                aria-label="Copy tracking number"
+                                            >
+                                                <Copy className="mr-2 h-5 w-5" />
+                                                Copy
+                                            </Button>
+                                        </div>
+                                        <p className="max-w-sm text-center text-xs text-zinc-500 dark:text-zinc-400">
+                                            Save this code so you can check the status of your application anytime.
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div className="mt-10 flex justify-center">
                                     <DialogClose asChild>

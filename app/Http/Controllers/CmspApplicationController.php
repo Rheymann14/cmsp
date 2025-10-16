@@ -192,7 +192,7 @@ class CmspApplicationController extends Controller
             ? $this->putAttachment($request->file('guardianship_certificate')) : null,
     ];
 
-    CmspApplication::create([
+    $application = CmspApplication::create([
         'incoming' => true, // store as bool
         'tracking_no' => $this->makeTrackingNo(),
         'lrn'      => $validated['lrn'],
@@ -264,7 +264,10 @@ class CmspApplicationController extends Controller
         ...$paths,
     ]);
 
-    return back()->with('success', 'Application submitted!');
+    return back()->with([
+        'success' => 'Application submitted!',
+        'tracking_no' => $application->tracking_no,
+    ]);
 }
 
     
