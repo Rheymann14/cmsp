@@ -141,7 +141,7 @@ export default function Welcome() {
             setTrackError(null);
             setTrackResult(null);
 
-            const res = await fetch(`/api/cmsp/track/${formatted}`, {
+             const res = await fetch(`/cmsp/track/${formatted}`, {
                 headers: { "Accept": "application/json" },
             });
 
