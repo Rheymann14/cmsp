@@ -39,8 +39,10 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+        $shared = parent::share($request);
+
         return [
-            ...parent::share($request),
+            ...$shared,
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
@@ -61,6 +63,10 @@ class HandleInertiaRequests extends Middleware
                 'location' => $request->url(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'flash' => [
+                ...(is_array($shared['flash'] ?? null) ? $shared['flash'] : []),
+                'trackingNo' => fn () => $request->session()->get('tracking_no'),
+            ],
         ];
     }
 }

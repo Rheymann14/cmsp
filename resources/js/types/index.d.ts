@@ -22,15 +22,6 @@ export interface NavItem {
     isActive?: boolean;
 }
 
-export interface SharedData {
-    name: string;
-    quote: { message: string; author: string };
-    auth: Auth;
-    ziggy: Config & { location: string };
-    sidebarOpen: boolean;
-    [key: string]: unknown;
-}
-
 export interface User {
     id: number;
     name: string;
@@ -40,4 +31,21 @@ export interface User {
     created_at: string;
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...
+}
+
+export interface FlashMessages {
+    success?: string;
+    error?: string;
+    trackingNo?: string | null;
+    [key: string]: unknown;
+}
+
+export interface SharedData {
+    name: string;
+    quote: { message: string; author: string };
+    auth: Auth;
+    ziggy: Config & { location: string };
+    sidebarOpen: boolean;
+    flash?: FlashMessages;
+    [key: string]: unknown;
 }
