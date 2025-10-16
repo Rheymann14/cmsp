@@ -15,6 +15,7 @@ use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\CmspApplicationController;
 use App\Http\Controllers\EthnicityController;
 use App\Http\Controllers\ReligionController;
+use App\Http\Controllers\TrackApplicationController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -27,6 +28,12 @@ Route::get('/api/ethnicities', [EthnicityController::class, 'index']);
 Route::get('/api/religions',   [ReligionController::class, 'index']);
 
 Route::post('/cmsps/apply', [CmspApplicationController::class, 'store'])->name('cmsps.apply');
+
+Route::get('/cmsp/track/{trackingNo}', [TrackApplicationController::class, 'show'])
+    ->where('trackingNo', '[A-Za-z0-9]{5}-\d{4}')
+    ->middleware('throttle:20,1'); 
+
+    
 
 Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function () {
     

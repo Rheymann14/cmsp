@@ -4,7 +4,8 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, House } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, MoonStar, FileSpreadsheet } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -18,21 +19,73 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Home" />
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 overflow-x-auto">
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 overflow-visible">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {/* PWD */}
+                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">PWD</CardTitle>
+                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                                <Accessibility className="h-5 w-5 text-[#1e3c73]" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <p className="text-xs text-muted-foreground">as of today</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Solo Parent */}
+                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Solo Parent</CardTitle>
+                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                                <Baby className="h-5 w-5 text-[#1e3c73]" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <p className="text-xs text-muted-foreground">as of today</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Ethnicity */}
+                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Ethnicity</CardTitle>
+                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                                <Globe className="h-5 w-5 text-[#1e3c73]" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <p className="text-xs text-muted-foreground">unique groups</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Religion */}
+                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Religion</CardTitle>
+                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                                <MoonStar className="h-5 w-5 text-[#1e3c73]" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <p className="text-xs text-muted-foreground">registered</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen">
+                    <div className="mx-auto max-w-[1280px] px-4">
+                        <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                            <CmspsTable />
+                        </div>
                     </div>
                 </div>
-                <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                    <CmspsTable />
-                </div>
+
             </div>
         </AppLayout>
     );
@@ -43,7 +96,9 @@ function CmspsTable() {
     type ApplicationRow = {
         id: number;
         incoming: boolean;
+
         // identity / contact
+        tracking_no: string;
         lrn: string;
         email: string;
         contact_number: string;
@@ -59,12 +114,20 @@ function CmspsTable() {
         birthdate: string; // ISO
         sex: 'male' | 'female';
 
+
+        ethnicity_id: number; ethnicity_name?: string;   // from e.label
+        religion_id: number; religion_name?: string;    // from r.label
+        province_municipality: number; province_municipality_name?: string; // "Municipality, Province"
+        district: number; district_name?: string;
+        intended_school: number; intended_school_name?: string;
+        course: number; course_name?: string;
+
         // address (home)
-        province_municipality: string;
+
         barangay: string;
         purok_street: string;
         zip_code: string | null;
-        district: string;
+
 
         // address (BARMM optional)
         barmm_province: string | null;
@@ -74,11 +137,11 @@ function CmspsTable() {
         barmm_zip_code: string | null;
 
         // acad intent
-        intended_school: string;
+
         school_type: 'Public' | 'LUC' | 'Private';
         other_school: string | null;
         year_level: string;
-        course: string;
+
         gad_stufaps_course: string | null;
 
         // SHS
@@ -101,9 +164,9 @@ function CmspsTable() {
         guardian_income_monthly: number;
 
         // grades
-        gwa_g11_s1: number;
-        gwa_g11_s2: number;
+
         gwa_g12_s1: number;
+        gwa_g12_s2: number;
 
         // misc
         special_groups: string[]; // make sure model casts to array
@@ -161,7 +224,7 @@ function CmspsTable() {
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
     return (
-        <div className="mt-10">
+        <div className="mt-5 px-4 py-4">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 {/* Left: search */}
                 <div className="flex items-center gap-2">
@@ -170,28 +233,36 @@ function CmspsTable() {
                         <input
                             type="text"
                             placeholder="Search by name or course…"
-                            className="h-9 w-72 rounded-md border border-zinc-300 bg-white pl-8 pr-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                            className="h-9 w-72 rounded-md border border-zinc-300 bg-white pl-8 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') fetchData(1, search, perPage);
                             }}
                         />
+                        {search && (
+                            <button
+                                type="button"
+                                aria-label="Clear search"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:hover:bg-zinc-800"
+                                onClick={() => { setSearch(''); fetchData(1, '', perPage); }}
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => fetchData(1, search, perPage)}>
-                        Search
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="group relative overflow-hidden bg-[#1e3c73] hover:bg-[#1a3565] text-white px-3 py-1.5 rounded-md transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-[#1e3c73]"
+                        onClick={() => fetchData(1, search, perPage)}
+                    >
+                        <Search className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
                     </Button>
-                    {search && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setSearch(''); fetchData(1, '', perPage); }}
-                        >
-                            Clear
-                        </Button>
-                    )}
                 </div>
+
 
                 {/* Right: per-page */}
                 <div className="flex items-center gap-2">
@@ -205,22 +276,44 @@ function CmspsTable() {
                             <option key={n} value={n}>{n}</option>
                         ))}
                     </select>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="
+        group relative overflow-hidden 
+        bg-[#1e3c73] hover:bg-[#1a3565]
+        text-white hover:text-white
+        px-3 py-1.5 rounded-md
+        transition-all duration-300
+        focus:outline-none focus:ring-1 focus:ring-[#1e3c73]
+        flex items-center gap-1.5
+    "
+                        onClick={() => fetchData(1, search, perPage)}
+                    >
+                        <FileSpreadsheet className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
+                        <span className="text-white group-hover:text-white">Export</span>
+                    </Button>
+
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
                 <div className="max-w-full overflow-x-auto">
-                    <table className="min-w-[720px] w-full text-left text-sm">
-                        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    <table className="min-w-[2000px] text-left text-sm">
+                        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 [&>tr>th]:whitespace-nowrap">
                             <tr className="[&>th]:whitespace-nowrap">
+                                <th className="px-3 py-2 font-semibold min-w-[160px]">Tracking No</th>
                                 <th className="px-3 py-2 font-semibold">LRN</th>
                                 <th className="px-3 py-2 font-semibold">Email</th>
                                 <th className="px-3 py-2 font-semibold">Contact #</th>
-                                <th className="px-3 py-2 font-semibold">Name</th>
+                                <th className="px-3 py-2 font-semibold min-w-[160px]">Name</th>
                                 <th className="px-3 py-2 font-semibold">Name Ext.</th>
                                 <th className="px-3 py-2 font-semibold">Maiden Name</th>
                                 <th className="px-3 py-2 font-semibold">Sex</th>
                                 <th className="px-3 py-2 font-semibold">Birthdate</th>
+                                <th className="px-3 py-2 font-semibold">Ethnicity</th>
+                                <th className="px-3 py-2 font-semibold">Religion</th>
 
                                 <th className="px-3 py-2 font-semibold">Province/Municipality</th>
                                 <th className="px-3 py-2 font-semibold">District</th>
@@ -234,11 +327,11 @@ function CmspsTable() {
                                 <th className="px-3 py-2 font-semibold">BARMM Street</th>
                                 <th className="px-3 py-2 font-semibold">BARMM ZIP</th>
 
-                                <th className="px-3 py-2 font-semibold">Intended School</th>
+                                <th className="px-3 py-2 font-semibold min-w-[200px]">Intended School</th>
                                 <th className="px-3 py-2 font-semibold">School Type</th>
                                 <th className="px-3 py-2 font-semibold">Other School</th>
                                 <th className="px-3 py-2 font-semibold">Year Level</th>
-                                <th className="px-3 py-2 font-semibold">Course</th>
+                                <th className="px-3 py-2 font-semibold min-w-[200px]">Course</th>
                                 <th className="px-3 py-2 font-semibold">GAD StuFAPs</th>
 
                                 <th className="px-3 py-2 font-semibold">SHS School Name</th>
@@ -258,15 +351,15 @@ function CmspsTable() {
                                 <th className="px-3 py-2 font-semibold">Guardian Occupation</th>
                                 <th className="px-3 py-2 font-semibold">Guardian Income (monthly)</th>
 
-                                <th className="px-3 py-2 font-semibold">GWA G11 S1</th>
-                                <th className="px-3 py-2 font-semibold">GWA G11 S2</th>
                                 <th className="px-3 py-2 font-semibold">GWA G12 S1</th>
+                                <th className="px-3 py-2 font-semibold">GWA G12 S2</th>
+
 
                                 <th className="px-3 py-2 font-semibold">Special Groups</th>
-                           
-                                <th className="px-3 py-2 font-semibold">AY</th>
+
+                                <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
-                                <th className="px-3 py-2 font-semibold text-right">Submitted</th>
+                                <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
                             </tr>
                         </thead>
 
@@ -284,26 +377,38 @@ function CmspsTable() {
                             ) : rows.length === 0 ? (
                                 <tr className="border-t border-zinc-100 dark:border-zinc-800">
                                     <td className="px-3 py-6 text-center text-zinc-600 dark:text-zinc-300" colSpan={45}>
-                                        No applications found.
+
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+
+                                                <UserX className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-gray-500 dark:text-gray-400 font-medium">No applications found.</p>
+                                                <p className="text-sm text-gray-400 dark:text-gray-500">Try adjusting your search criteria</p>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
                                 rows.map((r) => (
                                     <tr key={r.id} className="border-t border-zinc-100 dark:border-zinc-800">
+                                        <td className="px-3 py-2">{r.tracking_no}</td>
                                         <td className="px-3 py-2">{r.lrn}</td>
                                         <td className="px-3 py-2">{r.email}</td>
                                         <td className="px-3 py-2">{r.contact_number}</td>
                                         <td className="px-3 py-2">
                                             {r.last_name}, {r.first_name} {r.middle_name ?? ''} {r.name_extension ?? ''}
-                                         
                                         </td>
                                         <td className="px-3 py-2">{r.name_extension ?? '—'}</td>
                                         <td className="px-3 py-2">{r.maiden_name ?? '—'}</td>
                                         <td className="px-3 py-2 capitalize">{r.sex}</td>
                                         <td className="px-3 py-2">{new Date(r.birthdate).toLocaleDateString()}</td>
+                                        <td className="px-3 py-2 capitalize">{r.ethnicity_name ?? r.ethnicity_id}</td>
+                                        <td className="px-3 py-2 capitalize">{r.religion_name ?? r.religion_id}</td>
 
-                                        <td className="px-3 py-2">{r.province_municipality}</td>
-                                        <td className="px-3 py-2">{r.district}</td>
+                                        <td className="px-3 py-2">{r.province_municipality_name ?? r.province_municipality}</td>
+                                        <td className="px-3 py-2">{r.district_name ?? r.district}</td>
                                         <td className="px-3 py-2">{r.barangay}</td>
                                         <td className="px-3 py-2">{r.purok_street}</td>
                                         <td className="px-3 py-2">{r.zip_code ?? '—'}</td>
@@ -314,39 +419,41 @@ function CmspsTable() {
                                         <td className="px-3 py-2">{r.barmm_purok_street ?? '—'}</td>
                                         <td className="px-3 py-2">{r.barmm_zip_code ?? '—'}</td>
 
-                                        <td className="px-3 py-2">{r.intended_school}</td>
+                                        <td className="px-3 py-2">{r.intended_school_name ?? r.intended_school}</td>
                                         <td className="px-3 py-2">{r.school_type}</td>
                                         <td className="px-3 py-2">{r.other_school ?? '—'}</td>
                                         <td className="px-3 py-2">{r.year_level}</td>
-                                        <td className="px-3 py-2" title={r.course}>{r.course}</td>
+                                        <td className="px-3 py-2" title={r.course_name ?? String(r.course)}>
+                                            {r.course_name ?? r.course}
+                                        </td>
                                         <td className="px-3 py-2">{r.gad_stufaps_course ?? '—'}</td>
 
                                         <td className="px-3 py-2">{r.shs_name}</td>
-                                         <td className="px-3 py-2">{r.shs_address}</td>
+                                        <td className="px-3 py-2">{r.shs_address}</td>
 
-                                        <td className="px-3 py-2">{r.father_name}</td>
-                                        <td className="px-3 py-2">{r.father_occupation}</td>
-                                        <td className="px-3 py-2">{r.father_income_monthly}</td>
-                                        <td className="px-3 py-2">{r.father_income_yearly_bracket}</td>
+                                        <td className="px-3 py-2">{r.father_name ?? '—'}</td>
+                                        <td className="px-3 py-2">{r.father_occupation ?? '—'}</td>
+                                        <td className="px-3 py-2">{r.father_income_monthly ?? '—'}</td>
+                                        <td className="px-3 py-2">{r.father_income_yearly_bracket ?? '—'}</td>
 
-                                        <td className="px-3 py-2">{r.mother_name}</td>
-                                        <td className="px-3 py-2">{r.mother_occupation}</td>
-                                        <td className="px-3 py-2">{r.mother_income_monthly}</td>
-                                        <td className="px-3 py-2">{r.mother_income_yearly_bracket}</td>
+                                        <td className="px-3 py-2">{r.mother_name ?? '—'}</td>
+                                        <td className="px-3 py-2">{r.mother_occupation ?? '—'}</td>
+                                        <td className="px-3 py-2">{r.mother_income_monthly ?? '—'}</td>
+                                        <td className="px-3 py-2">{r.mother_income_yearly_bracket ?? '—'}</td>
 
                                         <td className="px-3 py-2">{r.guardian_name}</td>
                                         <td className="px-3 py-2">{r.guardian_occupation}</td>
                                         <td className="px-3 py-2">{r.guardian_income_monthly}</td>
 
-                                        <td className="px-3 py-2">{r.gwa_g11_s1}</td>
-                                        <td className="px-3 py-2">{r.gwa_g11_s2}</td>
                                         <td className="px-3 py-2">{r.gwa_g12_s1}</td>
+                                        <td className="px-3 py-2">{r.gwa_g12_s2}</td>
+
 
                                         <td className="px-3 py-2">{r.special_groups?.length ? r.special_groups.join(', ') : '—'}</td>
-                                 
+
                                         <td className="px-3 py-2">{r.academic_year}</td>
                                         <td className="px-3 py-2">{new Date(r.deadline).toLocaleDateString()}</td>
-                                        <td className="px-3 py-2 text-right">{fmtDate(r.created_at)}</td>
+                                        <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                     </tr>
                                 ))
                             )}

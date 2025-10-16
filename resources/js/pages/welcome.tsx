@@ -2,13 +2,23 @@
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, Lock } from 'lucide-react';
+import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Toaster, toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import StatusCard from '@/components/StatusCard';
+
+import {
+    InputOTP,
+    InputOTPGroup,
+    InputOTPSlot,
+    InputOTPSeparator,
+} from "@/components/ui/input-otp";
 import { router } from '@inertiajs/react'; import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
     DialogDescription, DialogFooter, DialogClose
@@ -49,6 +59,50 @@ type AyDeadline = {
     deadline: string; // comes as YYYY-MM-DD from backend
 };
 
+type TrackData = {
+    tracking_no: string;
+    submitted_at: string | null;
+    incoming: boolean;
+    applicant: {
+        name: string | null;
+        birthdate: string | null;
+        sex: "male" | "female" | string;
+        ethnicity?: string | null;
+        religion?: string | null;
+    };
+    academic: {
+        academic_year: string | null;
+        deadline: string | null;
+        school: { name: string | null; type: string | null };
+        course: string | null;
+        year_level: string | null;
+        gad_stufaps_course?: string | null;
+        gwa?: { g12_s1?: number; g12_s2?: number };
+    };
+    address: {
+        scope: "Region XII" | "BARMM" | string;
+        province?: string | null;
+        municipality?: string | null;
+        barangay?: string | null;
+        purok_street?: string | null;
+        zip_code?: string | null;
+        district?: string | null;
+    };
+    files: Record<string, boolean>;
+};
+
+const TRACK_RGX = /^[A-Z0-9]{5}-\d{4}$/;
+
+const toHyphen = (raw: string) =>
+    (raw || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .replace(/^(.{5})(.*)$/, (_, a, b) => (b ? `${a}-${b}` : a))
+        .slice(0, 10);
+
+const isValidRaw = (raw: string) => TRACK_RGX.test(toHyphen(raw));
+
+
 export default function Welcome() {
 
     const { auth, ayDeadline } = usePage<{ auth: SharedData['auth']; ayDeadline: AyDeadline }>().props;
@@ -67,6 +121,82 @@ export default function Welcome() {
 
     const [successOpen, setSuccessOpen] = useState(false);
 
+    const [trackOpen, setTrackOpen] = useState(false);
+    const [trackingCode, setTrackingCode] = useState("");
+    const [loadingTrack, setLoadingTrack] = useState(false);
+    const [trackResult, setTrackResult] = useState<TrackData | null>(null);
+    const [trackError, setTrackError] = useState<string | null>(null);
+
+
+    const handleCheckStatus = async () => {
+        if (!isValidRaw(trackingCode)) {
+            setTrackError("Please enter a valid tracking number, e.g., ABCDE-1234.");
+            setTrackResult(null);
+            return;
+        }
+
+        const formatted = toHyphen(trackingCode);
+        try {
+            setLoadingTrack(true);
+            setTrackError(null);
+            setTrackResult(null);
+
+            const res = await fetch(`/api/cmsp/track/${formatted}`, {
+                headers: { "Accept": "application/json" },
+            });
+
+            if (!res.ok) {
+                if (res.status === 404) {
+                    setTrackError("Tracking number not found.");
+                } else {
+                    setTrackError("Unable to fetch status. Please try again.");
+                }
+                return;
+            }
+
+            const json = await res.json(); // { data: ... }
+            setTrackResult(json.data as TrackData);
+        } catch (e) {
+            setTrackError("Network error. Please try again.");
+        } finally {
+            setLoadingTrack(false);
+        }
+    };
+
+
+
+    const normalizeOTP = (v: string) => {
+        // AAAAA + YYYY (letters/numbers for first 5, digits only for last 4)
+        const up = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const left = up.slice(0, 5);                    // 5 alnum
+        const right = up.slice(5).replace(/\D/g, "");   // digits only
+        return (left + right.slice(0, 4)).slice(0, 9);
+    };
+
+    const isValidRaw = (raw: string) => /^[A-Z0-9]{5}\d{4}$/.test(raw);
+
+    const toHyphen = (raw: string) =>
+        raw.length >= 6 ? `${raw.slice(0, 5)}-${raw.slice(5, 9)}` : raw;
+
+    // format & validate helpers
+    const formatTracking = (v: string) => {
+        const raw = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const left = raw.slice(0, 5);                 // A–Z0–9 (5)
+        const right = raw.slice(5).replace(/\D/g, ""); // digits only
+        const r = right.slice(0, 4);
+        return r ? `${left}-${r}` : left;
+    };
+
+    const isValidTracking = (v: string) => /^[A-Z0-9]{5}-\d{4}$/.test(v);
+
+    // focus the first OTP cell when dialog opens
+    useEffect(() => {
+        if (!trackOpen) return;
+        const t = setTimeout(() => {
+            document.querySelector<HTMLInputElement>('[data-input-otp] input')?.focus();
+        }, 50);
+        return () => clearTimeout(t);
+    }, [trackOpen]);
 
 
     // confetti viewport size
@@ -1107,6 +1237,161 @@ export default function Welcome() {
                         </DialogContent>
                     </Dialog>
 
+                    <Dialog open={trackOpen} onOpenChange={setTrackOpen}>
+                        <DialogContent
+                            className="
+      p-0 rounded-3xl
+      sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl  /* wider dialog */
+      bg-white dark:bg-zinc-950               /* solid white/black, no translucency */
+      border border-zinc-200/80 dark:border-zinc-800
+      shadow-2xl
+      [&>button:last-of-type]:hidden
+    "
+                            onInteractOutside={(e) => e.preventDefault()}
+                        >
+                            {/* single top-right close */}
+                            <DialogClose asChild>
+                                <button
+                                    aria-label="Close"
+                                    className="
+          absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center
+          rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800
+          dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100
+          transition
+        "
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </DialogClose>
+
+                            <div className="p-5 sm:p-6"> {/* compact padding */}
+                                <DialogHeader className="space-y-1">
+                                    <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight">
+                                        Track Application Status
+                                    </DialogTitle>
+                                    <DialogDescription className="text-sm text-zinc-600 dark:text-zinc-400">
+                                        Enter your Tracking Number.
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                {/* OTP INPUT */}
+                                <div className="mt-4 space-y-3">
+                                    <div id="trackingCode" className="flex justify-center">
+                                        <InputOTP
+                                            data-input-otp
+                                            maxLength={9}
+                                            value={trackingCode}
+                                            inputMode="text"
+                                            onChange={(val) => {
+                                                setTrackingCode(normalizeOTP(val));
+                                                if (trackError) setTrackError(null);
+                                            }}
+                                            onPaste={(e) => {
+                                                const text = (e.clipboardData.getData('text') || '').trim();
+                                                e.preventDefault();
+                                                setTrackingCode(normalizeOTP(text));
+                                                if (trackError) setTrackError(null);
+                                            }}
+                                            className="gap-2"
+                                        >
+                                            <InputOTPGroup className="gap-2">
+                                                {/* 5 alphanumeric */}
+                                                <InputOTPSlot
+                                                    index={0}
+                                                    className="
+                  h-12 w-10 sm:h-12 sm:w-11 text-center text-lg font-medium
+                  rounded-xl border-2 border-zinc-300 dark:border-zinc-700
+                  bg-white dark:bg-zinc-900 shadow-sm
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
+                  data-[state=selected]:border-[#1e3c73]
+                "
+                                                />
+                                                <InputOTPSlot index={1} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                                <InputOTPSlot index={2} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                                <InputOTPSlot index={3} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                                <InputOTPSlot index={4} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                            </InputOTPGroup>
+
+                                            <InputOTPSeparator className="px-1 sm:px-2 text-zinc-400">–</InputOTPSeparator>
+
+                                            <InputOTPGroup className="gap-2">
+                                                {/* 4 digits */}
+                                                <InputOTPSlot index={5} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                                <InputOTPSlot index={6} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                                <InputOTPSlot index={7} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                                <InputOTPSlot index={8} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                            </InputOTPGroup>
+                                        </InputOTP>
+                                    </div>
+
+                                    <p className="text-[11px] text-center text-zinc-500">
+                                        Format: <span className="font-mono">AAAAA-YYYY</span> (5 letters/numbers, hyphen, 4 digits).
+                                    </p>
+                                    {trackError && (
+                                        <p className="text-xs text-center text-red-600 dark:text-red-400">{trackError}</p>
+                                    )}
+                                </div>
+
+                                {/* STATUS RESULT AREA */}
+                                <div
+                                    id="statusResult"
+                                    className="
+    mt-4 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700
+    bg-white dark:bg-zinc-950 p-4 sm:p-5 min-h-[96px]
+  "
+                                >
+                                    {loadingTrack ? (
+                                        <div className="space-y-3">
+                                            <Skeleton className="h-5 w-40" />
+                                            <Skeleton className="h-4 w-full" />
+                                            <Skeleton className="h-4 w-5/6" />
+                                            <Skeleton className="h-4 w-3/4" />
+                                        </div>
+                                    ) : trackResult ? (
+                                        <StatusCard data={trackResult} />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-center text-zinc-500">
+                                            <FileClock className="mb-2 h-8 w-8 text-zinc-400 dark:text-zinc-600" />
+                                            <p className="text-sm">
+                                                Results will appear here after you enter your tracking number and click <b>Check Status</b>.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+
+                                <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800" />
+
+                                <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <Button
+                                        variant="outline"
+                                        className="text-xs"
+                                        onClick={() => {
+                                            setTrackingCode("");
+                                            setTrackError(null);
+                                            setTrackResult(null);
+                                        }}
+                                    >
+                                        Clear
+                                    </Button>
+
+                                    <Button
+                                        className="text-xs bg-[#1e3c73] hover:bg-[#153159] text-white"
+                                        onClick={handleCheckStatus}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") handleCheckStatus();
+                                        }}
+                                    >
+                                        <Search className="mr-1.5 h-4 w-4" />
+                                        Check Status
+                                    </Button>
+                                </DialogFooter>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+
+
                     <nav
                         className="
                                 fixed inset-x-0 top-0
@@ -1200,6 +1485,7 @@ export default function Welcome() {
                                     <ShieldCheck className="h-4 w-4" />
                                     <span className="whitespace-nowrap">Eligibility & Requirements</span>
                                 </TabsTrigger>
+
                             </TabsList>
 
                             <TabsContent value="form" forceMount className="mt-3 data-[state=inactive]:hidden">
@@ -3333,19 +3619,41 @@ export default function Welcome() {
                                                 )}
                                             </div>
 
-                                            <div className="mt-2 flex items-center gap-0">
-                                                <img src="/ched_logo.png" alt="CHED Logo" className="h-10 w-auto p-1" />
-                                                <img src="/bagong_pilipinas.png" alt="Bagong Pilipinas Logo" className="h-14 w-auto p-1" />
-                                                <div className="ml-3">
-                                                    <CardTitle className="text-xl font-semibold tracking-tight">
-                                                        CHED Merit Scholarship Program (CMSP)
-                                                    </CardTitle>
-                                                    <CardDescription className="text-sm text-zinc-600 dark:text-zinc-400">
-                                                        CHED Regional Office XII
-                                                    </CardDescription>
+                                            {/* row: logos/title at left, track button at right (wraps on mobile) */}
+                                            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                {/* left cluster */}
+                                                <div className="flex items-center gap-0">
+                                                    <img src="/ched_logo.png" alt="CHED Logo" className="h-10 w-auto p-1" />
+                                                    <img src="/bagong_pilipinas.png" alt="Bagong Pilipinas Logo" className="h-14 w-auto p-1" />
+                                                    <div className="ml-3">
+                                                        <CardTitle className="text-xl font-semibold tracking-tight">
+                                                            CHED Merit Scholarship Program (CMSP)
+                                                        </CardTitle>
+                                                        <CardDescription className="text-sm text-zinc-600 dark:text-zinc-400">
+                                                            CHED Regional Office XII
+                                                        </CardDescription>
+                                                    </div>
+                                                </div>
+
+                                                {/* right: compact track section */}
+                                                <div className="sm:ml-4 flex flex-col items-end">
+                                                    <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 via-white to-blue-100 dark:from-[#1e293b] dark:via-[#0a0a0a] dark:to-[#1e293b] rounded-xl px-3 py-2 shadow-sm border border-blue-100 dark:border-zinc-800">
+                                                        <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
+                                                            Already applied?
+                                                        </span>
+                                                        <Button
+                                                            className="h-8 px-3 text-xs font-semibold rounded-full bg-gradient-to-r from-[#1e3c73] to-[#25468a] hover:from-[#25468a] hover:to-[#1e3c73] text-white shadow transition-all duration-200"
+                                                            onClick={() => setTrackOpen(true)}
+                                                            aria-label="Track Application Status"
+                                                        >
+                                                            <FileClock className="mr-1 h-4 w-4" />
+                                                            Track Status
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </CardHeader>
+
 
                                         <CardContent className="space-y-4 text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-200">
                                             <p className="text-justify">
@@ -3388,7 +3696,7 @@ export default function Welcome() {
                                             </div>
 
                                             <p className="pt-1 text-[12px] text-zinc-500 dark:text-zinc-400">Thank you!</p>
-                                            <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                                            {/* <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                                                 <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                                                     CMSP APPLICATION FORM
                                                 </p>
@@ -3400,7 +3708,7 @@ export default function Welcome() {
                                                 >
                                                     Download Application Form / Qualification form
                                                 </a>
-                                            </div>
+                                            </div> */}
 
                                         </CardContent>
                                     </Card>
