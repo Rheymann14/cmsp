@@ -85,4 +85,14 @@ class CmspApplication extends Model
 
         // 'working' => 'boolean',
     ];
+
+
+public function ethnicity() { return $this->belongsTo(\App\Models\Ethnicity::class, 'ethnicity_id'); }
+public function religion()  { return $this->belongsTo(\App\Models\Religion::class,  'religion_id'); }
+public function location()  { return $this->belongsTo(\App\Models\Location::class,  'province_municipality'); }
+public function districtR() { return $this->belongsTo(\App\Models\District::class,  'district'); }
+public function school()    { return $this->belongsTo(\App\Models\School::class,    'intended_school'); }
+public function courseR()   { return $this->belongsTo(\App\Models\Course::class,    'course'); }
+
+    
 }

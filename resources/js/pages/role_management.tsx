@@ -1008,7 +1008,7 @@ export default function RoleManagement() {
                                 ))}
                                 {users.data.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-12">
+                                        <TableCell colSpan={7} className="text-center py-12">
                                             <div className="flex flex-col items-center gap-3">
                                                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
 

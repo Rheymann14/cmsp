@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class CmspApplicationController extends Controller
 {
@@ -267,17 +268,47 @@ class CmspApplicationController extends Controller
 }
 
     
+
+
 public function indexJson(\Illuminate\Http\Request $request)
 {
     $perPage = (int) $request->integer('per_page', 10);
+    $term = trim((string) $request->get('search', ''));
 
-    $q = \App\Models\CmspApplication::query()->latest(); 
+    $q = \App\Models\CmspApplication::query()
+        ->from('cmsp_applications as a')
+        // lookups
+        ->leftJoin('ethnicities as e', 'e.id', '=', 'a.ethnicity_id')       // e.label
+        ->leftJoin('religions  as r', 'r.id', '=', 'a.religion_id')         // r.label
+        ->leftJoin('locations  as l', 'l.id', '=', 'a.province_municipality') // l.province, l.municipality
+        ->leftJoin('districts  as d', 'd.id', '=', 'a.district')            // d.name
+        ->leftJoin('schools    as s2','s2.id','=', 'a.intended_school')     // s2.name
+        ->leftJoin('courses    as c', 'c.id', '=', 'a.course')              // c.name
+        ->select([
+            'a.*',
+            DB::raw("e.label as ethnicity_name"),
+            DB::raw("r.label as religion_name"),
+            DB::raw("d.name  as district_name"),
+            DB::raw("s2.name as intended_school_name"),
+            DB::raw("c.name  as course_name"),
+            // Combine province + municipality for display/search
+            DB::raw("CONCAT_WS(', ', l.municipality, l.province) as province_municipality_name"),
+        ])
+        ->latest('a.created_at');
 
-    if ($s = trim((string) $request->get('search'))) {
-        $q->where(function ($w) use ($s) {
-            $w->where('last_name','like',"%{$s}%")
-              ->orWhere('first_name','like',"%{$s}%")
-              ->orWhere('course','like',"%{$s}%");
+    if ($term !== '') {
+        $q->where(function ($w) use ($term) {
+            $like = "%{$term}%";
+            $w->where('a.last_name', 'like', $like)
+              ->orWhere('a.first_name','like', $like)
+              ->orWhere('a.tracking_no','like', $like)
+              // human-readable lookups:
+              ->orWhere('c.name',  'like', $like)
+              ->orWhere('s2.name', 'like', $like)
+              ->orWhere('e.label','like', $like)
+              ->orWhere('r.label','like', $like)
+              ->orWhere('d.name', 'like', $like)
+              ->orWhere(DB::raw("CONCAT_WS(', ', l.municipality, l.province)"), 'like', $like);
         });
     }
 
@@ -293,6 +324,7 @@ public function indexJson(\Illuminate\Http\Request $request)
         ],
     ]);
 }
+
 
 
 
