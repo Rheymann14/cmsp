@@ -266,7 +266,40 @@ class CmspApplicationController extends Controller
     return back()->with('success', 'Application submitted!');
 }
 
-    
+
+public function track(Request $request)
+{
+    $validated = $request->validate([
+        'tracking_no' => ['required', 'string', 'regex:/^[A-Z0-9]{5}-\d{4}$/i'],
+    ]);
+
+    $trackingNo = Str::upper($validated['tracking_no']);
+
+    $application = CmspApplication::where('tracking_no', $trackingNo)->first();
+
+    if (!$application) {
+        return response()->json([
+            'message' => 'We could not find an application with that tracking number.',
+        ], 404);
+    }
+
+    $status = $application->status ?? 'Application Received';
+
+    return response()->json([
+        'data' => [
+            'tracking_no' => $application->tracking_no,
+            'status' => $status,
+            'submitted_at' => optional($application->created_at)->toIso8601String(),
+            'applicant' => [
+                'name' => trim(sprintf('%s %s', $application->first_name, $application->last_name)),
+                'email' => $application->email,
+            ],
+            'contact_number' => $application->contact_number,
+        ],
+    ]);
+}
+
+
 public function indexJson(\Illuminate\Http\Request $request)
 {
     $perPage = (int) $request->integer('per_page', 10);

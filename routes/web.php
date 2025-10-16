@@ -27,6 +27,7 @@ Route::get('/api/ethnicities', [EthnicityController::class, 'index']);
 Route::get('/api/religions',   [ReligionController::class, 'index']);
 
 Route::post('/cmsps/apply', [CmspApplicationController::class, 'store'])->name('cmsps.apply');
+Route::get('/cmsps/track', [CmspApplicationController::class, 'track'])->name('cmsps.track');
 
 Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function () {
     

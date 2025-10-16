@@ -4,7 +4,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, Lock } from 'lucide-react';
+import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, Loader2, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,17 @@ type AyDeadline = {
     deadline: string; // comes as YYYY-MM-DD from backend
 };
 
+type TrackingLookupResult = {
+    tracking_no: string;
+    status: string;
+    submitted_at: string | null;
+    applicant: {
+        name: string;
+        email: string;
+    };
+    contact_number: string;
+};
+
 export default function Welcome() {
 
     const { auth, ayDeadline } = usePage<{ auth: SharedData['auth']; ayDeadline: AyDeadline }>().props;
@@ -67,7 +78,76 @@ export default function Welcome() {
 
     const [successOpen, setSuccessOpen] = useState(false);
 
+    const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
+    const [trackingNumber, setTrackingNumber] = useState('');
+    const [trackingResult, setTrackingResult] = useState<TrackingLookupResult | null>(null);
+    const [trackingError, setTrackingError] = useState<string | null>(null);
+    const [trackingLoading, setTrackingLoading] = useState(false);
 
+
+
+    const resetTrackingState = () => {
+        setTrackingNumber('');
+        setTrackingResult(null);
+        setTrackingError(null);
+        setTrackingLoading(false);
+    };
+
+    const handleTrackSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        const trimmed = trackingNumber.trim();
+        if (!trimmed) {
+            setTrackingError('Please enter your tracking number.');
+            setTrackingResult(null);
+            return;
+        }
+
+        const normalized = trimmed.toUpperCase();
+
+        setTrackingLoading(true);
+        setTrackingError(null);
+        setTrackingResult(null);
+
+        try {
+            const response = await fetch(`${route('cmsps.track')}?tracking_no=${encodeURIComponent(normalized)}`, {
+                headers: {
+                    Accept: 'application/json',
+                },
+            });
+
+            let payload: any = null;
+            try {
+                payload = await response.json();
+            } catch {
+                payload = null;
+            }
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    setTrackingError(payload?.message ?? 'No application found for that tracking number.');
+                } else if (response.status === 422) {
+                    const validationMessage = payload?.errors?.tracking_no?.[0];
+                    setTrackingError(validationMessage ?? 'Please enter a valid tracking number (e.g. ABCDE-2025).');
+                } else {
+                    setTrackingError('Something went wrong while checking your application. Please try again later.');
+                }
+                return;
+            }
+
+            if (payload?.data) {
+                setTrackingResult(payload.data as TrackingLookupResult);
+                setTrackingNumber(normalized);
+            } else {
+                setTrackingError('Unexpected response received. Please try again later.');
+            }
+        } catch (error) {
+            console.error(error);
+            setTrackingError('Unable to connect to the server. Please try again in a few moments.');
+        } finally {
+            setTrackingLoading(false);
+        }
+    };
 
     // confetti viewport size
     const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -1107,6 +1187,107 @@ export default function Welcome() {
                         </DialogContent>
                     </Dialog>
 
+                    <Dialog
+                        open={trackingDialogOpen}
+                        onOpenChange={(open) => {
+                            setTrackingDialogOpen(open);
+                            if (!open) {
+                                resetTrackingState();
+                            }
+                        }}
+                    >
+                        <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-semibold tracking-tight">Track Application Status</DialogTitle>
+                                <DialogDescription className="text-sm text-zinc-600 dark:text-zinc-400">
+                                    Enter the tracking number sent to your email after submitting the application.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <form className="space-y-4" onSubmit={handleTrackSubmit}>
+                                <div>
+                                    <label htmlFor="tracking_no" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                        Tracking number
+                                    </label>
+                                    <input
+                                        id="tracking_no"
+                                        name="tracking_no"
+                                        type="text"
+                                        inputMode="text"
+                                        value={trackingNumber}
+                                        onChange={(event) => {
+                                            const sanitized = event.currentTarget.value.toUpperCase().replace(/\s+/g, '');
+                                            setTrackingNumber(sanitized);
+                                            setTrackingError(null);
+                                            setTrackingResult(null);
+                                        }}
+                                        placeholder="e.g. ABCDE-2025"
+                                        className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium tracking-[0.2em] text-zinc-800 focus:border-blue-500 focus:outline-none focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-blue-400 dark:focus:ring-blue-400/20"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {trackingError && (
+                                    <p className="text-sm text-red-600 dark:text-red-400">{trackingError}</p>
+                                )}
+
+                                {trackingResult && (
+                                    <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="font-medium">Current status</span>
+                                            <Badge className="bg-emerald-600/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                                                {trackingResult.status}
+                                            </Badge>
+                                        </div>
+                                        <dl className="space-y-2">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <dt className="text-emerald-800/80 dark:text-emerald-300/70">Tracking #</dt>
+                                                <dd className="text-right font-semibold text-emerald-900 dark:text-emerald-100">
+                                                    {trackingResult.tracking_no}
+                                                </dd>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <dt className="text-emerald-800/80 dark:text-emerald-300/70">Applicant</dt>
+                                                <dd className="text-right font-medium">{trackingResult.applicant.name}</dd>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <dt className="text-emerald-800/80 dark:text-emerald-300/70">Email</dt>
+                                                <dd className="text-right font-medium break-all">{trackingResult.applicant.email}</dd>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <dt className="text-emerald-800/80 dark:text-emerald-300/70">Contact #</dt>
+                                                <dd className="text-right font-medium">{trackingResult.contact_number}</dd>
+                                            </div>
+                                            {trackingResult.submitted_at && (
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <dt className="text-emerald-800/80 dark:text-emerald-300/70">Submitted</dt>
+                                                    <dd className="text-right font-medium">
+                                                        {format(parseISO(trackingResult.submitted_at), 'MMMM d, yyyy p')}
+                                                    </dd>
+                                                </div>
+                                            )}
+                                        </dl>
+                                        <p className="pt-1 text-xs text-emerald-800/80 dark:text-emerald-300/70">
+                                            Keep this tracking number handy. Our team will reach out through your email or contact number once the evaluation is complete.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:gap-3">
+                                    <DialogClose asChild>
+                                        <Button type="button" variant="ghost" className="justify-center sm:w-auto">
+                                            Close
+                                        </Button>
+                                    </DialogClose>
+                                    <Button type="submit" disabled={trackingLoading} className="justify-center sm:w-auto">
+                                        {trackingLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                                        {trackingLoading ? 'Checking…' : 'Check status'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
                     <nav
                         className="
                                 fixed inset-x-0 top-0
@@ -1139,6 +1320,17 @@ export default function Welcome() {
                             <div className="hidden sm:block" />
 
                             <div className="col-start-3 justify-self-end flex items-center gap-2 rtl:space-x-reverse">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => setTrackingDialogOpen(true)}
+                                    className="h-8 rounded-full bg-white/20 px-3 text-xs font-semibold text-white shadow-sm backdrop-blur hover:bg-white/30 focus-visible:ring-white/40 dark:bg-[#2b2b29] dark:text-[#EDEDEC] dark:hover:bg-[#343432] dark:focus-visible:ring-[#2b2b29]"
+                                >
+                                    <Search className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Track Status</span>
+                                    <span className="sm:hidden">Track</span>
+                                </Button>
                                 <button
                                     onClick={() => updateAppearance(isDark ? 'light' : 'dark')}
                                     className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition-colors duration-300 hover:ring-2 hover:ring-blue-500 dark:bg-gray-800"
