@@ -91,16 +91,19 @@ type TrackData = {
     files: Record<string, boolean>;
 };
 
-const TRACK_RGX = /^[A-Z0-9]{5}-\d{4}$/;
+const TRACKING_RAW_REGEX = /^[A-Z0-9]{5}\d{4}$/;
 
-const toHyphen = (raw: string) =>
-    (raw || "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "")
-        .replace(/^(.{5})(.*)$/, (_, a, b) => (b ? `${a}-${b}` : a))
-        .slice(0, 10);
+const normalizeTrackingInput = (value: string) => {
+    const up = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const left = up.slice(0, 5);
+    const right = up.slice(5).replace(/\D/g, "");
+    return (left + right.slice(0, 4)).slice(0, 9);
+};
 
-const isValidRaw = (raw: string) => TRACK_RGX.test(toHyphen(raw));
+const isValidTrackingRaw = (raw: string) => TRACKING_RAW_REGEX.test(raw);
+
+const toHyphenatedTracking = (raw: string) =>
+    raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5, 9)}` : raw;
 
 
 export default function Welcome() {
@@ -129,28 +132,52 @@ export default function Welcome() {
 
 
     const handleCheckStatus = async () => {
-        if (!isValidRaw(trackingCode)) {
+        const normalized = normalizeTrackingInput(trackingCode);
+
+        if (!isValidTrackingRaw(normalized)) {
             setTrackError("Please enter a valid tracking number, e.g., ABCDE-1234.");
             setTrackResult(null);
             return;
         }
 
-        const formatted = toHyphen(trackingCode);
+        if (normalized !== trackingCode) {
+            setTrackingCode(normalized);
+        }
+
+        const formatted = toHyphenatedTracking(normalized);
         try {
             setLoadingTrack(true);
             setTrackError(null);
             setTrackResult(null);
 
-            const res = await fetch(`/api/cmsp/track/${formatted}`, {
-                headers: { "Accept": "application/json" },
+            const res = await fetch(`/cmsp/track/${formatted}`, {
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
             });
 
             if (!res.ok) {
-                if (res.status === 404) {
-                    setTrackError("Tracking number not found.");
-                } else {
-                    setTrackError("Unable to fetch status. Please try again.");
+                let errorMessage: string | null = null;
+
+                try {
+                    const errorBody = await res.json();
+                    errorMessage =
+                        errorBody?.message ??
+                        errorBody?.errors?.tracking_no?.[0] ??
+                        errorBody?.errors?.trackingNo?.[0] ??
+                        null;
+                } catch (parseError) {
+                    errorMessage = null;
                 }
+
+                if (!errorMessage) {
+                    errorMessage = res.status === 404
+                        ? "Tracking number not found."
+                        : "Unable to fetch status. Please try again.";
+                }
+
+                setTrackError(errorMessage);
                 return;
             }
 
@@ -164,30 +191,6 @@ export default function Welcome() {
     };
 
 
-
-    const normalizeOTP = (v: string) => {
-        // AAAAA + YYYY (letters/numbers for first 5, digits only for last 4)
-        const up = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
-        const left = up.slice(0, 5);                    // 5 alnum
-        const right = up.slice(5).replace(/\D/g, "");   // digits only
-        return (left + right.slice(0, 4)).slice(0, 9);
-    };
-
-    const isValidRaw = (raw: string) => /^[A-Z0-9]{5}\d{4}$/.test(raw);
-
-    const toHyphen = (raw: string) =>
-        raw.length >= 6 ? `${raw.slice(0, 5)}-${raw.slice(5, 9)}` : raw;
-
-    // format & validate helpers
-    const formatTracking = (v: string) => {
-        const raw = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
-        const left = raw.slice(0, 5);                 // A–Z0–9 (5)
-        const right = raw.slice(5).replace(/\D/g, ""); // digits only
-        const r = right.slice(0, 4);
-        return r ? `${left}-${r}` : left;
-    };
-
-    const isValidTracking = (v: string) => /^[A-Z0-9]{5}-\d{4}$/.test(v);
 
     // focus the first OTP cell when dialog opens
     useEffect(() => {
@@ -1283,13 +1286,13 @@ export default function Welcome() {
                                             value={trackingCode}
                                             inputMode="text"
                                             onChange={(val) => {
-                                                setTrackingCode(normalizeOTP(val));
+                                                setTrackingCode(normalizeTrackingInput(val));
                                                 if (trackError) setTrackError(null);
                                             }}
                                             onPaste={(e) => {
                                                 const text = (e.clipboardData.getData('text') || '').trim();
                                                 e.preventDefault();
-                                                setTrackingCode(normalizeOTP(text));
+                                                setTrackingCode(normalizeTrackingInput(text));
                                                 if (trackError) setTrackError(null);
                                             }}
                                             className="gap-2"
