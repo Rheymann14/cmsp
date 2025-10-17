@@ -1280,9 +1280,17 @@ export default function Welcome() {
                                                 Copy
                                             </Button>
                                         </div>
-                                        <p className="max-w-sm text-center text-xs text-zinc-500 dark:text-zinc-400">
-                                            Save this code so you can check the status of your application anytime.
-                                        </p>
+                                        <div className="mt-3 flex flex-col items-center">
+                                            <Badge
+                                                variant="outline"
+                                                className="max-w-sm px-4 py-2 text-center text-xs leading-relaxed whitespace-normal break-words
+                                                             border-blue-200 bg-blue-50/80 text-blue-700
+                                                             dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
+                                            >
+                                                💡 Save this code to track your application status anytime.
+                                                Go to "Eligibility & Requirements" tab and click "Track Status" to check your application.
+                                            </Badge>
+                                        </div>
                                     </div>
                                 )}
 
@@ -3126,69 +3134,96 @@ export default function Welcome() {
                                                 </div>
 
 
-                                                {/* === Application Form Upload === */}
+                                                {/* === Application Form Upload (no Badge) === */}
                                                 <div>
                                                     <label className="mb-1 block text-sm font-medium">
-                                                        Accomplished Application Form {" "}
-                                                        <span className="text-red-500">*</span>
+                                                        Accomplished Application Form <span className="text-red-500">*</span>
                                                     </label>
-                                                    <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
-                                                        Download:{" "}
-                                                        <a
-                                                            href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-600 underline dark:text-blue-400"
-                                                        >
-                                                            Application Form / Qualification Form
-                                                        </a>
-                                                    </p>
-                                                    <div className="relative">
-                                                        <input
-                                                            ref={appFormRef}
-                                                            type="file"
-                                                            name="application_form"
-                                                            accept="application/pdf"
-                                                            onChange={(e) => setHasAppForm(!!e.currentTarget.files?.length)}
-                                                            className="
-        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
-        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
-        file:text-sm file:font-medium file:text-white 
-        hover:file:bg-[#25468a]
-        focus:border-blue-500 focus:ring focus:ring-blue-200
-        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
-        /* Disabled look */
-        disabled:cursor-not-allowed disabled:opacity-60
-        disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
-        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
-        "
-                                                        />
 
-                                                        {hasAppForm && (
-                                                            <button
-                                                                type="button"
-                                                                aria-label="Clear file"
-                                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
-                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
-                    dark:hover:bg-zinc-800 disabled:opacity-50"
-                                                                onClick={() => {
-                                                                    if (!appFormRef.current || appFormRef.current.disabled) return;
-                                                                    appFormRef.current.value = '';
-                                                                    setHasAppForm(false);
-                                                                    appFormRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-                                                                    appFormRef.current.focus();
-                                                                    clearFile(appFormRef.current, () => setHasAppForm(false));
-                                                                }}
-                                                                disabled={appFormRef.current?.disabled}
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        )}
+                                                    {/* Badge-like container */}
+                                                    <div
+                                                        className="rounded-xl mb-2 w-full border border-blue-200 bg-blue-50/70 p-3 text-sm text-blue-900
+               dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200"
+                                                    >
+                                                        {/* Instruction row */}
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <FileText className="h-4 w-4" />
+                                                                <span className="font-medium">Application Form:</span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="leading-tight">
+
+                                                                    Download the form
+
+                                                                    , fill it out completely, scan as PDF, then upload below.
+                                                                </p>
+                                                                <a
+                                                                    href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+
+                                                                    className="inline-flex items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                                >
+                                                                    <FileText className="mr-2 h-4 w-4" />
+                                                                    Download Form
+                                                                </a>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Upload area */}
+                                                        <div className="mt-3 pt-3 border-t border-blue-200/60 dark:border-blue-900/30">
+                                                            <div className="relative">
+                                                                <label htmlFor="application_form" className="sr-only">
+                                                                    Upload accomplished application form (PDF)
+                                                                </label>
+                                                                <input
+                                                                    id="application_form"
+                                                                    ref={appFormRef}
+                                                                    type="file"
+                                                                    name="application_form"
+                                                                    accept="application/pdf"
+                                                                    onChange={(e) => setHasAppForm(!!e.currentTarget.files?.length)}
+                                                                    className="
+            w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
+            file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
+            file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a]
+            focus:border-blue-500 focus:ring focus:ring-blue-200
+            dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
+            disabled:cursor-not-allowed disabled:opacity-60
+            disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
+            dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
+          "
+                                                                />
+
+                                                                {hasAppForm && (
+                                                                    <button
+                                                                        type="button"
+                                                                        aria-label="Clear file"
+                                                                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
+                       text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
+                       dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                        onClick={() => {
+                                                                            if (!appFormRef.current || appFormRef.current.disabled) return;
+                                                                            appFormRef.current.value = '';
+                                                                            setHasAppForm(false);
+                                                                            appFormRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                                                                            appFormRef.current.focus();
+                                                                            clearFile(appFormRef.current, () => setHasAppForm(false));
+                                                                        }}
+                                                                        disabled={appFormRef.current?.disabled}
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
+
+                                                        </div>
                                                     </div>
-
-
-
                                                 </div>
+
 
                                                 {/* === Required Documents === */}
                                                 <div>
@@ -3701,9 +3736,18 @@ export default function Welcome() {
 
                                                 {/* right: compact track section */}
                                                 <div className="sm:ml-4 flex flex-col items-end">
-                                                    <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 via-white to-blue-100 dark:from-[#1e293b] dark:via-[#0a0a0a] dark:to-[#1e293b] rounded-xl px-3 py-2 shadow-sm border border-blue-100 dark:border-zinc-800">
+                                                    <motion.div
+                                                        className="flex items-center gap-2 bg-gradient-to-r from-blue-50 via-white to-blue-100 dark:from-[#1e293b] dark:via-[#0a0a0a] dark:to-[#1e293b] rounded-xl px-3 py-2 shadow-sm border border-blue-100 dark:border-zinc-800"
+                                                        initial={{ scale: 1 }}
+                                                        animate={{ scale: [1, 1.05, 1] }}
+                                                        transition={{
+                                                            duration: 1.5,
+                                                            repeat: Infinity,
+                                                            repeatType: "reverse",
+                                                        }}
+                                                    >
                                                         <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
-                                                            Already applied?
+                                                            Already applied? <strong>Click here!</strong>
                                                         </span>
                                                         <Button
                                                             className="h-8 px-3 text-xs font-semibold rounded-full bg-gradient-to-r from-[#1e3c73] to-[#25468a] hover:from-[#25468a] hover:to-[#1e3c73] text-white shadow transition-all duration-200"
@@ -3711,9 +3755,9 @@ export default function Welcome() {
                                                             aria-label="Track Application Status"
                                                         >
                                                             <FileClock className="mr-1 h-4 w-4" />
-                                                            Track Status
+                                                            Track your Application Status
                                                         </Button>
-                                                    </div>
+                                                    </motion.div>
                                                 </div>
                                             </div>
                                         </CardHeader>
