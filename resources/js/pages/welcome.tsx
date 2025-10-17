@@ -1285,7 +1285,7 @@ export default function Welcome() {
                                         <div className="mt-3 flex flex-col items-center">
                                             <Badge
                                                 variant="outline"
-                                                className="max-w-sm px-4 py-2 text-center text-xs leading-relaxed whitespace-normal break-words
+                                                className="max-w-md px-4 py-2 text-center text-xs leading-relaxed whitespace-normal break-words
                                                              border-blue-200 bg-blue-50/80 text-blue-700
                                                              dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
                                             >
@@ -3751,6 +3751,7 @@ export default function Welcome() {
                                                             repeat: Infinity,
                                                             repeatType: "reverse",
                                                         }}
+                                                        onClick={() => setTrackOpen(true)}
                                                     >
                                                         <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
                                                             Already applied? <strong>Click here!</strong>
