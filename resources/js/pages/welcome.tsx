@@ -130,6 +130,7 @@ export default function Welcome() {
     const [hasAppForm, setHasAppForm] = useState(false);
 
     const [successOpen, setSuccessOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<"form" | "req">("form");
     const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(flash?.trackingNo ?? null);
 
     const [trackOpen, setTrackOpen] = useState(false);
@@ -202,6 +203,7 @@ export default function Welcome() {
         setSuccessOpen(open);
         if (!open) {
             setGeneratedTrackingNo(null);
+            setActiveTab("req");
         }
     };
 
@@ -1517,7 +1519,11 @@ export default function Welcome() {
 
                     <main className="mx-auto flex w-full max-w-[380px] sm:max-w-md flex-col gap-6 lg:max-w-7xl">
 
-                        <Tabs defaultValue="form" className="w-full mt-4">
+                        <Tabs
+                            value={activeTab}
+                            onValueChange={(value) => setActiveTab(value as "form" | "req")}
+                            className="w-full mt-4"
+                        >
                             <TabsList
                                 aria-label="CMSP sections"
                                 className="
