@@ -100,11 +100,6 @@ type ColumnDefinition = {
     render?: (row: ApplicationRow) => ReactNode;
 };
 
-type ColumnGroup = {
-    title: string;
-    columns: ColumnDefinition[];
-};
-
 const currencyFormatter = new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency: 'PHP',
@@ -281,7 +276,7 @@ function CmspsTable() {
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-    const columnGroups: ColumnGroup[] = [
+    const columnGroups = [
         {
             title: 'Application',
             columns: [
@@ -472,7 +467,7 @@ function CmspsTable() {
         },
     ];
 
-    const columnCount = columnGroups.reduce((total, group) => total + group.columns.length, 0);
+    const flatColumns = columnGroups.flatMap((group) => group.columns);
 
     return (
         <div className="mt-5 px-4 py-4">
@@ -554,37 +549,33 @@ function CmspsTable() {
                                 ))}
                             </TableRow>
                             <TableRow className="bg-white text-xs text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
-                                {columnGroups.map((group) =>
-                                    group.columns.map((column, columnIndex) => (
-                                        <TableHead
-                                            key={`${group.title}-${column.key}-${columnIndex}`}
-                                            className={cn('font-semibold text-xs uppercase tracking-wide text-zinc-600 dark:text-zinc-200', column.className)}
-                                        >
-                                            {column.label}
-                                        </TableHead>
-                                    )),
-                                )}
+                                {flatColumns.map((column, columnIndex) => (
+                                    <TableHead
+                                        key={`${column.key}-${columnIndex}`}
+                                        className={cn('font-semibold text-xs uppercase tracking-wide text-zinc-600 dark:text-zinc-200', column.className)}
+                                    >
+                                        {column.label}
+                                    </TableHead>
+                                ))}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={i} className="border-t border-zinc-100 dark:border-zinc-800">
-                                        {columnGroups.map((group) =>
-                                            group.columns.map((column, columnIndex) => (
-                                                <TableCell
-                                                    key={`${group.title}-${column.key}-${columnIndex}`}
-                                                    className={cn('py-3', column.className)}
-                                                >
-                                                    <div className="h-4 w-full max-w-[200px] animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-                                                </TableCell>
-                                            )),
-                                        )}
+                                        {flatColumns.map((column, columnIndex) => (
+                                            <TableCell
+                                                key={`${column.key}-${columnIndex}`}
+                                                className={cn('py-3', column.className)}
+                                            >
+                                                <div className="h-4 w-full max-w-[200px] animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+                                            </TableCell>
+                                        ))}
                                     </TableRow>
                                 ))
                             ) : rows.length === 0 ? (
                                 <TableRow className="border-t border-zinc-100 dark:border-zinc-800">
-                                    <TableCell className="py-8 text-center text-zinc-600 dark:text-zinc-300" colSpan={columnCount}>
+                                    <TableCell className="py-8 text-center text-zinc-600 dark:text-zinc-300" colSpan={flatColumns.length}>
                                         <div className="flex flex-col items-center gap-3">
                                             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
                                                 <UserX className="h-8 w-8 text-zinc-400" />
@@ -602,16 +593,14 @@ function CmspsTable() {
                                         key={row.id}
                                         className="border-t border-zinc-100 odd:bg-white even:bg-zinc-50/70 dark:border-zinc-800 dark:odd:bg-zinc-950 dark:even:bg-zinc-900"
                                     >
-                                        {columnGroups.map((group) =>
-                                            group.columns.map((column, columnIndex) => (
-                                                <TableCell
-                                                    key={`${group.title}-${column.key}-${columnIndex}`}
-                                                    className={column.className ? cn(column.className) : undefined}
-                                                >
-                                                    {renderColumnValue(row, column)}
-                                                </TableCell>
-                                            )),
-                                        )}
+                                        {flatColumns.map((column, columnIndex) => (
+                                            <TableCell
+                                                key={`${column.key}-${columnIndex}`}
+                                                className={column.className ? cn(column.className) : undefined}
+                                            >
+                                                {renderColumnValue(row, column)}
+                                            </TableCell>
+                                        ))}
                                     </TableRow>
                                 ))
                             )}
