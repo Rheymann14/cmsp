@@ -5,7 +5,7 @@ import type { Page } from '@inertiajs/core';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy } from 'lucide-react';
+import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,6 +113,135 @@ const toHyphenatedTracking = (raw: string) =>
     raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5, 9)}` : raw;
 
 
+type PrefilledField = {
+    label: string;
+    value: string;
+};
+
+const escapePdfText = (text: string) =>
+    text
+        .replace(/\\/g, "\\\\")
+        .replace(/\(/g, "\\(")
+        .replace(/\)/g, "\\)")
+        .replace(/\r?\n/g, " ")
+        .replace(/[\u0000-\u001f]/g, " ");
+
+const buildPrefilledPdfContent = (fields: PrefilledField[]) => {
+    const encoder = new TextEncoder();
+    const headingLines = [
+        'BT',
+        '/F1 16 Tf',
+        '1 0 0 1 72 800 Tm',
+        `(${escapePdfText('CHED Merit Scholarship Program')}) Tj`,
+        '/F1 12 Tf',
+        '0 -20 Td',
+        `(${escapePdfText('Application Form – Prefilled Snapshot')}) Tj`,
+        '/F1 10 Tf',
+        '0 -24 Td',
+        `(${escapePdfText(`Generated ${new Date().toLocaleDateString('en-PH')}`)}) Tj`,
+        '0 -14 Td',
+        `(${escapePdfText('Review the details below, then complete and sign the official form.')}) Tj`,
+        'ET',
+    ].join('\n');
+
+    const detailLines = fields.length
+        ? (() => {
+            const lines = [
+                'BT',
+                '/F1 11 Tf',
+                '14 TL',
+                '1 0 0 1 72 720 Tm',
+            ];
+
+            fields.forEach((field, index) => {
+                const value = field.value?.trim() ? field.value.trim() : '________________';
+                const text = `${field.label}: ${value}`;
+                if (index === 0) {
+                    lines.push(`(${escapePdfText(text)}) Tj`);
+                } else {
+                    lines.push('T*');
+                    lines.push(`(${escapePdfText(text)}) Tj`);
+                }
+            });
+
+            lines.push('ET');
+            return lines.join('\n');
+        })()
+        : '';
+
+    const combined = [headingLines, detailLines].filter(Boolean).join('\n');
+    return encoder.encode(combined);
+};
+
+const buildPrefilledPdfBlob = (fields: PrefilledField[]) => {
+    const encoder = new TextEncoder();
+    const contentBytes = buildPrefilledPdfContent(fields);
+
+    const header = encoder.encode('%PDF-1.4\n');
+    const objects: Uint8Array[] = [header];
+    const offsets: number[] = [0];
+    let offset = header.length;
+
+    const pushObject = (id: number, body: string) => {
+        const bytes = encoder.encode(`${id} 0 obj\n${body}\nendobj\n`);
+        offsets[id] = offset;
+        objects.push(bytes);
+        offset += bytes.length;
+    };
+
+    const pushStreamObject = (id: number, content: Uint8Array) => {
+        const start = encoder.encode(`${id} 0 obj\n<< /Length ${content.length} >>\nstream\n`);
+        const end = encoder.encode('\nendstream\nendobj\n');
+        offsets[id] = offset;
+        objects.push(start);
+        objects.push(content);
+        objects.push(end);
+        offset += start.length + content.length + end.length;
+    };
+
+    pushObject(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    pushObject(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+    pushObject(
+        3,
+        '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>'
+    );
+    pushStreamObject(4, contentBytes);
+    pushObject(5, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+
+    const xrefOffset = offset;
+    const totalObjects = 6;
+
+    const xrefHeader = encoder.encode(`xref\n0 ${totalObjects}\n`);
+    const xrefEntries: Uint8Array[] = [xrefHeader];
+    xrefEntries.push(encoder.encode('0000000000 65535 f \n'));
+    for (let i = 1; i < totalObjects; i += 1) {
+        const entry = offsets[i]?.toString().padStart(10, '0') ?? '0000000000';
+        xrefEntries.push(encoder.encode(`${entry} 00000 n \n`));
+    }
+
+    const trailer = encoder.encode(
+        `trailer\n<< /Size ${totalObjects} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`
+    );
+
+    const totalLength = objects.reduce((sum, part) => sum + part.length, 0) +
+        xrefEntries.reduce((sum, part) => sum + part.length, 0) +
+        trailer.length;
+
+    const pdfBytes = new Uint8Array(totalLength);
+    let position = 0;
+    const copyInto = (part: Uint8Array) => {
+        pdfBytes.set(part, position);
+        position += part.length;
+    };
+
+    objects.forEach(copyInto);
+    xrefEntries.forEach(copyInto);
+    copyInto(trailer);
+
+    return new Blob([pdfBytes], { type: 'application/pdf' });
+};
+
+
 export default function Welcome() {
 
     const { auth, ayDeadline, flash } = usePage<WelcomePageProps>().props;
@@ -128,6 +257,7 @@ export default function Welcome() {
     const isDark = appearance === 'dark';
     const appFormRef = useRef<HTMLInputElement | null>(null);
     const [hasAppForm, setHasAppForm] = useState(false);
+    const [isGeneratingApplicationPdf, setIsGeneratingApplicationPdf] = useState(false);
 
     const [successOpen, setSuccessOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"form" | "req">("form");
@@ -1218,6 +1348,257 @@ export default function Welcome() {
                 // no-op
             },
         });
+    };
+
+    const handleDownloadApplicationForm = () => {
+        if (isGeneratingApplicationPdf) return;
+        if (typeof window === 'undefined') {
+            toast.error('The pre-filled form can only be generated in the browser.');
+            return;
+        }
+
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) {
+            toast.error('The application form is still loading. Please try again in a moment.');
+            return;
+        }
+
+        setIsGeneratingApplicationPdf(true);
+
+        try {
+            const fd = new FormData(form);
+
+            const getDraftSingle = (name: string): string => {
+                const raw = draftRef.current?.[name];
+                if (Array.isArray(raw)) {
+                    const first = raw.find((value) => value != null && String(value).trim().length > 0);
+                    return first != null ? String(first) : '';
+                }
+                return raw != null ? String(raw) : '';
+            };
+
+            const ensureValue = (name: string, explicit?: string | null) => {
+                const existing = fd.get(name);
+                if (typeof existing === 'string' && existing.trim().length > 0) return;
+                const preferred = (explicit ?? '').trim();
+                if (preferred.length > 0) {
+                    fd.set(name, preferred);
+                    return;
+                }
+                const draftValue = getDraftSingle(name).trim();
+                if (draftValue.length > 0) {
+                    fd.set(name, draftValue);
+                }
+            };
+
+            ensureValue('incoming', incoming ?? null);
+            ensureValue('name_extension', nameExt);
+            ensureValue('birthdate', date ? format(date, 'yyyy-MM-dd') : null);
+            ensureValue('sex', sex);
+            ensureValue('ethnicity_label', ethnicityLabel);
+            ensureValue('religion_label', religionLabel);
+            ensureValue('province_municipality_label', provinceLabel);
+            ensureValue('district_label', districtLabel);
+            ensureValue('intended_school_label', schoolLabel);
+            ensureValue('year_level', yearLevel);
+            ensureValue('course_label', courseLabel);
+            ensureValue('ethnicity', ethnicityId ? String(ethnicityId) : null);
+            ensureValue('religion', religionId ? String(religionId) : null);
+            ensureValue('province_municipality', provinceId ? String(provinceId) : null);
+            ensureValue('district', districtId ? String(districtId) : null);
+            ensureValue('intended_school', schoolId ? String(schoolId) : null);
+            ensureValue('course', courseId ? String(courseId) : null);
+
+            const getValue = (name: string): string => {
+                const raw = fd.get(name);
+                if (typeof raw === 'string') {
+                    const trimmed = raw.trim();
+                    if (trimmed.length > 0) return trimmed;
+                }
+                if (raw instanceof File) return '';
+                return getDraftSingle(name).trim();
+            };
+
+            const getAll = (name: string): string[] => {
+                const values = fd
+                    .getAll(name)
+                    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+                    .filter((item) => item.length > 0);
+                if (values.length > 0) return values;
+
+                const draftValue = draftRef.current?.[name];
+                if (Array.isArray(draftValue)) {
+                    return draftValue
+                        .map((item) => String(item).trim())
+                        .filter((item) => item.length > 0);
+                }
+                if (typeof draftValue === 'string' && draftValue.trim().length > 0) {
+                    return [draftValue.trim()];
+                }
+                return [];
+            };
+
+            const fields: PrefilledField[] = [];
+            const pushField = (label: string, value: string | number | null | undefined) => {
+                const text = value == null ? '' : String(value);
+                fields.push({ label, value: text });
+            };
+
+            const academicYear = ayDeadline?.academic_year ?? '';
+            if (academicYear) pushField('Academic Year', academicYear);
+            if (formattedDeadline) pushField('Application Deadline', formattedDeadline);
+
+            const incomingSource = (incoming ?? getValue('incoming') ?? '').toString().trim();
+            const incomingLabel = incomingSource === 'yes'
+                ? 'Incoming first-year applicant'
+                : incomingSource === 'no'
+                    ? 'Continuing CMSP scholar'
+                    : incomingSource;
+            if (incomingLabel) pushField('Scholar Status', incomingLabel);
+
+            const lastName = getValue('last_name');
+            const firstName = getValue('first_name');
+            const middleName = getValue('middle_name');
+            const extension = getValue('name_extension');
+            const givenNames = [firstName, middleName].filter(Boolean).join(' ');
+            let applicantName = '';
+            if (lastName || givenNames) {
+                applicantName = [lastName, givenNames].filter(Boolean).join(', ');
+                if (extension) applicantName = `${applicantName} ${extension}`;
+            } else if (extension) {
+                applicantName = extension;
+            }
+            if (applicantName) pushField('Applicant Name', applicantName);
+
+            const maidenName = getValue('maiden_name');
+            if (maidenName) pushField('Maiden Name', maidenName);
+
+            const birthdateSource = getValue('birthdate');
+            let birthdateDisplay = '';
+            if (birthdateSource) {
+                try {
+                    birthdateDisplay = format(parseISO(birthdateSource), 'MMMM d, yyyy');
+                } catch {
+                    birthdateDisplay = birthdateSource;
+                }
+            }
+            if (birthdateDisplay) pushField('Birthdate', birthdateDisplay);
+
+            const sexSource = (sex || getValue('sex') || '').toString().trim();
+            const sexLabel = sexSource ? sexSource.charAt(0).toUpperCase() + sexSource.slice(1) : '';
+            if (sexLabel) pushField('Sex', sexLabel);
+
+            pushField('Learner Reference Number (LRN)', getValue('lrn'));
+            pushField('Email Address', getValue('email'));
+            pushField('Contact Number', getValue('contact_number'));
+
+            const ethnicityDisplay = ethnicityLabel || getValue('ethnicity_label') || getValue('ethnicity');
+            if (ethnicityDisplay) pushField('Ethnicity', ethnicityDisplay);
+
+            const religionDisplay = religionLabel || getValue('religion_label') || getValue('religion');
+            if (religionDisplay) pushField('Religion', religionDisplay);
+
+            const specialGroups = getAll('special_groups[]');
+            pushField('Special Group/s', specialGroups.length ? specialGroups.join(', ') : '');
+
+            const working = getValue('working');
+            if (working) {
+                pushField('Working Student', working === 'yes' ? 'Yes' : working);
+            }
+
+            const regionValue = (nameRegion || getValue('region') || '').trim();
+            if (regionValue) pushField('Region', regionValue);
+
+            const isBarmm = regionValue.toUpperCase() === 'BARMM';
+            const province = isBarmm
+                ? getValue('barmm_province')
+                : provinceLabel || getValue('province_municipality_label') || getValue('province_municipality');
+            const municipality = isBarmm ? getValue('barmm_municipality') : '';
+            const barangay = isBarmm ? getValue('barmm_barangay') : getValue('barangay');
+            const street = isBarmm ? getValue('barmm_purok_street') : getValue('purok_street');
+            const district = isBarmm ? '' : districtLabel || getValue('district_label') || getValue('district');
+            const zip = isBarmm ? getValue('barmm_zip_code') : getValue('zip_code');
+            const addressParts = [street, barangay, municipality, district, province, regionValue, zip ? `ZIP ${zip}` : '']
+                .map((part) => part?.trim())
+                .filter((part): part is string => Boolean(part && part.length));
+            const uniqueAddress = addressParts.filter(
+                (part, index, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === part.toLowerCase()) === index
+            );
+            if (uniqueAddress.length) pushField('Address', uniqueAddress.join(', '));
+
+            const intendedSchool = schoolLabel || getValue('intended_school_label') || getValue('intended_school');
+            if (intendedSchool) pushField('Intended School', intendedSchool);
+            const schoolType = getValue('school_type');
+            if (schoolType) pushField('School Type', schoolType);
+            const yearLevelValue = (yearLevel || getValue('year_level') || '').trim();
+            if (yearLevelValue) pushField('Year Level', yearLevelValue);
+            const courseValue = courseLabel || getValue('course_label') || getValue('course');
+            if (courseValue) pushField('Preferred Course', courseValue);
+
+            pushField('GWA Grade 12 (Semester 1)', getValue('gwa_g12_s1'));
+            pushField('GWA Grade 12 (Semester 2)', getValue('gwa_g12_s2'));
+
+            pushField('Senior High School', getValue('shs_name'));
+            pushField('SHS Address', getValue('shs_address'));
+            pushField('SHS School Type', getValue('shs_school_type'));
+
+            const fatherStatus: string[] = [];
+            if (getValue('father_na') === '1') fatherStatus.push('N/A');
+            if (getValue('father_deceased') === '1') fatherStatus.push('Deceased');
+            const fatherName = getValue('father_name');
+            const fatherDisplay = [fatherName, fatherStatus.length ? `[${fatherStatus.join(', ')}]` : '']
+                .filter(Boolean)
+                .join(' ');
+            pushField('Father Name', fatherDisplay);
+            pushField('Father Occupation', getValue('father_occupation'));
+            pushField('Father Monthly Income', getValue('father_income_monthly'));
+            pushField('Father Annual Income Bracket', getValue('father_income_yearly_bracket'));
+
+            const motherStatus: string[] = [];
+            if (getValue('mother_na') === '1') motherStatus.push('N/A');
+            if (getValue('mother_deceased') === '1') motherStatus.push('Deceased');
+            const motherName = getValue('mother_name');
+            const motherDisplay = [motherName, motherStatus.length ? `[${motherStatus.join(', ')}]` : '']
+                .filter(Boolean)
+                .join(' ');
+            pushField('Mother Name', motherDisplay);
+            pushField('Mother Occupation', getValue('mother_occupation'));
+            pushField('Mother Monthly Income', getValue('mother_income_monthly'));
+            pushField('Mother Annual Income Bracket', getValue('mother_income_yearly_bracket'));
+
+            const guardianName = getValue('guardian_name');
+            const guardianOccupation = getValue('guardian_occupation');
+            const guardianIncome = getValue('guardian_income_monthly');
+            if (guardianName || guardianOccupation || guardianIncome) {
+                pushField('Guardian Name', guardianName);
+                pushField('Guardian Occupation', guardianOccupation);
+                pushField('Guardian Monthly Income', guardianIncome);
+            }
+
+            const meaningfulFields = fields.filter((field) => field.label.trim().length > 0);
+            const hasPrefilledValue = meaningfulFields.some((field) => field.value.trim().length > 0);
+
+            if (!hasPrefilledValue) {
+                toast.error('Please enter your details in the form before downloading the pre-filled PDF.');
+                return;
+            }
+
+            const blob = buildPrefilledPdfBlob(meaningfulFields);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'CMSP_Application_Form_Prefilled.pdf';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+            toast.success('Pre-filled application form downloaded.');
+        } catch (error) {
+            console.error(error);
+            toast.error('Unable to generate the pre-filled form right now. You can still download the blank form.');
+        } finally {
+            setIsGeneratingApplicationPdf(false);
+        }
     };
 
 
@@ -3203,24 +3584,42 @@ export default function Welcome() {
                                                                 <span className="font-medium">Application Form:</span>
                                                             </div>
 
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="leading-tight">
-
-                                                                    Download the form
-
-                                                                    , fill it out completely, scan as PDF, then upload below.
-                                                                </p>
+                                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                            <p className="leading-tight text-sm sm:text-[0.9rem]">
+                                                                Download the application form with the details you have already entered.
+                                                                Review it, complete any remaining blanks, then sign, scan, and upload the PDF below.
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    onClick={handleDownloadApplicationForm}
+                                                                    disabled={isGeneratingApplicationPdf}
+                                                                    className="bg-white text-blue-600 hover:text-blue-700 focus:ring-blue-500 dark:bg-zinc-800 dark:text-blue-300 dark:hover:text-blue-200"
+                                                                >
+                                                                    {isGeneratingApplicationPdf ? (
+                                                                        <>
+                                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                            Preparing…
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <FileText className="mr-2 h-4 w-4" />
+                                                                            Download with my details
+                                                                        </>
+                                                                    )}
+                                                                </Button>
                                                                 <a
                                                                     href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-
-                                                                    className="inline-flex items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-blue-600 shadow-sm transition-colors hover:bg-gray-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-800 dark:text-blue-300 dark:hover:bg-zinc-700"
                                                                 >
                                                                     <FileText className="mr-2 h-4 w-4" />
-                                                                    Download Form
+                                                                    Download blank form
                                                                 </a>
                                                             </div>
+                                                        </div>
                                                         </div>
 
                                                         {/* Upload area */}
