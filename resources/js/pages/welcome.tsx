@@ -414,102 +414,76 @@ export default function Welcome() {
 </html>`;
     };
 
-    const [isGeneratingApplicationPdf, setIsGeneratingApplicationPdf] = useState(false);
-    const [pdfError, setPdfError] = useState<string | null>(null);
-
     const handleGeneratePrefilledForm = () => {
-        if (isGeneratingApplicationPdf) return;
-
-        setPdfError(null);
-
         const form = document.getElementById('cmspForm') as HTMLFormElement | null;
         if (!form) {
-            const message = 'Unable to locate application form.';
-            toast.error(message);
-            setPdfError(message);
+            toast.error('Unable to locate application form.');
             return;
         }
 
-        setIsGeneratingApplicationPdf(true);
+        const data: DraftData = { ...draftRef.current };
+
+        const enhanceFromDom = () => {
+            const formData = new FormData(form);
+            for (const [key, value] of formData.entries()) {
+                if (value instanceof File) continue;
+                if (key.endsWith('[]')) {
+                    data[key] = formData.getAll(key).map((entry) =>
+                        entry instanceof File ? '' : String(entry),
+                    );
+                } else {
+                    data[key] = String(value ?? '');
+                }
+            }
+        };
 
         try {
-            const data: DraftData = { ...draftRef.current };
-
-            const enhanceFromDom = () => {
-                const formData = new FormData(form);
-                for (const [key, value] of formData.entries()) {
-                    if (value instanceof File) continue;
-                    if (key.endsWith('[]')) {
-                        data[key] = formData.getAll(key).map((entry) =>
-                            entry instanceof File ? '' : String(entry),
-                        );
-                    } else {
-                        data[key] = String(value ?? '');
-                    }
-                }
-            };
-
-            try {
-                enhanceFromDom();
-            } catch {
-                /* noop */
-            }
-
-            data.region = data.region ?? nameRegion ?? '';
-            data.name_extension = data.name_extension ?? nameExt ?? '';
-            data.sex = data.sex ?? sex ?? '';
-            data.ethnicity_label = data.ethnicity_label ?? ethnicityLabel ?? '';
-            data.religion_label = data.religion_label ?? religionLabel ?? '';
-            data.province_municipality_label = data.province_municipality_label ?? provinceLabel ?? '';
-            data.district_label = data.district_label ?? districtLabel ?? '';
-            data.intended_school_label = data.intended_school_label ?? schoolLabel ?? '';
-            data.course_label = data.course_label ?? courseLabel ?? '';
-            data.year_level = data.year_level ?? yearLevel ?? '';
-
-            const FILE_FIELD_NAMES = [
-                'application_form',
-                'birth_certificate',
-                'grades_g12_s1',
-                'grades_g12_s2',
-                'proof_of_income',
-                'proof_special_group',
-                'consent',
-                'guardianship_certificate',
-            ];
-
-            FILE_FIELD_NAMES.forEach((name) => {
-                const input = form.querySelector<HTMLInputElement>(`input[type="file"][name="${name}"]`);
-                if (input?.files && input.files.length > 0) {
-                    data[name] = 'uploaded';
-                } else {
-                    data[name] = '';
-                }
-            });
-
-            const preview = window.open('', '_blank');
-            if (!preview) {
-                const err = new Error('popup-blocked');
-                throw err;
-            }
-
-            preview.document.open();
-            preview.document.write(buildPreviewHtml(data));
-            preview.document.close();
-            preview.focus();
-        } catch (error) {
-            console.error(error);
-            if (error instanceof Error && error.message === 'popup-blocked') {
-                const message = 'Please allow pop-ups to preview the application form.';
-                toast.error(message);
-                setPdfError(message);
-            } else {
-                const message = 'Unable to generate the application form preview. Please try again.';
-                toast.error(message);
-                setPdfError(message);
-            }
-        } finally {
-            setIsGeneratingApplicationPdf(false);
+            enhanceFromDom();
+        } catch {
+            /* noop */
         }
+
+        data.region = data.region ?? nameRegion ?? '';
+        data.name_extension = data.name_extension ?? nameExt ?? '';
+        data.sex = data.sex ?? sex ?? '';
+        data.ethnicity_label = data.ethnicity_label ?? ethnicityLabel ?? '';
+        data.religion_label = data.religion_label ?? religionLabel ?? '';
+        data.province_municipality_label = data.province_municipality_label ?? provinceLabel ?? '';
+        data.district_label = data.district_label ?? districtLabel ?? '';
+        data.intended_school_label = data.intended_school_label ?? schoolLabel ?? '';
+        data.course_label = data.course_label ?? courseLabel ?? '';
+        data.year_level = data.year_level ?? yearLevel ?? '';
+
+        const FILE_FIELD_NAMES = [
+            'application_form',
+            'birth_certificate',
+            'grades_g12_s1',
+            'grades_g12_s2',
+            'proof_of_income',
+            'proof_special_group',
+            'consent',
+            'guardianship_certificate',
+        ];
+
+        FILE_FIELD_NAMES.forEach((name) => {
+            const input = form.querySelector<HTMLInputElement>(`input[type="file"][name="${name}"]`);
+            if (input?.files && input.files.length > 0) {
+                data[name] = 'uploaded';
+            } else {
+                data[name] = '';
+            }
+        });
+
+        const preview = window.open('', '_blank');
+        if (!preview) {
+            toast.error('Please allow pop-ups to preview the PDF.');
+            return;
+        }
+
+        preview.document.open();
+        preview.document.write(buildPreviewHtml(data));
+        preview.document.close();
+        preview.focus();
     };
 
     const [successOpen, setSuccessOpen] = useState(false);
@@ -3596,21 +3570,10 @@ export default function Welcome() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={handleGeneratePrefilledForm}
-                                                                    className="inline-flex items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
-                                                                    disabled={isGeneratingApplicationPdf}
-                                                                    aria-busy={isGeneratingApplicationPdf}
+                                                                    className="inline-flex items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                                                 >
-                                                                    {isGeneratingApplicationPdf ? (
-                                                                        <>
-                                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                                            Preparing preview…
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <FileText className="mr-2 h-4 w-4" />
-                                                                            Download Form
-                                                                        </>
-                                                                    )}
+                                                                    <FileText className="mr-2 h-4 w-4" />
+                                                                    Download Form
                                                                 </button>
                                                             </div>
                                                         </div>
