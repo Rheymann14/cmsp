@@ -810,10 +810,18 @@ export default function Welcome() {
 
 
     const [districts, setDistricts] = useState<{ id: number; label: string }[]>([]);
-    const [loadingDistricts, setLoadingDistricts] = useState(true);
+    const [loadingDistricts, setLoadingDistricts] = useState(false);
 
     useEffect(() => {
-        fetch("/api/districts", {
+        if (!provinceId) {
+            setDistricts([]);
+            setLoadingDistricts(false);
+            return;
+        }
+
+        setLoadingDistricts(true);
+
+        fetch(`/api/districts?location_id=${provinceId}`, {
             headers: {
                 Accept: "application/json",
                 "X-Requested-With": "XMLHttpRequest", // 👈 tell Laravel it's AJAX
@@ -823,7 +831,29 @@ export default function Welcome() {
             .then((data) => setDistricts(data.data ?? []))
             .catch(() => setDistricts([]))
             .finally(() => setLoadingDistricts(false));
-    }, []);
+    }, [provinceId]);
+
+    useEffect(() => {
+        if (!districtId) return;
+
+        const exists = districts.some((d) => d.id === districtId);
+        if (!exists) {
+            setDistrictId(null);
+            setDistrictLabel("");
+            persistDraft("district", "");
+            persistDraft("district_label", "");
+        }
+    }, [districts, districtId]);
+
+    useEffect(() => {
+        if (districtId || districts.length !== 1) return;
+
+        const only = districts[0];
+        setDistrictId(only.id);
+        setDistrictLabel(only.label);
+        persistDraft("district", String(only.id));
+        persistDraft("district_label", only.label);
+    }, [districts, districtId]);
 
 
     const [schools, setSchools] = useState<{ id: number; label: string }[]>([]);
@@ -2188,14 +2218,19 @@ export default function Welcome() {
                                                                                         <CommandItem
                                                                                             key={loc.id}
                                                                                             value={loc.label}
-                                                                                            onSelect={() => {
-                                                                                                setProvinceId(loc.id);
-                                                                                                setProvinceLabel(loc.label);
-                                                                                                persistDraft('province_municipality', String(loc.id));
-                                                                                                persistDraft('province_municipality_label', loc.label);
-                                                                                                setOpenProvince(false);
-                                                                                            }}
-                                                                                        >
+                                                                                        onSelect={() => {
+                                                                                            setProvinceId(loc.id);
+                                                                                            setProvinceLabel(loc.label);
+                                                                                            persistDraft('province_municipality', String(loc.id));
+                                                                                            persistDraft('province_municipality_label', loc.label);
+                                                                                            setDistricts([]);
+                                                                                            setDistrictId(null);
+                                                                                            setDistrictLabel("");
+                                                                                            persistDraft('district', '');
+                                                                                            persistDraft('district_label', '');
+                                                                                            setOpenProvince(false);
+                                                                                        }}
+                                                                                    >
                                                                                             {loc.label}
                                                                                         </CommandItem>
                                                                                     ))}
@@ -2241,8 +2276,11 @@ export default function Welcome() {
                                                                         role="combobox"
                                                                         className="w-full justify-between"
                                                                         data-field="district"
+                                                                        disabled={!provinceId || loadingDistricts}
                                                                     >
-                                                                        {districtLabel || "Select district"}
+                                                                        {loadingDistricts
+                                                                            ? "Loading..."
+                                                                            : districtLabel || "Select district"}
                                                                         <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                     </Button>
                                                                 </PopoverTrigger>
@@ -2253,9 +2291,16 @@ export default function Welcome() {
                                                                     sideOffset={8}
                                                                 >
                                                                     <Command>
-                                                                        <CommandInput placeholder="Search district..." />
+                                                                        <CommandInput
+                                                                            placeholder="Search district..."
+                                                                            disabled={!provinceId}
+                                                                        />
                                                                         <CommandList>
-                                                                            {loadingDistricts ? (
+                                                                            {!provinceId ? (
+                                                                                <CommandEmpty>
+                                                                                    Select a province & municipality first.
+                                                                                </CommandEmpty>
+                                                                            ) : loadingDistricts ? (
                                                                                 <CommandEmpty>Loading...</CommandEmpty>
                                                                             ) : districts.length === 0 ? (
                                                                                 <CommandEmpty>No results found.</CommandEmpty>
