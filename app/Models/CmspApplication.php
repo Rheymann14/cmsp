@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class CmspApplication extends Model
 {
@@ -85,6 +86,17 @@ class CmspApplication extends Model
 
         // 'working' => 'boolean',
     ];
+
+        protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($model) {
+            if ($model->birthdate) {
+                $model->age = Carbon::parse($model->birthdate)->age;
+            }
+        });
+    }
 
 
 public function ethnicity()      { return $this->belongsTo(\App\Models\Ethnicity::class, 'ethnicity_id'); }

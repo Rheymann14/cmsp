@@ -24,6 +24,7 @@ return new class extends Migration {
             $table->string('name_extension')->nullable();
 
             $table->date('birthdate');
+            $table->unsignedTinyInteger('age')->nullable(); 
             $table->enum('sex', ['male','female']);
 
             // NEW: lookups

@@ -144,6 +144,7 @@ function CmspsTable() {
 
         // personal
         birthdate: string; // ISO
+        age : number | null;
         sex: 'male' | 'female';
 
         ethnicity_id: number; ethnicity_name?: string;
@@ -340,6 +341,7 @@ function CmspsTable() {
                                 <th className="px-3 py-2 font-semibold">Maiden Name</th>
                                 <th className="px-3 py-2 font-semibold">Sex</th>
                                 <th className="px-3 py-2 font-semibold">Birthdate</th>
+                                <th className="px-3 py-2 font-semibold">Age</th>
                                 <th className="px-3 py-2 font-semibold">Ethnicity</th>
                                 <th className="px-3 py-2 font-semibold">Religion</th>
 
@@ -464,6 +466,7 @@ function CmspsTable() {
                                         <td className="px-3 py-2">{r.maiden_name ?? '—'}</td>
                                         <td className="px-3 py-2 capitalize">{r.sex}</td>
                                         <td className="px-3 py-2">{new Date(r.birthdate).toLocaleDateString()}</td>
+                                        <td className="px-3 py-2">{r.age ?? '—'}</td>
                                         <td className="px-3 py-2 capitalize">{r.ethnicity_name ?? r.ethnicity_id}</td>
                                         <td className="px-3 py-2 capitalize">{r.religion_name ?? r.religion_id}</td>
 
