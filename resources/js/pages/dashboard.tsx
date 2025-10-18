@@ -272,9 +272,7 @@ function CmspsTable() {
             const res = await fetch(buildExportUrl(search), {
                 headers: {
                     Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'X-Requested-With': 'XMLHttpRequest',
                 },
-                credentials: 'same-origin',
             });
             if (!res.ok) {
                 throw new Error('Failed to export');
