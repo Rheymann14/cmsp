@@ -241,7 +241,10 @@ function CmspsTable() {
     const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
         setLoading(true);
         try {
-            const res = await fetch(buildUrl(p, s, pp), { headers: { Accept: 'application/json' } });
+            const res = await fetch(buildUrl(p, s, pp), {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
             if (!res.ok) throw new Error('Failed to load');
             const json = await res.json();
             setRows(json.data ?? []);
