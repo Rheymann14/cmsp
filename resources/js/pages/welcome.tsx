@@ -129,6 +129,363 @@ export default function Welcome() {
     const appFormRef = useRef<HTMLInputElement | null>(null);
     const [hasAppForm, setHasAppForm] = useState(false);
 
+    type DraftData = Record<string, unknown>;
+
+    const escapeHtml = (value: string) =>
+        value
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+
+    const buildPreviewHtml = (data: DraftData) => {
+        const getRaw = (key: string, fallback = "") => {
+            if (!(key in data)) return fallback;
+            const rawValue = data[key];
+            if (Array.isArray(rawValue)) {
+                return rawValue
+                    .filter((item) => item !== null && item !== undefined && String(item).trim() !== "")
+                    .map((item) => String(item))
+                    .join(", ");
+            }
+            if (rawValue === null || rawValue === undefined) return fallback;
+            const str = String(rawValue);
+            return str.trim() === "" ? fallback : str;
+        };
+
+        const get = (key: string, fallback = "") => escapeHtml(getRaw(key, fallback));
+
+        const formatDateValue = (key: string) => {
+            const raw = getRaw(key);
+            if (!raw) return "";
+            try {
+                const date = parseISO(raw);
+                if (Number.isNaN(date.getTime())) return escapeHtml(raw);
+                return escapeHtml(format(date, "MMMM d, yyyy"));
+            } catch {
+                return escapeHtml(raw);
+            }
+        };
+
+        const boolDisplay = (key: string, truthyLabel = "Yes", falsyLabel = "No") => {
+            const rawValue = data[key];
+            if (typeof rawValue === 'boolean') {
+                return escapeHtml(rawValue ? truthyLabel : falsyLabel);
+            }
+            const normalized = String(rawValue ?? '').trim().toLowerCase();
+            const truthy = ["1", "true", "on", "yes"].includes(normalized);
+            return escapeHtml(truthy ? truthyLabel : falsyLabel);
+        };
+
+        const renderTable = (
+            rows: { label: string; key?: string; value?: string; colSpan?: number }[][],
+        ) =>
+            rows
+                .map((cells) =>
+                    `<tr>${cells
+                        .map((cell) => {
+                            const colSpan = cell.colSpan ?? 1;
+                            const value = cell.value ?? (cell.key ? get(cell.key) : "");
+                            return `<td colspan="${colSpan}"><div class="cell-label">${escapeHtml(cell.label)}</div><div class="cell-value">${value}</div></td>`;
+                        })
+                        .join("")}</tr>`,
+                )
+                .join("");
+
+        const specialGroups = getRaw("special_groups[]");
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charSet="utf-8" />
+    <title>CMSP Application Form Preview</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif; background: #d1d5db; }
+        .page {
+            width: 816px;
+            min-height: 1056px;
+            margin: 16px auto;
+            background: #fff;
+            padding: 32px 36px;
+            border: 1px solid #9ca3af;
+            position: relative;
+            page-break-after: always;
+        }
+        .page:last-of-type { page-break-after: auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .header h1 {
+            margin: 4px 0;
+            font-size: 18px;
+            letter-spacing: 0.05em;
+        }
+        .header h2 {
+            margin: 4px 0;
+            font-size: 16px;
+            letter-spacing: 0.04em;
+        }
+        .header p { margin: 2px 0; font-size: 11px; }
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            background: #1f2937;
+            color: #fff;
+            padding: 4px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin: 18px 0 6px;
+        }
+        table.form-table { width: 100%; border-collapse: collapse; }
+        table.form-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            vertical-align: top;
+        }
+        .cell-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #374151;
+            letter-spacing: 0.08em;
+            margin-bottom: 3px;
+        }
+        .cell-value {
+            font-size: 12px;
+            min-height: 16px;
+            color: #111827;
+        }
+        .muted { font-size: 10px; color: #4b5563; }
+        @media print {
+            body { background: #fff; }
+            .page { margin: 0 auto; border: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <p>Republic of the Philippines</p>
+            <p>OFFICE OF THE PRESIDENT OF THE PHILIPPINES</p>
+            <p>COMMISSION ON HIGHER EDUCATION</p>
+            <h1>CHED MERIT SCHOLARSHIP PROGRAM (CMSP)</h1>
+            <h2>APPLICATION FORM A.Y. 2025-2026</h2>
+            <p class="muted">Accomplished application form based on saved data</p>
+        </div>
+
+        <div class="section-title">Personal Information</div>
+        <table class="form-table">
+            ${renderTable([
+                [
+                    { label: "Last Name", key: "last_name" },
+                    { label: "First Name", key: "first_name" },
+                    { label: "Middle Name", key: "middle_name" },
+                    { label: "Name Extension", key: "name_extension" },
+                ],
+                [
+                    { label: "Maiden Name (if applicable)", key: "maiden_name", colSpan: 2 },
+                    { label: "Sex", key: "sex" },
+                    { label: "Birthdate", value: formatDateValue("birthdate") },
+                ],
+                [
+                    { label: "Ethnicity", key: "ethnicity_label", colSpan: 2 },
+                    { label: "Religion", key: "religion_label", colSpan: 2 },
+                ],
+                [
+                    { label: "LRN", key: "lrn", colSpan: 2 },
+                    { label: "Contact Number", key: "contact_number" },
+                    { label: "Email", key: "email" },
+                ],
+                [
+                    { label: "Special Group Membership", value: specialGroups ? escapeHtml(specialGroups) : "", colSpan: 4 },
+                ],
+            ])}
+        </table>
+
+        <div class="section-title">Address</div>
+        <table class="form-table">
+            ${renderTable([
+                [
+                    { label: "Region", key: "region" },
+                    { label: "Province/Municipality", key: "province_municipality_label", colSpan: 2 },
+                    { label: "District", key: "district_label" },
+                ],
+                [
+                    { label: "Barangay", key: "barangay" },
+                    { label: "Purok/Street", key: "purok_street" },
+                    { label: "ZIP Code", key: "zip_code" },
+                    { label: "Residence Scope", key: "scope" },
+                ],
+            ])}
+        </table>
+
+        <div class="section-title">Academic Information</div>
+        <table class="form-table">
+            ${renderTable([
+                [
+                    { label: "Applicant Type", key: "incoming", colSpan: 2 },
+                    { label: "School Year", key: "academic_year", colSpan: 2 },
+                ],
+                [
+                    { label: "Intended School", key: "intended_school_label", colSpan: 2 },
+                    { label: "School Type", key: "school_type" },
+                    { label: "Preferred Course", key: "course_label" },
+                ],
+                [
+                    { label: "Year Level", key: "year_level", colSpan: 2 },
+                    { label: "GAD/STUFAPS Course", key: "gad_stufaps_course", colSpan: 2 },
+                ],
+            ])}
+        </table>
+
+        <div class="section-title">Senior High School Information</div>
+        <table class="form-table">
+            ${renderTable([
+                [
+                    { label: "School Name", key: "shs_name", colSpan: 2 },
+                    { label: "School Type", key: "shs_school_type" },
+                    { label: "Working Student", value: boolDisplay("working") },
+                ],
+                [
+                    { label: "School Address", key: "shs_address", colSpan: 4 },
+                ],
+                [
+                    { label: "GWA Grade 12 (1st Sem)", key: "gwa_g12_s1", colSpan: 2 },
+                    { label: "GWA Grade 12 (2nd Sem)", key: "gwa_g12_s2", colSpan: 2 },
+                ],
+            ])}
+        </table>
+    </div>
+
+    <div class="page">
+        <div class="section-title">Family Background</div>
+        <table class="form-table">
+            ${renderTable([
+                [
+                    { label: "Father's Name", key: "father_name", colSpan: 2 },
+                    { label: "Occupation", key: "father_occupation" },
+                    { label: "Gross Monthly Income", key: "father_income_monthly" },
+                ],
+                [
+                    { label: "Is Father Deceased?", value: boolDisplay("father_deceased") },
+                    { label: "Is Father N/A?", value: boolDisplay("father_na") },
+                    { label: "Annual Income Bracket", key: "father_income_yearly_bracket", colSpan: 2 },
+                ],
+                [
+                    { label: "Mother's Name", key: "mother_name", colSpan: 2 },
+                    { label: "Occupation", key: "mother_occupation" },
+                    { label: "Gross Monthly Income", key: "mother_income_monthly" },
+                ],
+                [
+                    { label: "Is Mother Deceased?", value: boolDisplay("mother_deceased") },
+                    { label: "Is Mother N/A?", value: boolDisplay("mother_na") },
+                    { label: "Annual Income Bracket", key: "mother_income_yearly_bracket", colSpan: 2 },
+                ],
+                [
+                    { label: "Guardian's Name", key: "guardian_name", colSpan: 2 },
+                    { label: "Occupation", key: "guardian_occupation" },
+                    { label: "Gross Monthly Income", key: "guardian_income_monthly" },
+                ],
+            ])}
+        </table>
+
+        <div class="section-title">Attachments Checklist</div>
+        <table class="form-table">
+            ${renderTable([
+                [
+                    { label: "Accomplished Application Form", value: hasAppForm ? "Uploaded" : "Pending", colSpan: 2 },
+                    { label: "Birth Certificate", value: getRaw("birth_certificate") ? "Uploaded" : "Pending" },
+                    { label: "Report Card (G12 1st Sem)", value: getRaw("grades_g12_s1") ? "Uploaded" : "Pending" },
+                ],
+                [
+                    { label: "Report Card (G12 2nd Sem)", value: getRaw("grades_g12_s2") ? "Uploaded" : "Pending" },
+                    { label: "Proof of Income", value: getRaw("proof_of_income") ? "Uploaded" : "Pending" },
+                    { label: "Special Group Proof", value: getRaw("proof_special_group") ? "Uploaded" : "Pending" },
+                    { label: "Consent", value: getRaw("consent") ? "Uploaded" : "Pending" },
+                ],
+            ])}
+        </table>
+
+        <p class="muted" style="margin-top: 24px;">Generated on ${escapeHtml(format(new Date(), "MMMM d, yyyy 'at' h:mm a"))}</p>
+    </div>
+</body>
+</html>`;
+    };
+
+    const handleGeneratePrefilledForm = () => {
+        const form = document.getElementById('cmspForm') as HTMLFormElement | null;
+        if (!form) {
+            toast.error('Unable to locate application form.');
+            return;
+        }
+
+        const data: DraftData = { ...draftRef.current };
+
+        const enhanceFromDom = () => {
+            const formData = new FormData(form);
+            for (const [key, value] of formData.entries()) {
+                if (value instanceof File) continue;
+                if (key.endsWith('[]')) {
+                    data[key] = formData.getAll(key).map((entry) =>
+                        entry instanceof File ? '' : String(entry),
+                    );
+                } else {
+                    data[key] = String(value ?? '');
+                }
+            }
+        };
+
+        try {
+            enhanceFromDom();
+        } catch {
+            /* noop */
+        }
+
+        data.region = data.region ?? nameRegion ?? '';
+        data.name_extension = data.name_extension ?? nameExt ?? '';
+        data.sex = data.sex ?? sex ?? '';
+        data.ethnicity_label = data.ethnicity_label ?? ethnicityLabel ?? '';
+        data.religion_label = data.religion_label ?? religionLabel ?? '';
+        data.province_municipality_label = data.province_municipality_label ?? provinceLabel ?? '';
+        data.district_label = data.district_label ?? districtLabel ?? '';
+        data.intended_school_label = data.intended_school_label ?? schoolLabel ?? '';
+        data.course_label = data.course_label ?? courseLabel ?? '';
+        data.year_level = data.year_level ?? yearLevel ?? '';
+
+        const FILE_FIELD_NAMES = [
+            'application_form',
+            'birth_certificate',
+            'grades_g12_s1',
+            'grades_g12_s2',
+            'proof_of_income',
+            'proof_special_group',
+            'consent',
+            'guardianship_certificate',
+        ];
+
+        FILE_FIELD_NAMES.forEach((name) => {
+            const input = form.querySelector<HTMLInputElement>(`input[type="file"][name="${name}"]`);
+            if (input?.files && input.files.length > 0) {
+                data[name] = 'uploaded';
+            } else {
+                data[name] = '';
+            }
+        });
+
+        const preview = window.open('', '_blank');
+        if (!preview) {
+            toast.error('Please allow pop-ups to preview the PDF.');
+            return;
+        }
+
+        preview.document.open();
+        preview.document.write(buildPreviewHtml(data));
+        preview.document.close();
+        preview.focus();
+    };
+
     const [successOpen, setSuccessOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"form" | "req">("form");
     const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(flash?.trackingNo ?? null);
@@ -3210,16 +3567,14 @@ export default function Welcome() {
 
                                                                     , fill it out completely, scan as PDF, then upload below.
                                                                 </p>
-                                                                <a
-                                                                    href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleGeneratePrefilledForm}
                                                                     className="inline-flex items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                                                 >
                                                                     <FileText className="mr-2 h-4 w-4" />
                                                                     Download Form
-                                                                </a>
+                                                                </button>
                                                             </div>
                                                         </div>
 
