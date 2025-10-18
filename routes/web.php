@@ -69,6 +69,9 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::get('/cmsp-applications/json', [CmspApplicationController::class, 'indexJson'])
         ->name('cmsp-applications.index.json');
 
+    Route::get('/cmsp-applications/export', [CmspApplicationController::class, 'exportXlsx'])
+        ->name('cmsp-applications.export');
+
 
 
 
