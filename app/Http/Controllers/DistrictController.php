@@ -16,35 +16,19 @@ class DistrictController extends Controller
 
         $locationId = $request->query('location_id');
         if ($locationId !== null) {
-            $location = Location::find((int) $locationId);
+            $location = Location::with('district')->find((int) $locationId);
 
-            if (!$location) {
+            if (!$location || !$location->district) {
                 return response()->json([
                     'message' => 'No districts found for the selected location',
                     'data' => [],
                 ], 200);
             }
 
-            $districts = Location::where('province', $location->province)
-                ->whereNotNull('district_id')
-                ->with('district')
-                ->get()
-                ->pluck('district')
-                ->filter()
-                ->unique('id')
-                ->sortBy('name')
-                ->values()
-                ->map(fn($d) => [
-                    'id' => $d->id,
-                    'label' => $d->name,
-                ]);
-
-            if ($districts->isEmpty()) {
-                return response()->json([
-                    'message' => 'No districts found for the selected location',
-                    'data' => [],
-                ], 200);
-            }
+            $districts = collect([$location->district])->map(fn($d) => [
+                'id' => $d->id,
+                'label' => $d->name,
+            ]);
 
             return response()->json([
                 'message' => 'Districts retrieved successfully',
