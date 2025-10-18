@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AyDeadline;
 use App\Models\CmspApplication;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -10,6 +11,14 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\RichText\RichText;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class CmspApplicationController extends Controller
 {
@@ -273,7 +282,392 @@ class CmspApplicationController extends Controller
     
 
 
-public function indexJson(\Illuminate\Http\Request $request)
+public function exportXlsx(Request $request)
+    {
+        $term = trim((string) $request->get('search', ''));
+
+        $query = CmspApplication::query()
+            ->from('cmsp_applications as a')
+            ->select('a.*')
+            ->addSelect([
+                DB::raw('e.label as ethnicity_name'),
+                DB::raw('r.label as religion_name'),
+                DB::raw('d.name as district_name'),
+                DB::raw('s2.name as intended_school_name'),
+                DB::raw('c.name as course_name'),
+                DB::raw('CONCAT_WS(", ", l.municipality, l.province) as province_municipality_name'),
+                DB::raw('l.municipality as municipality_name'),
+                DB::raw('l.province as province_name'),
+            ])
+            ->leftJoin('ethnicities as e', 'e.id', '=', 'a.ethnicity_id')
+            ->leftJoin('religions as r', 'r.id', '=', 'a.religion_id')
+            ->leftJoin('locations as l', 'l.id', '=', 'a.province_municipality')
+            ->leftJoin('districts as d', 'd.id', '=', 'a.district')
+            ->leftJoin('schools as s2', 's2.id', '=', 'a.intended_school')
+            ->leftJoin('courses as c', 'c.id', '=', 'a.course');
+
+        if ($term !== '') {
+            $query->where(function ($w) use ($term) {
+                $like = "%{$term}%";
+                $w->where('a.last_name', 'like', $like)
+                    ->orWhere('a.first_name', 'like', $like)
+                    ->orWhere('a.tracking_no', 'like', $like)
+                    ->orWhere('c.name', 'like', $like)
+                    ->orWhere('s2.name', 'like', $like)
+                    ->orWhere('e.label', 'like', $like)
+                    ->orWhere('r.label', 'like', $like)
+                    ->orWhere('d.name', 'like', $like)
+                    ->orWhere(DB::raw('CONCAT_WS(", ", l.municipality, l.province)'), 'like', $like);
+            });
+        }
+
+        $applications = $query->get();
+
+        $computed = [];
+        foreach ($applications as $application) {
+            $gwa = (float) ($application->gwa_g12_s2 ?? 0);
+            $gradePoints = $this->mapGradePoints($gwa);
+            $incomeTotal = $this->resolveHouseholdIncome($application);
+            $incomePoints = $this->mapIncomePoints($incomeTotal);
+            $gradeWeighted = round($gradePoints * 0.70, 2);
+            $incomeWeighted = round($incomePoints * 0.30, 2);
+            $totalPoints = round($gradeWeighted + $incomeWeighted, 2);
+            $plusFive = $application->proof_of_special_group_path ? 5 : 0;
+            $finalPoints = round($totalPoints + $plusFive, 2);
+
+            $computed[] = [
+                'model' => $application,
+                'gwa' => $gwa,
+                'income_total' => $incomeTotal,
+                'grade_points' => $gradePoints,
+                'income_points' => $incomePoints,
+                'grade_weighted' => $gradeWeighted,
+                'income_weighted' => $incomeWeighted,
+                'total_points' => $totalPoints,
+                'plus_five' => $plusFive,
+                'final_points' => $finalPoints,
+            ];
+        }
+
+        usort($computed, function (array $a, array $b) {
+            if ($a['final_points'] === $b['final_points']) {
+                if ($a['total_points'] === $b['total_points']) {
+                    if ($a['grade_points'] === $b['grade_points']) {
+                        return $a['model']->id <=> $b['model']->id;
+                    }
+
+                    return $b['grade_points'] <=> $a['grade_points'];
+                }
+
+                return $b['total_points'] <=> $a['total_points'];
+            }
+
+            return $b['final_points'] <=> $a['final_points'];
+        });
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('CMSP Ranklist');
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
+
+        $sheet->mergeCells('A1:C1');
+        $sheet->setCellValue('A1', 'Annex C - Official Ranklist');
+        $sheet->getStyle('A1:C1')->getFont()->setItalic(true)->setSize(10);
+
+        $sheet->mergeCells('A2:B2');
+        $sheet->setCellValue('A2', '2025 version');
+        $sheet->getStyle('A2:B2')->getFont()->setItalic(true)->setSize(10);
+
+        $sheet->mergeCells('A3:AK3');
+        $sheet->setCellValue('A3', 'COMMISSION ON HIGHER EDUCATION');
+        $sheet->mergeCells('A4:AK4');
+        $sheet->setCellValue('A4', 'REGIONAL OFFICE XII');
+        $sheet->getStyle('A3:AK4')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A3:AK4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A6:AK6');
+        $sheet->setCellValue('A6', 'CMSP RANKLIST');
+        $sheet->mergeCells('A7:AK7');
+        $ay = AyDeadline::query()->orderByDesc('deadline')->orderByDesc('id')->first();
+        $ayLabel = $ay?->academic_year ?? ($applications->first()->academic_year ?? '');
+        $sheet->setCellValue('A7', $ayLabel ? 'AY ' . $ayLabel : 'AY');
+        $sheet->getStyle('A6:AK7')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A6:AK7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A9:A11');
+        $sheet->setCellValue('A9', 'SEQ');
+
+        $sheet->mergeCells('B9:E10');
+        $sheet->setCellValue('B9', 'NAME');
+        $sheet->setCellValue('B11', 'LAST NAME');
+        $sheet->setCellValue('C11', 'FIRST NAME');
+        $sheet->setCellValue('D11', 'M.I.');
+        $sheet->setCellValue('E11', 'EXTENSION NAME');
+
+        $sheet->mergeCells('F9:F11');
+        $sheet->setCellValue('F9', 'SEX');
+
+        $sheet->mergeCells('G9:G11');
+        $birthdateHeader = new RichText();
+        $birthdateHeader->createTextRun('BIRTHDATE');
+        $formatRun = $birthdateHeader->createTextRun(PHP_EOL . 'MM/DD/YYYY');
+        $formatRun->getFont()->setSize(8);
+        $sheet->setCellValue('G9', $birthdateHeader);
+
+        $sheet->mergeCells('H9:H11');
+        $sheet->setCellValue('H9', 'LRN');
+
+        $sheet->mergeCells('I9:I11');
+        $sheet->setCellValue('I9', 'CONTACT NUMBER');
+
+        $sheet->mergeCells('J9:J11');
+        $sheet->setCellValue('J9', 'EMAIL ADDRESS');
+
+        $sheet->mergeCells('K9:K11');
+        $sheet->setCellValue('K9', 'SHS SCHOOL NAME');
+
+        $sheet->mergeCells('L9:L11');
+        $sheet->setCellValue('L9', 'SHS TYPE OF SCHOOL');
+
+        $sheet->mergeCells('M9:O10');
+        $sheet->setCellValue('M9', 'PERMANENT HOME ADDRESS');
+        $sheet->setCellValue('M11', 'BRGY/STREET');
+        $sheet->setCellValue('N11', 'TOWN/CITY');
+        $sheet->setCellValue('O11', 'PROVINCE');
+
+        $sheet->mergeCells('P9:P11');
+        $sheet->setCellValue('P9', 'ZIP CODE');
+
+        $sheet->mergeCells('Q9:Q11');
+        $sheet->setCellValue('Q9', 'DISTRICT');
+
+        $sheet->mergeCells('R9:R11');
+        $sheet->setCellValue('R9', 'HEI');
+
+        $sheet->mergeCells('S9:S11');
+        $sheet->setCellValue('S9', 'TYPE OF SCHOOL');
+
+        $sheet->mergeCells('T9:T11');
+        $sheet->setCellValue('T9', 'PROGRAM NAME');
+
+        $sheet->mergeCells('U9:U11');
+        $sheet->setCellValue('U9', 'CURRENT YEAR LEVEL');
+
+        $sheet->mergeCells('V9:W9');
+        $sheet->setCellValue('V9', 'GIVEN DATA');
+        $sheet->mergeCells('V10:V11');
+        $sheet->setCellValue('V10', 'GRADE 12 GWA');
+        $sheet->mergeCells('W10:W11');
+        $sheet->setCellValue('W10', 'INCOME');
+
+        $sheet->mergeCells('X9:Y9');
+        $sheet->setCellValue('X9', 'EQUIVALENT POINTS');
+        $sheet->mergeCells('X10:X11');
+        $sheet->setCellValue('X10', 'GRADE');
+        $sheet->mergeCells('Y10:Y11');
+        $sheet->setCellValue('Y10', 'INCOME');
+
+        $sheet->mergeCells('Z9:AA9');
+        $sheet->setCellValue('Z9', 'PERCENTAGE CRITERIA');
+        $sheet->setCellValue('Z10', 'GRADE');
+        $sheet->setCellValue('AA10', 'INCOME');
+        $sheet->setCellValue('Z11', '70%');
+        $sheet->setCellValue('AA11', '30%');
+
+        $sheet->mergeCells('AB9:AB11');
+        $sheet->setCellValue('AB9', 'TOTAL POINTS');
+
+        $sheet->mergeCells('AC9:AD11');
+        $sheet->setCellValue('AC9', 'TYPE OF SPECIAL GROUP');
+
+        $sheet->mergeCells('AE9:AE11');
+        $sheet->setCellValue('AE9', 'PLUS FIVE (5) POINTS (IF APPLICABLE)');
+
+        $sheet->mergeCells('AF9:AF11');
+        $sheet->setCellValue('AF9', 'FINAL TOTAL POINTS');
+
+        $sheet->mergeCells('AG9:AG11');
+        $sheet->setCellValue('AG9', 'RANK');
+
+        $sheet->mergeCells('AH9:AH11');
+        $sheet->setCellValue('AH9', 'STATUS OF DOCUMENTARY REQUIREMENTS');
+
+        $sheet->mergeCells('AI9:AI11');
+        $sheet->setCellValue('AI9', 'REMARKS');
+
+        $sheet->mergeCells('AJ9:AJ11');
+        $sheet->setCellValue('AJ9', 'NO. OF SIBLINGS');
+
+        $sheet->mergeCells('AK9:AK11');
+        $sheet->setCellValue('AK9', 'INITIAL RANK');
+
+        $sheet->getStyle('A9:AK11')->getFont()->setBold(true);
+        $sheet->getStyle('A9:AK11')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+
+        $columnWidths = [
+            'A' => 6,
+            'B' => 18,
+            'C' => 18,
+            'D' => 8,
+            'E' => 12,
+            'F' => 8,
+            'G' => 14,
+            'H' => 16,
+            'I' => 16,
+            'J' => 28,
+            'K' => 30,
+            'L' => 18,
+            'M' => 22,
+            'N' => 20,
+            'O' => 24,
+            'P' => 12,
+            'Q' => 14,
+            'R' => 30,
+            'S' => 18,
+            'T' => 30,
+            'U' => 16,
+            'V' => 14,
+            'W' => 16,
+            'X' => 12,
+            'Y' => 12,
+            'Z' => 14,
+            'AA' => 14,
+            'AB' => 16,
+            'AC' => 28,
+            'AD' => 28,
+            'AE' => 18,
+            'AF' => 18,
+            'AG' => 10,
+            'AH' => 26,
+            'AI' => 20,
+            'AJ' => 16,
+            'AK' => 14,
+        ];
+
+        foreach ($columnWidths as $column => $width) {
+            $sheet->getColumnDimension($column)->setWidth($width);
+        }
+
+        $sheet->freezePane('A12');
+
+        $startRow = 12;
+        foreach ($computed as $index => $entry) {
+            /** @var CmspApplication $app */
+            $app = $entry['model'];
+            $row = $startRow + $index;
+
+            $middleInitial = $app->middle_name ? mb_substr($app->middle_name, 0, 1) . '.' : '';
+            $barangay = $app->barangay ?: $app->barmm_barangay;
+            $street = $app->purok_street ?: $app->barmm_purok_street;
+            $addressLine = trim(collect([$barangay, $street])->filter()->implode(', '));
+            $municipality = $app->municipality_name ?: $app->barmm_municipality;
+            $province = $app->province_name ?: $app->barmm_province;
+            $provinceDisplay = $app->province_municipality_name;
+            if (!$provinceDisplay && ($province || $municipality)) {
+                $provinceDisplay = collect([$municipality, $province])->filter()->implode(', ');
+            }
+
+            $hei = $app->intended_school_name ?: ($app->other_school ?: '');
+            $specialGroups = $app->special_groups ?? [];
+            if (is_string($specialGroups)) {
+                $decoded = json_decode($specialGroups, true);
+                $specialGroups = is_array($decoded) ? $decoded : [$specialGroups];
+            }
+            $specialGroupText = collect($specialGroups)
+                ->filter(fn($v) => (string) $v !== '')
+                ->implode(', ');
+
+            $yearLevel = $app->year_level;
+            $currentYear = $app->incoming ? '1' : $yearLevel;
+            if (!$app->incoming && is_string($yearLevel)) {
+                if (preg_match('/\d+/', $yearLevel, $matches)) {
+                    $currentYear = $matches[0];
+                }
+            }
+
+            $sheet->setCellValue("A{$row}", $index + 1);
+            $sheet->setCellValue("B{$row}", strtoupper($app->last_name));
+            $sheet->setCellValue("C{$row}", strtoupper($app->first_name));
+            $sheet->setCellValue("D{$row}", strtoupper($middleInitial));
+            $sheet->setCellValue("E{$row}", strtoupper((string) ($app->name_extension ?? '')));
+            $sheet->setCellValue("F{$row}", strtoupper((string) $app->sex));
+
+            if ($app->birthdate) {
+                $sheet->setCellValue("G{$row}", ExcelDate::PHPToExcel($app->birthdate));
+                $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode('mm/dd/yyyy');
+            } else {
+                $sheet->setCellValue("G{$row}", '');
+            }
+
+            $sheet->setCellValueExplicit("H{$row}", $app->lrn, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("I{$row}", $app->contact_number, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue("J{$row}", strtolower($app->email));
+            $sheet->setCellValue("K{$row}", $app->shs_name);
+            $sheet->setCellValue("L{$row}", $app->shs_school_type ?? '');
+            $sheet->setCellValue("M{$row}", $addressLine);
+            $sheet->setCellValue("N{$row}", $municipality);
+            $sheet->setCellValue("O{$row}", $provinceDisplay);
+            $zip = $app->zip_code ?: $app->barmm_zip_code;
+            if ($zip !== null && $zip !== '') {
+                $sheet->setCellValueExplicit("P{$row}", (string) $zip, DataType::TYPE_STRING);
+            } else {
+                $sheet->setCellValue("P{$row}", '');
+            }
+            $sheet->setCellValue("Q{$row}", $app->district_name ?: '');
+            $sheet->setCellValue("R{$row}", $hei);
+            $sheet->setCellValue("S{$row}", $app->school_type);
+            $sheet->setCellValue("T{$row}", $app->course_name ?: $app->course);
+            $sheet->setCellValue("U{$row}", $currentYear);
+            $sheet->setCellValue("V{$row}", $entry['gwa']);
+            $sheet->setCellValue("W{$row}", $entry['income_total']);
+            $sheet->setCellValue("X{$row}", $entry['grade_points']);
+            $sheet->setCellValue("Y{$row}", $entry['income_points']);
+            $sheet->setCellValue("Z{$row}", $entry['grade_weighted']);
+            $sheet->setCellValue("AA{$row}", $entry['income_weighted']);
+            $sheet->setCellValue("AB{$row}", $entry['total_points']);
+            $sheet->setCellValue("AC{$row}", $specialGroupText);
+            $sheet->setCellValue("AD{$row}", '');
+            $sheet->setCellValue("AE{$row}", $entry['plus_five']);
+            $sheet->setCellValue("AF{$row}", $entry['final_points']);
+            $sheet->setCellValue("AG{$row}", $index + 1);
+            $sheet->setCellValue("AH{$row}", '');
+            $sheet->setCellValue("AI{$row}", '');
+            $sheet->setCellValue("AJ{$row}", '');
+            $sheet->setCellValue("AK{$row}", '');
+        }
+
+        $lastRow = $startRow + count($computed) - 1;
+        if ($lastRow < 11) {
+            $lastRow = 11;
+        }
+
+        $sheet->getStyle("A9:AK{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        if ($lastRow >= $startRow) {
+            $sheet->getStyle("V{$startRow}:AF{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
+            $sheet->getStyle("W{$startRow}:W{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+            $sheet->getStyle("AE{$startRow}:AE{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
+            $sheet->getStyle("AG{$startRow}:AG{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
+        }
+
+        if ($lastRow >= $startRow) {
+            $sheet->getStyle("B{$startRow}:AD{$lastRow}")->getAlignment()->setWrapText(true);
+        }
+
+        $filename = 'cmspranklist-' . now()->format('Ymd-His') . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(static function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function indexJson(\Illuminate\Http\Request $request)
 {
     $perPage = (int) $request->integer('per_page', 10);
     $term = trim((string) $request->get('search', ''));
@@ -327,6 +721,66 @@ public function indexJson(\Illuminate\Http\Request $request)
         ],
     ]);
 }
+
+    private function mapGradePoints(float $grade): int
+    {
+        if ($grade >= 99) {
+            return 100;
+        }
+        if ($grade >= 97) {
+            return 95;
+        }
+        if ($grade >= 95) {
+            return 90;
+        }
+        if ($grade >= 93) {
+            return 85;
+        }
+        if ($grade >= 91) {
+            return 80;
+        }
+
+        return 75;
+    }
+
+    private function mapIncomePoints(float $income): int
+    {
+        if ($income <= 100000) {
+            return 100;
+        }
+        if ($income <= 200000) {
+            return 85;
+        }
+        if ($income <= 300000) {
+            return 70;
+        }
+        if ($income <= 400000) {
+            return 55;
+        }
+        if ($income <= 500000) {
+            return 40;
+        }
+
+        return 0;
+    }
+
+    private function resolveHouseholdIncome(CmspApplication $application): float
+    {
+        $father = (float) ($application->father_income_yearly_bracket ?? 0);
+        $mother = (float) ($application->mother_income_yearly_bracket ?? 0);
+
+        $total = $father + $mother;
+        if ($total > 0) {
+            return $total;
+        }
+
+        $guardianMonthly = (float) ($application->guardian_income_monthly ?? 0);
+        if ($guardianMonthly > 0) {
+            return $guardianMonthly * 12;
+        }
+
+        return 0;
+    }
 
 
 

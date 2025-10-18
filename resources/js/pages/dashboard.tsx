@@ -1,10 +1,9 @@
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, MoonStar, FileSpreadsheet, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, MoonStar, FileSpreadsheet, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -207,6 +206,7 @@ function CmspsTable() {
 
     const [rows, setRows] = useState<ApplicationRow[]>([]);
     const [loading, setLoading] = useState(true);
+    const [exporting, setExporting] = useState(false);
     const [page, setPage] = useState(1);
     const [lastPage, setLastPage] = useState(1);
     const [total, setTotal] = useState(0);
@@ -224,6 +224,16 @@ function CmspsTable() {
         u.searchParams.set('page', String(p));
         u.searchParams.set('per_page', String(pp));
         u.searchParams.set('full', '1');            // ask for all columns
+        if (s.trim()) u.searchParams.set('search', s.trim());
+        return u.toString();
+    }, []);
+
+    const buildExportUrl = useCallback((s: string) => {
+        const base = (window as any).route
+            ? (window as any).route('cmsp-applications.export')
+            : '/cmsp-applications/export';
+
+        const u = new URL(base, window.location.origin);
         if (s.trim()) u.searchParams.set('search', s.trim());
         return u.toString();
     }, []);
@@ -252,6 +262,49 @@ function CmspsTable() {
 
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+    const handleExport = useCallback(async () => {
+        try {
+            setExporting(true);
+            const res = await fetch(buildExportUrl(search), {
+                headers: {
+                    Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                },
+            });
+            if (!res.ok) {
+                throw new Error('Failed to export');
+            }
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+
+            const disposition = res.headers.get('Content-Disposition');
+            let filename = `cmspranklist-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}.xlsx`;
+            if (disposition) {
+                const match = /filename\*?="?([^";]+)"?/i.exec(disposition);
+                if (match && match[1]) {
+                    try {
+                        filename = decodeURIComponent(match[1].replace(/"/g, ''));
+                    } catch (err) {
+                        filename = match[1].replace(/"/g, '');
+                    }
+                }
+            }
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(error);
+            window.alert('Failed to export rank list. Please try again.');
+        } finally {
+            setExporting(false);
+        }
+    }, [buildExportUrl, search]);
 
     return (
         <div className="mt-5 px-4 py-4">
@@ -310,7 +363,7 @@ function CmspsTable() {
                         variant="outline"
                         size="sm"
                         className="
-              group relative overflow-hidden 
+              group relative overflow-hidden
               bg-[#1e3c73] hover:bg-[#1a3565]
               text-white hover:text-white
               px-3 py-1.5 rounded-md
@@ -318,10 +371,16 @@ function CmspsTable() {
               focus:outline-none focus:ring-1 focus:ring-[#1e3c73]
               flex items-center gap-1.5
             "
-                        onClick={() => fetchData(1, search, perPage)}
+                        onClick={handleExport}
+                        disabled={exporting}
+                        aria-busy={exporting}
                     >
-                        <FileSpreadsheet className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
-                        <span className="text-white group-hover:text-white">Export</span>
+                        {exporting ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                        ) : (
+                            <FileSpreadsheet className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
+                        )}
+                        <span className="text-white group-hover:text-white">{exporting ? 'Exporting…' : 'Export'}</span>
                     </Button>
                 </div>
             </div>
