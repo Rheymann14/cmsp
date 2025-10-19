@@ -418,7 +418,7 @@ export default function RoleManagement() {
                                         className="max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700 pr-2"
                                         style={{ maxWidth: '100%' }}
                                     >
-                                        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                        <div className="divide-y divide-gray-200 dark:divide-gray-700 mt-4">
                                             {regions.map((region, idx) => (
                                                 <div
                                                     key={region.id}
@@ -565,7 +565,7 @@ export default function RoleManagement() {
                                         className="max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700 pr-2"
                                         style={{ maxWidth: '100%' }}
                                     >
-                                        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                        <div className="divide-y divide-gray-200 dark:divide-gray-700 mt-4">
                                             {roles.map((role, idx) => (
                                                 <div
                                                     key={role.id}
@@ -642,7 +642,7 @@ export default function RoleManagement() {
                                     <h2 className="text-1xl font-extrabold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
                                         <span>CMSP Application Management</span>
                                     </h2>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage academic year deadlines for CMSP applications</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage academic year deadline</p>
                                 </div>
                                 <Dialog open={ayDialogOpen} onOpenChange={handleAyDialogOpenChange}>
                                     <DialogTrigger asChild>
@@ -736,10 +736,9 @@ export default function RoleManagement() {
                                                 >
                                                     <span className="text-xs text-gray-400 mr-2">{idx + 1}</span>
                                                     <div className="flex flex-1 flex-col">
-                                                        <span className="font-medium text-gray-900 dark:text-gray-100">AY {deadline.academic_year}</span>
-                                                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                                                            <CalendarClock className="h-3.5 w-3.5" />
-                                                            {deadline.deadline_formatted ?? new Date(deadline.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">AY {deadline.academic_year}</span>
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                            {deadline.deadline_formatted ?? new Date(deadline.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                                                         </span>
                                                     </div>
                                                     <select
