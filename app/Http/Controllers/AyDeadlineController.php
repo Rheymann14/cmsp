@@ -32,7 +32,7 @@ class AyDeadlineController extends Controller
         AyDeadline::create([
             'academic_year' => $validated['academic_year'],
             'deadline' => $validated['deadline'],
-            'is_enabled' => true,
+            'is_enabled' => false,
         ]);
 
         return redirect()->back()->with('success', 'Academic year deadline created!');
