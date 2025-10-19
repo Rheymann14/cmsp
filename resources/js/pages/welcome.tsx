@@ -97,29 +97,17 @@ type ApplicationInfoCardProps = {
     ayDeadline: AyDeadline | null | undefined;
     formattedDeadline: string;
     onTrackClick: () => void;
-    isApplicationOpen?: boolean;
-    closedContentOverride?: ReactNode;
 };
 
-const ApplicationInfoCard = ({
-    ayDeadline,
-    formattedDeadline,
-    onTrackClick,
-    isApplicationOpen = true,
-    closedContentOverride,
-}: ApplicationInfoCardProps) => (
+const ApplicationInfoCard = ({ ayDeadline, formattedDeadline, onTrackClick }: ApplicationInfoCardProps) => (
     <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-zinc-800/70 dark:bg-zinc-950/40">
         <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
                 <Badge
                     variant="outline"
-                    className={`rounded-full text-xs ${
-                        isApplicationOpen
-                            ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
-                            : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"
-                        }`}
+                    className="rounded-full border-green-200 bg-green-50 text-xs text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
                 >
-                    {isApplicationOpen ? "Call for Application" : "Application Window Closed"}
+                    Call for Application
                 </Badge>
                 {ayDeadline && (
                     <Badge
@@ -161,15 +149,7 @@ const ApplicationInfoCard = ({
                         onClick={onTrackClick}
                     >
                         <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
-                            {isApplicationOpen ? (
-                                <>
-                                    Already applied? <strong>Click here!</strong>
-                                </>
-                            ) : (
-                                <>
-                                    Already submitted? <strong>Track it here.</strong>
-                                </>
-                            )}
+                            Already applied? <strong>Click here!</strong>
                         </span>
                         <Button
                             className="h-8 px-3 text-xs font-semibold rounded-full bg-gradient-to-r from-[#1e3c73] to-[#25468a] hover:from-[#25468a] hover:to-[#1e3c73] text-white shadow transition-all duration-200"
@@ -177,7 +157,7 @@ const ApplicationInfoCard = ({
                             aria-label="Track Application Status"
                         >
                             <FileClock className="mr-1 h-4 w-4" />
-                            {isApplicationOpen ? "Track your Application Status" : "Open Status Tracker"}
+                            Track your Application Status
                         </Button>
                     </motion.div>
                 </div>
@@ -185,89 +165,46 @@ const ApplicationInfoCard = ({
         </CardHeader>
 
         <CardContent className="space-y-4 text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-200">
-            {isApplicationOpen ? (
-                <>
-                    <p className="text-justify">
-                        CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline?.academic_year}.
-                        Please be advised that this scholarship application is
-                        <span className="ml-1 font-bold"> intended only for all incoming first year college students.</span>
-                        Earned units and already in the college level are discouraged to apply. Please read the CHED Memorandum Order
-                        below before proceeding to fill out the form.
-                    </p>
+            <p className="text-justify">
+                CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline?.academic_year}.
+                Please be advised that this scholarship application is
+                <span className="ml-1 font-bold"> intended only for all incoming first year college students.</span>
+                Earned units and already in the college level are discouraged to apply. Please read the CHED Memorandum Order
+                below before proceeding to fill out the form.
+            </p>
 
-                    {/* NOTE card — amber */}
-                    <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
-                        <div className="flex items-start gap-3">
-                            <div className="space-y-1">
-                                <p className="font-semibold text-amber-900 dark:text-amber-200">NOTE</p>
-                                <p className="text-justify text-zinc-800 dark:text-zinc-200">
-                                    Please ensure that the course you are planning to enroll in is aligned with the priority courses.
-                                </p>
-                                <p className="text-justify text-zinc-700 dark:text-zinc-300">
-                                    Additionally, check the completeness of your documents because only those with complete documents with at least{' '}
-                                    <span className="font-semibold">93% General Weighted Average (GWA)</span> are allowed to proceed to the Online Application.
-                                </p>
+            {/* NOTE card — amber */}
+            <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+                <div className="flex items-start gap-3">
+                    <div className="space-y-1">
+                        <p className="font-semibold text-amber-900 dark:text-amber-200">NOTE</p>
+                        <p className="text-justify text-zinc-800 dark:text-zinc-200">
+                            Please ensure that the course you are planning to enroll in is aligned with the priority courses.
+                        </p>
+                        <p className="text-justify text-zinc-700 dark:text-zinc-300">
+                            Additionally, check the completeness of your documents because only those with complete documents with at least{' '}
+                            <span className="font-semibold">93% General Weighted Average (GWA)</span> are allowed to proceed to the Online Application.
+                        </p>
 
-                                <div className="flex flex-wrap items-center gap-2 pt-1.5">
-                                    {ayDeadline && (
-                                        <Badge
-                                            variant="outline"
-                                            className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                                        >
-                                            Deadline: {formattedDeadline}
-                                        </Badge>
-                                    )}
+                        <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                            {ayDeadline && (
+                                <Badge
+                                    variant="outline"
+                                    className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                >
+                                    Deadline: {formattedDeadline}
+                                </Badge>
+                            )}
 
-                                    <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
-                                        Late submissions will not be entertained.
-                                    </span>
-                                </div>
-                            </div>
+                            <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
+                                Late submissions will not be entertained.
+                            </span>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <p className="pt-1 text-[12px] text-zinc-500 dark:text-zinc-400">Thank you!</p>
-                </>
-            ) : closedContentOverride ? (
-                <>{closedContentOverride}</>
-            ) : (
-                <>
-                    <p className="text-justify">
-                        The CMSP application window for Academic Year {ayDeadline?.academic_year ?? '—'} closed on{' '}
-                        <span className="font-semibold">{formattedDeadline || 'the published deadline'}</span>.
-                        We appreciate your interest in the program and encourage you to check back for the next call for applications.
-                    </p>
-
-                    <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
-                        <div className="space-y-2">
-                            <p className="font-semibold text-amber-900 dark:text-amber-200">Prepare for the next cycle</p>
-                            <p className="text-justify text-zinc-800 dark:text-zinc-200">
-                                Review the eligibility requirements and gather the necessary documents ahead of time so you can submit early once the applications reopen.
-                            </p>
-                            <p className="text-justify text-zinc-700 dark:text-zinc-300">
-                                Already filed an application? Use the tracker above to monitor your status and watch out for announcements from CHED Regional Office XII.
-                            </p>
-
-                            <div className="flex flex-wrap items-center gap-2 pt-1.5">
-                                {ayDeadline && (
-                                    <Badge
-                                        variant="outline"
-                                        className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                                    >
-                                        Closed on: {formattedDeadline}
-                                    </Badge>
-                                )}
-
-                                <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
-                                    Stay tuned for future announcements.
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <p className="pt-1 text-[12px] text-zinc-500 dark:text-zinc-400">Thank you for your continued interest in CMSP.</p>
-                </>
-            )}
+            <p className="pt-1 text-[12px] text-zinc-500 dark:text-zinc-400">Thank you!</p>
         </CardContent>
     </Card>
 );
@@ -1681,15 +1618,15 @@ export default function Welcome() {
                     </Dialog>
 
                     <Dialog open={!isApplicationOpen}>
-                        <DialogContent
+                        <DialogContent 
                             className="sm:max-w-4xl lg:max-w-5xl p-0 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/80 backdrop-blur-md shadow-2xl [&>button:last-of-type]:hidden"
                             onInteractOutside={(e) => e.preventDefault()}
                             onEscapeKeyDown={(e) => e.preventDefault()}
                         >
                             <div className="space-y-6 px-6 py-8 sm:px-10 sm:py-10">
                                 <DialogHeader className="items-center space-y-3 text-center">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-                                        <span>Status Update</span>
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                                        <span>CLOSED</span>
                                     </div>
                                     <DialogTitle className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
                                         CMSP Online Application is Closed
@@ -1704,59 +1641,9 @@ export default function Welcome() {
                                     ayDeadline={ayDeadline}
                                     formattedDeadline={formattedDeadline}
                                     onTrackClick={() => setTrackOpen(true)}
-                                    isApplicationOpen={false}
-                                    closedContentOverride={
-                                        <>
-                                            <p className="text-justify">
-                                                CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline?.academic_year}
-                                                {' '}is currently closed. The scholarship remains intended exclusively for incoming first year college students.
-                                            </p>
-                                            <p className="text-justify">
-                                                If you have already submitted your requirements, please use the tracking tools above to monitor your application status. Future calls for applications will be announced through our official channels.
-                                            </p>
-
-                                            <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
-                                                <div className="space-y-2">
-                                                    <p className="font-semibold text-amber-900 dark:text-amber-200">Stay prepared</p>
-                                                    <p className="text-justify text-zinc-800 dark:text-zinc-200">
-                                                        Gather the necessary documents and review the eligibility guidelines in advance so you can apply promptly once the next cycle opens.
-                                                    </p>
-
-                                                    <div className="flex flex-wrap items-center gap-2 pt-1.5">
-                                                        {ayDeadline && (
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="rounded-full border-amber-300 bg-amber-100/80 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                                                            >
-                                                                Closed on: {formattedDeadline}
-                                                            </Badge>
-                                                        )}
-
-                                                        <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
-                                                            We appreciate your interest in CMSP.
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </>
-                                    }
                                 />
 
-                                <div className="rounded-2xl border border-blue-200/70 bg-blue-50/70 p-5 text-sm text-zinc-700 shadow-sm dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-zinc-200">
-                                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Need to track your application?</h3>
-                                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-                                        Use the tracking button above or click the shortcut below to open the status checker without leaving this page.
-                                    </p>
-                                    <div className="mt-4 flex flex-wrap gap-2 sm:justify-end">
-                                        <Button
-                                            className="bg-[#1e3c73] hover:bg-[#25468a] text-white"
-                                            onClick={() => setTrackOpen(true)}
-                                        >
-                                            <FileClock className="mr-2 h-4 w-4" />
-                                            Track Application Status
-                                        </Button>
-                                    </div>
-                                </div>
+                  
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -4021,7 +3908,6 @@ export default function Welcome() {
                                         ayDeadline={ayDeadline}
                                         formattedDeadline={formattedDeadline}
                                         onTrackClick={() => setTrackOpen(true)}
-                                        isApplicationOpen={isApplicationOpen}
                                     />
                                 </section>
 
