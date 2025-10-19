@@ -2,7 +2,7 @@
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import type { Page } from '@inertiajs/core';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppearance } from '@/hooks/use-appearance';
 import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy } from 'lucide-react';
