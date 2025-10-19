@@ -16,6 +16,7 @@ use App\Http\Controllers\CmspApplicationController;
 use App\Http\Controllers\EthnicityController;
 use App\Http\Controllers\ReligionController;
 use App\Http\Controllers\TrackApplicationController;
+use App\Http\Controllers\AyDeadlineController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -65,7 +66,13 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::post('/users/{user}/reset-password', [RoleController::class, 'resetPassword'])
     ->name('users.resetPassword');
 
-    
+    Route::get('/ay-deadlines', [AyDeadlineController::class, 'index'])->name('ay-deadlines.index');
+    Route::post('/ay-deadlines', [AyDeadlineController::class, 'store'])->name('ay-deadlines.store');
+    Route::put('/ay-deadlines/{ayDeadline}', [AyDeadlineController::class, 'update'])->name('ay-deadlines.update');
+    Route::patch('/ay-deadlines/{ayDeadline}/status', [AyDeadlineController::class, 'updateStatus'])
+        ->name('ay-deadlines.updateStatus');
+
+
     Route::get('/cmsp-applications/json', [CmspApplicationController::class, 'indexJson'])
         ->name('cmsp-applications.index.json');
 

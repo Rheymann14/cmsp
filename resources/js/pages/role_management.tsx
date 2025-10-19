@@ -203,7 +203,7 @@ export default function RoleManagement() {
 
     useEffect(() => {
         if (!regionDialogOpen) fetchRegions();
-        // eslint-disable-next-line
+         
     }, [regionDialogOpen]);
 
     function fetchRegions() {
@@ -242,8 +242,97 @@ export default function RoleManagement() {
 
     useEffect(() => {
         if (!roleDialogOpen) fetchRoles();
-        // eslint-disable-next-line
+         
     }, [roleDialogOpen]);
+
+    type AyDeadline = {
+        id: number;
+        academic_year: string;
+        deadline: string;
+        deadline_formatted?: string;
+        is_enabled: boolean;
+    };
+
+    const [ayDeadlines, setAyDeadlines] = useState<AyDeadline[]>([]);
+    const [ayDialogOpen, setAyDialogOpen] = useState(false);
+    const [selectedDeadlineId, setSelectedDeadlineId] = useState<number | 'new'>('new');
+
+    const {
+        data: ayFormData,
+        setData: setAyFormData,
+        post: postAyDeadline,
+        put: putAyDeadline,
+        processing: ayProcessing,
+        errors: ayErrors,
+        reset: resetAyForm,
+    } = useForm({
+        academic_year: '',
+        deadline: '',
+    });
+
+    function fetchAyDeadlines() {
+        fetch(route('ay-deadlines.index'), { headers: { Accept: 'application/json' }, credentials: 'include' })
+            .then(res => res.json())
+            .then(data => setAyDeadlines(data.deadlines || []));
+    }
+
+    useEffect(() => {
+        fetchAyDeadlines();
+    }, []);
+
+    const setAyFormFromSelection = (id: number | 'new') => {
+        if (id === 'new') {
+            setSelectedDeadlineId('new');
+            setAyFormData('academic_year', '');
+            setAyFormData('deadline', '');
+            return;
+        }
+
+        const selected = ayDeadlines.find(deadline => deadline.id === id);
+        if (selected) {
+            setSelectedDeadlineId(selected.id);
+            setAyFormData('academic_year', selected.academic_year ?? '');
+            setAyFormData('deadline', selected.deadline ?? '');
+        }
+    };
+
+    const openAyDialog = (id: number | 'new') => {
+        setAyFormFromSelection(id);
+        setAyDialogOpen(true);
+    };
+
+    const handleAyDialogOpenChange = (open: boolean) => {
+        setAyDialogOpen(open);
+        if (!open) {
+            resetAyForm();
+            setSelectedDeadlineId('new');
+        }
+    };
+
+    const handleAyDeadlineSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        const payloadRoute = selectedDeadlineId === 'new'
+            ? route('ay-deadlines.store')
+            : route('ay-deadlines.update', selectedDeadlineId);
+
+        const action = selectedDeadlineId === 'new'
+            ? postAyDeadline
+            : putAyDeadline;
+
+        action(payloadRoute, {
+            onSuccess: () => {
+                toast.success(selectedDeadlineId === 'new' ? 'Academic year added!' : 'Academic year updated!');
+                handleAyDialogOpenChange(false);
+                fetchAyDeadlines();
+            },
+            onError: (formErrors) => {
+                toast.error('Please check the form for validation errors.', {
+                    description: formErrors ? Object.values(formErrors).join('\n') : undefined,
+                });
+            },
+        });
+    };
 
 
     return (
@@ -545,7 +634,173 @@ export default function RoleManagement() {
                             </CardContent>
                         </Card>
                     </div>
-                    
+
+                    <div className="relative  overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <Card className="relative   rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                            <CardHeader className="flex flex-row items-center justify-between p-4">
+                                <div>
+                                    <h2 className="text-1xl font-extrabold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+                                        <span>CMSP Application Management</span>
+                                    </h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage academic year deadlines for CMSP applications</p>
+                                </div>
+                                <Dialog open={ayDialogOpen} onOpenChange={handleAyDialogOpenChange}>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            size="icon"
+                                            className="bg-[#1e3c73] hover:bg-[#1a3565] text-white rounded-full shadow transition"
+                                            title="Add or edit academic year"
+                                            onClick={() => openAyDialog('new')}
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>{selectedDeadlineId === 'new' ? 'Add Academic Year Deadline' : 'Edit Academic Year Deadline'}</DialogTitle>
+                                            <DialogDescription>
+                                                Update the academic year and submission deadline for CMSP applications.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleAyDeadlineSubmit} className="space-y-4">
+                                            {ayDeadlines.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="ay-deadline-selector">Select action</Label>
+                                                    <select
+                                                        id="ay-deadline-selector"
+                                                        value={selectedDeadlineId === 'new' ? 'new' : String(selectedDeadlineId)}
+                                                        onChange={event => {
+                                                            const value = event.target.value === 'new' ? 'new' : Number(event.target.value);
+                                                            setAyFormFromSelection(value);
+                                                        }}
+                                                        className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#1e3c73] focus:outline-none focus:ring-2 focus:ring-[#1e3c73]/40 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                                    >
+                                                        <option value="new">Add new academic year</option>
+                                                        {ayDeadlines.map(deadline => (
+                                                            <option key={deadline.id} value={deadline.id}>
+                                                                Edit AY {deadline.academic_year}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+                                            <div className="space-y-2">
+                                                <Label htmlFor="ay-academic-year">Academic Year</Label>
+                                                <Input
+                                                    id="ay-academic-year"
+                                                    value={ayFormData.academic_year}
+                                                    onChange={event => setAyFormData('academic_year', event.target.value)}
+                                                    placeholder="2025-2026"
+                                                    required
+                                                />
+                                                {ayErrors.academic_year && (
+                                                    <p className="text-red-500 text-sm">{ayErrors.academic_year}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="ay-deadline">Deadline</Label>
+                                                <Input
+                                                    id="ay-deadline"
+                                                    type="date"
+                                                    value={ayFormData.deadline}
+                                                    onChange={event => setAyFormData('deadline', event.target.value)}
+                                                    required
+                                                />
+                                                {ayErrors.deadline && (
+                                                    <p className="text-red-500 text-sm">{ayErrors.deadline}</p>
+                                                )}
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button type="button" variant="outline">Cancel</Button>
+                                                </DialogClose>
+                                                <Button type="submit" disabled={ayProcessing}>
+                                                    {ayProcessing ? 'Saving...' : selectedDeadlineId === 'new' ? 'Add Academic Year' : 'Save Changes'}
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            </CardHeader>
+                            <CardContent>
+                                {ayDeadlines.length > 0 ? (
+                                    <div
+                                        className="max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700 pr-2"
+                                        style={{ maxWidth: '100%' }}
+                                    >
+                                        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                            {ayDeadlines.map((deadline, idx) => (
+                                                <div
+                                                    key={deadline.id}
+                                                    className="flex items-center gap-4 py-3 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition rounded-lg"
+                                                >
+                                                    <span className="text-xs text-gray-400 mr-2">{idx + 1}</span>
+                                                    <div className="flex flex-1 flex-col">
+                                                        <span className="font-medium text-gray-900 dark:text-gray-100">AY {deadline.academic_year}</span>
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                                            <CalendarClock className="h-3.5 w-3.5" />
+                                                            {deadline.deadline_formatted ?? new Date(deadline.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                        </span>
+                                                    </div>
+                                                    <select
+                                                        value={deadline.is_enabled ? 'enable' : 'disable'}
+                                                        onChange={async event => {
+                                                            const isEnabled = event.target.value === 'enable';
+                                                            setAyDeadlines(current =>
+                                                                current.map(item =>
+                                                                    item.id === deadline.id ? { ...item, is_enabled: isEnabled } : item
+                                                                )
+                                                            );
+                                                            try {
+                                                                await router.patch(
+                                                                    route('ay-deadlines.updateStatus', deadline.id),
+                                                                    { is_enabled: isEnabled },
+                                                                    {
+                                                                        onSuccess: () => {
+                                                                            toast.success('Deadline status updated!');
+                                                                        },
+                                                                        onError: () => {
+                                                                            toast.error('Failed to update deadline status.');
+                                                                            fetchAyDeadlines();
+                                                                        },
+                                                                    }
+                                                                );
+                                                            } catch {
+                                                                toast.error('Failed to update deadline status.');
+                                                                fetchAyDeadlines();
+                                                            }
+                                                        }}
+                                                        className={`px-3 py-1 rounded-full text-xs font-semibold ${deadline.is_enabled
+                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                                        } border-none outline-none focus:ring-2 transition`}
+                                                        style={{ minWidth: 120 }}
+                                                    >
+                                                        <option value="enable">Enable</option>
+                                                        <option value="disable">Disable</option>
+                                                    </select>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                                                        onClick={() => openAyDialog(deadline.id)}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-gray-500 dark:text-gray-400 py-4 text-center">
+                                        No academic year deadlines yet.
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
                     {/* <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
                     </div> */}
