@@ -1618,15 +1618,15 @@ export default function Welcome() {
                     </Dialog>
 
                     <Dialog open={!isApplicationOpen}>
-                        <DialogContent
+                        <DialogContent 
                             className="sm:max-w-4xl lg:max-w-5xl p-0 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/80 backdrop-blur-md shadow-2xl [&>button:last-of-type]:hidden"
                             onInteractOutside={(e) => e.preventDefault()}
                             onEscapeKeyDown={(e) => e.preventDefault()}
                         >
                             <div className="space-y-6 px-6 py-8 sm:px-10 sm:py-10">
                                 <DialogHeader className="items-center space-y-3 text-center">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-                                        <span>Status Update</span>
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                                        <span>CLOSED</span>
                                     </div>
                                     <DialogTitle className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
                                         CMSP Online Application is Closed
@@ -1643,21 +1643,7 @@ export default function Welcome() {
                                     onTrackClick={() => setTrackOpen(true)}
                                 />
 
-                                <div className="rounded-2xl border border-blue-200/70 bg-blue-50/70 p-5 text-sm text-zinc-700 shadow-sm dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-zinc-200">
-                                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Need to track your application?</h3>
-                                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-                                        Use the tracking button above or click the shortcut below to open the status checker without leaving this page.
-                                    </p>
-                                    <div className="mt-4 flex flex-wrap gap-2 sm:justify-end">
-                                        <Button
-                                            className="bg-[#1e3c73] hover:bg-[#25468a] text-white"
-                                            onClick={() => setTrackOpen(true)}
-                                        >
-                                            <FileClock className="mr-2 h-4 w-4" />
-                                            Track Application Status
-                                        </Button>
-                                    </div>
-                                </div>
+                  
                             </div>
                         </DialogContent>
                     </Dialog>
