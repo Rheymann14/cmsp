@@ -367,16 +367,18 @@ public function exportXlsx(Request $request)
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('CMSP Ranklist');
+        $sheet->setTitle('CMSP RANKING');
         $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
 
         $sheet->mergeCells('A1:C1');
         $sheet->setCellValue('A1', 'Annex C - Official Ranklist');
         $sheet->getStyle('A1:C1')->getFont()->setItalic(true)->setSize(10);
+        $sheet->getStyle('A1:C1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->mergeCells('A2:B2');
         $sheet->setCellValue('A2', '2025 version');
         $sheet->getStyle('A2:B2')->getFont()->setItalic(true)->setSize(10);
+         $sheet->getStyle('A2:B2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->mergeCells('A3:AK3');
         $sheet->setCellValue('A3', 'COMMISSION ON HIGHER EDUCATION');
