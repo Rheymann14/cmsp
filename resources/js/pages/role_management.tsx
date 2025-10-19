@@ -334,6 +334,49 @@ export default function RoleManagement() {
         });
     };
 
+    const updateAyDeadlineStatus = async (deadline: AyDeadline, isEnabled: boolean) => {
+        const previousDeadlines = ayDeadlines;
+
+        if (isEnabled) {
+            const otherEnabled = previousDeadlines.some(item => item.is_enabled && item.id !== deadline.id);
+
+            if (otherEnabled) {
+                toast.error('Only one academic year deadline can be enabled at a time. Disable the currently active deadline before enabling another.');
+                setAyDeadlines(current =>
+                    current.map(item =>
+                        item.id === deadline.id ? { ...item, is_enabled: false } : item
+                    )
+                );
+                return;
+            }
+        }
+
+        setAyDeadlines(current =>
+            current.map(item =>
+                item.id === deadline.id ? { ...item, is_enabled: isEnabled } : item
+            )
+        );
+
+        try {
+            await router.patch(
+                route('ay-deadlines.updateStatus', deadline.id),
+                { is_enabled: isEnabled },
+                {
+                    onSuccess: () => {
+                        toast.success('Deadline status updated!');
+                    },
+                    onError: () => {
+                        toast.error('Failed to update deadline status.');
+                        setAyDeadlines(previousDeadlines);
+                    },
+                }
+            );
+        } catch {
+            toast.error('Failed to update deadline status.');
+            setAyDeadlines(previousDeadlines);
+        }
+    };
+
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -743,31 +786,9 @@ export default function RoleManagement() {
                                                     </div>
                                                     <select
                                                         value={deadline.is_enabled ? 'enable' : 'disable'}
-                                                        onChange={async event => {
+                                                        onChange={event => {
                                                             const isEnabled = event.target.value === 'enable';
-                                                            setAyDeadlines(current =>
-                                                                current.map(item =>
-                                                                    item.id === deadline.id ? { ...item, is_enabled: isEnabled } : item
-                                                                )
-                                                            );
-                                                            try {
-                                                                await router.patch(
-                                                                    route('ay-deadlines.updateStatus', deadline.id),
-                                                                    { is_enabled: isEnabled },
-                                                                    {
-                                                                        onSuccess: () => {
-                                                                            toast.success('Deadline status updated!');
-                                                                        },
-                                                                        onError: () => {
-                                                                            toast.error('Failed to update deadline status.');
-                                                                            fetchAyDeadlines();
-                                                                        },
-                                                                    }
-                                                                );
-                                                            } catch {
-                                                                toast.error('Failed to update deadline status.');
-                                                                fetchAyDeadlines();
-                                                            }
+                                                            void updateAyDeadlineStatus(deadline, isEnabled);
                                                         }}
                                                         className={`px-3 py-1 rounded-full text-xs font-semibold ${deadline.is_enabled
                                                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
