@@ -16,11 +16,17 @@ class AyDeadline extends Model
     protected $fillable = [
         'academic_year',
         'deadline',
+        'is_enabled',
     ];
 
     // Cast deadline to date instance
     protected $casts = [
         'deadline' => 'date',
+        'is_enabled' => 'boolean',
+    ];
+
+    protected $appends = [
+        'deadline_formatted',
     ];
 
     // Accessor for formatted deadline (June 20, 2025)
