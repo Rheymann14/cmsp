@@ -10,7 +10,60 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
 ];
 
+type SpecialGroupCounts = {
+    pwd: number;
+    solo_parent: number;
+    first_generation: number;
+    indigenous_people: number;
+};
+
+const EMPTY_SPECIAL_COUNTS: SpecialGroupCounts = {
+    pwd: 0,
+    solo_parent: 0,
+    first_generation: 0,
+    indigenous_people: 0,
+};
+
+const parseSpecialGroupCounts = (input: unknown): SpecialGroupCounts => {
+    const toNumber = (value: unknown): number => {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed === '') {
+                return 0;
+            }
+
+            const parsed = Number(trimmed);
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        return 0;
+    };
+
+    if (!input || typeof input !== 'object') {
+        return { ...EMPTY_SPECIAL_COUNTS };
+    }
+
+    const raw = input as Partial<Record<keyof SpecialGroupCounts, unknown>>;
+
+    return {
+        pwd: toNumber(raw.pwd),
+        solo_parent: toNumber(raw.solo_parent),
+        first_generation: toNumber(raw.first_generation),
+        indigenous_people: toNumber(raw.indigenous_people),
+    };
+};
+
 export default function Dashboard() {
+    const [specialCounts, setSpecialCounts] = useState<SpecialGroupCounts>({ ...EMPTY_SPECIAL_COUNTS });
+
+    const handleSpecialCounts = useCallback((counts: SpecialGroupCounts) => {
+        setSpecialCounts({ ...counts });
+    }, []);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Home" />
@@ -25,7 +78,7 @@ export default function Dashboard() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.pwd.toLocaleString()}</div>
                             <p className="text-xs text-muted-foreground">as of today</p>
                         </CardContent>
                     </Card>
@@ -39,7 +92,7 @@ export default function Dashboard() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.solo_parent.toLocaleString()}</div>
                             <p className="text-xs text-muted-foreground">as of today</p>
                         </CardContent>
                     </Card>
@@ -53,7 +106,7 @@ export default function Dashboard() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.first_generation.toLocaleString()}</div>
                             <p className="text-xs text-muted-foreground">unique groups</p>
                         </CardContent>
                     </Card>
@@ -67,7 +120,7 @@ export default function Dashboard() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">0</div>
+                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.indigenous_people.toLocaleString()}</div>
                             <p className="text-xs text-muted-foreground">registered</p>
                         </CardContent>
                     </Card>
@@ -76,7 +129,7 @@ export default function Dashboard() {
                 <div className="-mx-4 sm:-mx-6 lg:-mx-8">
                     <div className="mx-auto max-w-[1280px] px-4">
                         <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                            <CmspsTable />
+                            <CmspsTable onSpecialCounts={handleSpecialCounts} />
                         </div>
                     </div>
                 </div>
@@ -123,7 +176,7 @@ function TruncateCell({
     );
 }
 
-function CmspsTable() {
+function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGroupCounts) => void }) {
     type ApplicationRow = {
         id: number;
         incoming: boolean;
@@ -325,15 +378,21 @@ function CmspsTable() {
             setTotal(json.meta?.total ?? 0);
             setLastPage(json.meta?.last_page ?? 1);
             setPage(json.meta?.current_page ?? p);
+            if (onSpecialCounts) {
+                onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
+            }
             setSelectedId(null);
         } catch (e) {
             setRows([]);
             setTotal(0);
             setLastPage(1);
+            if (onSpecialCounts) {
+                onSpecialCounts({ ...EMPTY_SPECIAL_COUNTS });
+            }
         } finally {
             setLoading(false);
         }
-    }, [buildUrl, page, perPage, search]);
+    }, [buildUrl, onSpecialCounts, page, perPage, search]);
 
     useEffect(() => { fetchData(1, search, perPage); }, [perPage]); // refetch when perPage changes
 
