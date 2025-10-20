@@ -278,6 +278,7 @@ class CmspApplicationController extends Controller
     return back()->with([
         'success' => 'Application submitted!',
         'tracking_no' => $application->tracking_no,
+        'trackingNo' => $application->tracking_no,
     ]);
 }
 

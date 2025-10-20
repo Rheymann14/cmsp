@@ -214,7 +214,7 @@ const TRACKING_RAW_REGEX = /^[A-Z0-9]{5}\d{4}$/;
 type WelcomePageProps = {
     auth: SharedData['auth'];
     ayDeadline: AyDeadline;
-    flash?: { trackingNo?: string | null };
+    flash?: { trackingNo?: string | null; tracking_no?: string | null };
 };
 
 const normalizeTrackingInput = (value: string) => {
@@ -254,7 +254,9 @@ export default function Welcome() {
 
     const [successOpen, setSuccessOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"form" | "req">("form");
-    const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(flash?.trackingNo ?? null);
+    const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(
+        flash?.trackingNo ?? flash?.tracking_no ?? null,
+    );
 
     const [trackOpen, setTrackOpen] = useState(false);
     const [trackingCode, setTrackingCode] = useState("");
@@ -353,10 +355,11 @@ export default function Welcome() {
     }, [trackOpen]);
 
     useEffect(() => {
-        if (flash?.trackingNo) {
-            setGeneratedTrackingNo(flash.trackingNo);
+        const tracking = flash?.trackingNo ?? flash?.tracking_no ?? null;
+        if (tracking) {
+            setGeneratedTrackingNo(tracking);
         }
-    }, [flash?.trackingNo]);
+    }, [flash?.trackingNo, flash?.tracking_no]);
 
 
     // confetti viewport size
@@ -1336,7 +1339,10 @@ export default function Welcome() {
                 setSex('');
 
                 const pageProps = page.props as unknown as WelcomePageProps | undefined;
-                const trackingNo = pageProps?.flash?.trackingNo ?? null;
+                const flashData = pageProps?.flash as
+                    | { trackingNo?: string | null; tracking_no?: string | null }
+                    | undefined;
+                const trackingNo = flashData?.trackingNo ?? flashData?.tracking_no ?? null;
                 setGeneratedTrackingNo(trackingNo);
                 setSuccessOpen(true);
             },
@@ -1346,6 +1352,7 @@ export default function Welcome() {
                 const first = Object.values(errors)[0] as string | undefined;
                 toast.error(first ?? 'Please review the highlighted fields.', { id: 'cmsp-submit' });
                 console.log(errors);
+                setIsSubmitting(false);
             },
             onFinish: () => {
                 setIsSubmitting(false);
