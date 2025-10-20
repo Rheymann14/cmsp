@@ -1231,6 +1231,8 @@ export default function Welcome() {
 
     const [open, setOpen] = useState(false)
     const [date, setDate] = useState<Date | undefined>(undefined)
+    const [birthdate, setBirthdate] = useState<string>(date ? format(date, "yyyy-MM-dd") : "");
+
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -2224,41 +2226,23 @@ export default function Welcome() {
                                                         <label className="mb-1 block text-sm font-medium">
                                                             Birthdate <span className="text-red-500">*</span>
                                                         </label>
-                                                        <Popover open={open} onOpenChange={setOpen}>
-                                                            <PopoverTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    id="date"
-                                                                    className="w-48 justify-between font-normal"
-                                                                    data-field="birthdate"
-                                                                >
-                                                                    {date ? format(date, "dd/MM/yyyy") : "Select date"}
-                                                                    <ChevronDownIcon />
-                                                                </Button>
-                                                            </PopoverTrigger>
+                                                        <Input
+                                                            id="birthdate"
+                                                            type="date"
+                                                            value={birthdate}
+                                                            onChange={(e) => {
+                                                                const v = e.target.value;       // yyyy-MM-dd (partial typing allowed)
+                                                                setBirthdate(v);
+                                                                if (v) persistDraft("birthdate", v);
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                const v = e.currentTarget.value;
+                                                                setDate(v ? new Date(v) : undefined); // sync your Date state after user finishes
+                                                            }}
+                                                            required
+                                                        />
 
-                                                            <PopoverContent className=" z-[60] w-auto p-0" align="start">
-                                                                <Calendar
-                                                                    mode="single"
-                                                                    selected={date}
-                                                                    onSelect={(date) => {
-                                                                        setDate(date);
-                                                                        setOpen(false);
-                                                                        if (date) {
-                                                                            // store ISO date (yyyy-MM-dd)
-                                                                            persistDraft('birthdate', format(date, 'yyyy-MM-dd'));
-                                                                        }
-                                                                    }}
-                                                                    captionLayout="dropdown"
-                                                                    classNames={{
-                                                                        caption_dropdowns: "flex gap-2 items-center justify-center",
-                                                                        dropdown:
-                                                                            "rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm focus:outline-none",
-                                                                        caption_label: "hidden",
-                                                                    }}
-                                                                />
-                                                            </PopoverContent>
-                                                        </Popover>
+
                                                     </div>
 
                                                     <label className="flex items-center gap-2 text-sm font-medium">
