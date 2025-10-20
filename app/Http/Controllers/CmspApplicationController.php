@@ -104,8 +104,9 @@ class CmspApplicationController extends Controller
 
         'gad_stufaps_course' => ['nullable','string','max:255'],
 
-        'shs_name'    => ['required','string','max:200'],
-        'shs_address' => ['required','string','max:200'],
+        'shs_name'         => ['required','string','max:200'],
+        'shs_address'      => ['required','string','max:200'],
+        'shs_school_type'  => ['required', Rule::in(['Public','Private'])],
 
         'father_na'        => ['nullable','boolean'],
         'father_deceased'  => ['nullable','boolean'],
@@ -240,8 +241,9 @@ class CmspApplicationController extends Controller
 
         'gad_stufaps_course' => $validated['gad_stufaps_course'] ?? null,
 
-        'shs_name'    => $validated['shs_name'],
-        'shs_address' => $validated['shs_address'],
+        'shs_name'         => $validated['shs_name'],
+        'shs_address'      => $validated['shs_address'],
+        'shs_school_type'  => $validated['shs_school_type'],
  
         'father_name'                  => $validated['father_name']                  ?? null,
         'father_occupation'            => $validated['father_occupation']            ?? null,
