@@ -1248,6 +1248,10 @@ export default function Welcome() {
         }
     };
 
+
+
+    const [open, setOpen] = useState(false)
+    const [date, setDate] = useState<Date | undefined>(undefined)
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
