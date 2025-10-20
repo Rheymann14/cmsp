@@ -729,6 +729,21 @@ public function exportXlsx(Request $request)
         'indigenous_people' => $makeCount('Indigenous People (IP)'),
     ];
 
+    $q->with([
+        'latestValidation' => function ($relation) {
+            $relation->select([
+                'id',
+                'cmsp_id',
+                'tracking_no',
+                'documentary_requirements',
+                'remarks',
+                'checked_by',
+                'created_at',
+                'updated_at',
+            ])->with('checker:id,name');
+        },
+    ]);
+
     $apps = $q->paginate($perPage)->appends($request->all());
 
     return response()->json([

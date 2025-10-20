@@ -1,10 +1,14 @@
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
-import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, FileCheck, SquarePen, GraduationCap } from 'lucide-react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, FileCheck, SquarePen, GraduationCap, Check } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Toaster, toast } from 'sonner';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
@@ -15,6 +19,21 @@ type SpecialGroupCounts = {
     solo_parent: number;
     first_generation: number;
     indigenous_people: number;
+};
+
+type ValidationSummary = {
+    id: number;
+    cmsp_id: number;
+    tracking_no: string;
+    documentary_requirements: string;
+    remarks: string | null;
+    checked_by: number;
+    created_at: string;
+    updated_at: string;
+    checker?: {
+        id: number;
+        name: string;
+    } | null;
 };
 
 const EMPTY_SPECIAL_COUNTS: SpecialGroupCounts = {
@@ -67,6 +86,18 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Home" />
+            <Toaster
+                richColors
+                position="top-right"
+                closeButton
+                duration={4000}
+                toastOptions={{
+                    style: {
+                        borderRadius: '0.75rem',
+                        fontFamily: 'var(--font-sans, Instrument Sans, sans-serif)',
+                    },
+                }}
+            />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 overflow-x-hidden">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {/* PWD */}
@@ -263,6 +294,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         academic_year: string;
         deadline: string; // ISO date
         created_at: string; // ISO datetime
+        latest_validation?: ValidationSummary | null;
     };
 
     const COLS = 48; // keep this in sync with the header
@@ -342,6 +374,23 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
 
+    const { auth } = usePage<SharedData>().props;
+
+    const validationForm = useForm<{ cmsp_id: number; documentary_requirements: string; remarks: string }>({
+        cmsp_id: 0,
+        documentary_requirements: '',
+        remarks: '',
+    });
+
+    const { data, setData, post, delete: destroy, processing, errors, reset, clearErrors } = validationForm;
+
+    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+    const [selectedApplication, setSelectedApplication] = useState<ApplicationRow | null>(null);
+    const hasExistingValidation = Boolean(selectedApplication?.latest_validation);
+
+    const firstError = (value: string | string[] | undefined) =>
+        Array.isArray(value) ? value[0] : value;
+
     const buildUrl = useCallback((p: number, s: string, pp: number) => {
         const base = (window as any).route
             ? (window as any).route('cmsp-applications.index.json')
@@ -395,6 +444,67 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     }, [buildUrl, onSpecialCounts, page, perPage, search]);
 
     useEffect(() => { fetchData(1, search, perPage); }, [perPage]); // refetch when perPage changes
+
+    const handleValidationDialogOpenChange = useCallback((open: boolean) => {
+        setValidationDialogOpen(open);
+        if (!open) {
+            setSelectedApplication(null);
+            reset();
+            clearErrors();
+        }
+    }, [clearErrors, reset]);
+
+    const handleValidationOpen = useCallback((row: ApplicationRow) => {
+        setSelectedApplication(row);
+        setSelectedId(row.id);
+        setData('cmsp_id', row.id);
+        const latest = row.latest_validation ?? null;
+        setData('documentary_requirements', latest?.documentary_requirements ?? '');
+        setData('remarks', latest?.remarks ?? '');
+        clearErrors();
+        setValidationDialogOpen(true);
+    }, [clearErrors, setData]);
+
+    const handleValidationSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!selectedApplication || !data.cmsp_id) {
+            return;
+        }
+
+        post(route('validations.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Validation saved!');
+                handleValidationDialogOpenChange(false);
+                fetchData(page, search, perPage);
+            },
+            onError: (formErrors) => {
+                if (formErrors && Object.keys(formErrors).length > 0) {
+                    toast.error('Please review the highlighted fields.');
+                } else {
+                    toast.error('Failed to save validation.');
+                }
+            },
+        });
+    }, [data.cmsp_id, fetchData, handleValidationDialogOpenChange, page, perPage, post, search, selectedApplication]);
+
+    const handleValidationClear = useCallback(() => {
+        if (!selectedApplication) {
+            return;
+        }
+
+        destroy(route('validations.destroy', selectedApplication.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Validation cleared.');
+                handleValidationDialogOpenChange(false);
+                fetchData(page, search, perPage);
+            },
+            onError: () => {
+                toast.error('Failed to clear validation.');
+            },
+        });
+    }, [destroy, fetchData, handleValidationDialogOpenChange, page, perPage, search, selectedApplication]);
 
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -792,29 +902,18 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                         <td className="px-3 py-2">
                                             <Button
+                                                type="button"
                                                 variant="ghost"
-                                                className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-3 py-1 rounded-md transition"
-                                                title="Validate Application"
-                                                // sample code for password reset action
-                                                //onClick={() => {
-                                                //     router.post(route('users.resetPassword', user.id), {}, {
-                                                //         preserveScroll: true,
-                                                //         preserveState: true,
-                                                //         onSuccess: () => {
-                                                //             toast.success(`Password reset for ${user.name}!`, {
-                                                //                 description: "Default password: 12345678",
-                                                //             });
-                                                //         },
-                                                //         onError: () => {
-                                                //             toast.error("Failed to reset password.");
-                                                //         },
-                                                //     });
-                                                // }}
+                                                className={`${r.latest_validation ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30' : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30'} px-3 py-1 rounded-md transition`}
+                                                title={r.latest_validation ? 'View validation' : 'Validate Application'}
+                                                onClick={() => handleValidationOpen(r)}
                                             >
-                                               <SquarePen  className="w-4 h-4" />
+                                                {r.latest_validation ? (
+                                                    <Check className="w-4 h-4" />
+                                                ) : (
+                                                    <SquarePen className="w-4 h-4" />
+                                                )}
                                             </Button>
-                                         
-                                       
                                         </td>
                                         
                                     </tr>
@@ -853,6 +952,91 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                         </Button>
                     </div>
                 </div>
+                <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogOpenChange}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Validate Application</DialogTitle>
+                            <DialogDescription>
+                                Provide the documentary requirements status for tracking number
+                                {' '}
+                                <span className="font-semibold text-foreground">
+                                    {selectedApplication?.tracking_no ?? '—'}
+                                </span>
+                                .
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleValidationSubmit} className="space-y-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="validation-documentary">Documentary Requirements Status</Label>
+                                <Input
+                                    id="validation-documentary"
+                                    value={data.documentary_requirements}
+                                    onChange={(event) => setData('documentary_requirements', event.target.value)}
+                                    placeholder="e.g. Complete, Pending, Incomplete"
+                                    aria-invalid={Boolean(errors.documentary_requirements)}
+                                />
+                                {firstError(errors.documentary_requirements) && (
+                                    <p className="text-sm text-red-600">
+                                        {firstError(errors.documentary_requirements)}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="validation-checked-by">Checked By</Label>
+                                <Input
+                                    id="validation-checked-by"
+                                    value={selectedApplication?.latest_validation?.checker?.name ?? auth?.user?.name ?? ''}
+                                    readOnly
+                                    disabled
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="validation-remarks">Remarks</Label>
+                                <textarea
+                                    id="validation-remarks"
+                                    value={data.remarks}
+                                    onChange={(event) => setData('remarks', event.target.value)}
+                                    placeholder="Add any remarks for this application"
+                                    aria-invalid={Boolean(errors.remarks)}
+                                    className="border-input placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground flex min-h-[96px] w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40"
+                                />
+                                {firstError(errors.remarks) && (
+                                    <p className="text-sm text-red-600">
+                                        {firstError(errors.remarks)}
+                                    </p>
+                                )}
+                            </div>
+                            <DialogFooter className="gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => handleValidationDialogOpenChange(false)}
+                                    disabled={processing}
+                                >
+                                    Cancel
+                                </Button>
+                                {hasExistingValidation && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={handleValidationClear}
+                                        disabled={processing}
+                                    >
+                                        Clear Validation
+                                    </Button>
+                                )}
+                                <Button type="submit" disabled={processing} className="bg-[#1e3c73] text-white hover:bg-[#1a3565]">
+                                    {processing ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <FileCheck className="mr-2 h-4 w-4" />
+                                    )}
+                                    {processing ? 'Saving...' : 'Save Validation'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );
