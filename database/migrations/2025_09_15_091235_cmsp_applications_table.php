@@ -56,6 +56,7 @@ return new class extends Migration {
 
             $table->string('shs_name');
             $table->string('shs_address');
+            $table->enum('shs_school_type', ['Public', 'Private']);
 
             $table->string('father_name')->nullable();
             $table->string('father_occupation')->nullable();

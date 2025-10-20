@@ -30,7 +30,8 @@ class CmspApplication extends Model
         'gad_stufaps_course',
 
         // SHS
-        'shs_name','shs_address',
+        'shs_name','shs_address','shs_school_type',
+
 
         // Parents/guardian
         'father_name','father_occupation','father_income_monthly','father_income_yearly_bracket',
