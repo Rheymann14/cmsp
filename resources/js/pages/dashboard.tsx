@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, KeyRound, Pencil } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, FileCheck, SquarePen, GraduationCap } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -102,12 +102,12 @@ export default function Dashboard() {
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">First Generation Students</CardTitle>
                             <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
-                                <Globe className="h-5 w-5 text-[#1e3c73]" />
+                                <GraduationCap className="h-5 w-5 text-[#1e3c73]" />
                             </div>
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-semibold tracking-tight">{specialCounts.first_generation.toLocaleString()}</div>
-                            <p className="text-xs text-muted-foreground">unique groups</p>
+                            <p className="text-xs text-muted-foreground">as of today</p>
                         </CardContent>
                     </Card>
 
@@ -121,7 +121,7 @@ export default function Dashboard() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-semibold tracking-tight">{specialCounts.indigenous_people.toLocaleString()}</div>
-                            <p className="text-xs text-muted-foreground">registered</p>
+                            <p className="text-xs text-muted-foreground">as of today</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -794,8 +794,9 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             <Button
                                                 variant="ghost"
                                                 className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-3 py-1 rounded-md transition"
-                                                title="Reset Password"
-                                                // onClick={() => {
+                                                title="Validate Application"
+                                                // sample code for password reset action
+                                                //onClick={() => {
                                                 //     router.post(route('users.resetPassword', user.id), {}, {
                                                 //         preserveScroll: true,
                                                 //         preserveState: true,
@@ -810,26 +811,9 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                                 //     });
                                                 // }}
                                             >
-                                               <KeyRound  className="w-4 h-4" />
+                                               <SquarePen  className="w-4 h-4" />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1 rounded-md transition"
-                                                title="Edit"
-                                                // onClick={() => {
-                                                //     setUserToEdit(user);
-                                                //     setEditData({
-                                                //         name: user.name,
-                                                //         email: user.email,
-                                                //         region_id: user.region_id || '',
-                                                //         role_ids: user.roles?.map(r => r.id) || []
-                                                //     });
-                                                //     setEditErrors({});
-                                                //     setEditDialogOpen(true);
-                                                // }}
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </Button>
+                                         
                                        
                                         </td>
                                         
