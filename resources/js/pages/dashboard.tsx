@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, MoonStar, FileSpreadsheet, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -44,10 +44,10 @@ export default function Dashboard() {
                         </CardContent>
                     </Card>
 
-                    {/* Ethnicity */}
+                    {/* First Generation Students */}
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Ethnicity</CardTitle>
+                            <CardTitle className="text-sm font-medium">First Generation Students</CardTitle>
                             <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
                                 <Globe className="h-5 w-5 text-[#1e3c73]" />
                             </div>
@@ -58,12 +58,12 @@ export default function Dashboard() {
                         </CardContent>
                     </Card>
 
-                    {/* Religion */}
+                    {/* Indigenous People (IP) */}
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Religion</CardTitle>
+                            <CardTitle className="text-sm font-medium">Indigenous People (IP)</CardTitle>
                             <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
-                                <MoonStar className="h-5 w-5 text-[#1e3c73]" />
+                                <Tent className="h-5 w-5 text-[#1e3c73]" />
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -143,7 +143,7 @@ function CmspsTable() {
 
         // personal
         birthdate: string; // ISO
-        age : number | null;
+        age: number | null;
         sex: 'male' | 'female';
 
         ethnicity_id: number; ethnicity_name?: string;
@@ -225,6 +225,12 @@ function CmspsTable() {
     ] as const;
 
     type AttachmentKey = typeof ATTACHMENTS[number]['key'];
+    type AttachmentLabel = typeof ATTACHMENTS[number]['label'];
+    type AttachmentItem = {
+        label: AttachmentLabel;
+        url: string | null;     // allow null so we can render “missing”
+        missing: boolean;
+    };
 
     const normalizeAttachmentUrl = (path: ApplicationRow[AttachmentKey]) => {
         if (!path) return null;
@@ -235,32 +241,39 @@ function CmspsTable() {
     };
 
     const renderAttachments = (row: ApplicationRow) => {
-        const items = ATTACHMENTS
-            .map(({ key, label }) => {
-                const url = normalizeAttachmentUrl(row[key]);
-                return url ? { label, url } : null;
-            })
-            .filter((item): item is { label: string; url: string } => Boolean(item));
-
-        if (items.length === 0) {
-            return <span className="text-[11px] text-muted-foreground">No files</span>;
-        }
+        const items: AttachmentItem[] = ATTACHMENTS.map(({ key, label }) => {
+            const url = normalizeAttachmentUrl(row[key]); // string | null
+            return { label, url, missing: !url };
+        });
 
         return (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
                 <span className="font-medium text-muted-foreground">Files:</span>
-                {items.map((item) => (
-                    <a
-                        key={item.label}
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1"
-                    >
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                        <span className="capitalize">{item.label}</span>
-                    </a>
-                ))}
+                {items.map(({ label, url, missing }) =>
+                    missing ? (
+                        // Missing (red)
+                        <span
+                            key={label}
+                            className="inline-flex items-center gap-1 text-red-600 dark:text-red-400"
+                            title="Missing file"
+                        >
+                            <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
+                            <span className="capitalize">{label}</span>
+                        </span>
+                    ) : (
+                        // Present (green, clickable)
+                        <a
+                            key={label}
+                            href={url!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1"
+                        >
+                            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                            <span className="capitalize">{label}</span>
+                        </a>
+                    )
+                )}
             </div>
         );
     };
@@ -508,9 +521,9 @@ function CmspsTable() {
                                 <th className="px-3 py-2 font-semibold">GWA G12 S1</th>
                                 <th className="px-3 py-2 font-semibold">GWA G12 S2</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[220px]">Files</th>
-
                                 <th className="px-3 py-2 font-semibold min-w-[400px]">Special Groups</th>
+
+                                <th className="px-3 py-2 font-semibold min-w-[220px]">Files</th>
 
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
@@ -564,9 +577,9 @@ function CmspsTable() {
                                                 ? 'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
                                                 : ''}`}
                                     >
-                                         <td className={`px-3 py-2 ${selectedId === r.id ? 'border-l-4 border-blue-500 pl-2 dark:border-blue-600' : ''}`}>
-                                               {idx + 1 + (page - 1) * perPage}
-                                             </td>
+                                        <td className={`px-3 py-2 ${selectedId === r.id ? 'border-l-4 border-blue-500 pl-2 dark:border-blue-600' : ''}`}>
+                                            {idx + 1 + (page - 1) * perPage}
+                                        </td>
 
                                         <td className="px-3 py-2">
                                             <span className="inline-block rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
@@ -698,12 +711,12 @@ function CmspsTable() {
                                             </span>
                                         </td>
 
-                                        <td className="px-3 py-2 align-top max-w-[260px]" title="Application attachments">
-                                            {renderAttachments(r)}
-                                        </td>
-
                                         <td className="px-3 py-2" title={r.special_groups?.length ? r.special_groups.join(', ') : '—'}>
                                             <TruncateCell value={r.special_groups?.length ? r.special_groups.join(', ') : '—'} max={40} />
+                                        </td>
+
+                                        <td className="px-3 py-2 align-top max-w-[260px]" title="Application attachments">
+                                            {renderAttachments(r)}
                                         </td>
 
                                         <td className="px-3 py-2">
