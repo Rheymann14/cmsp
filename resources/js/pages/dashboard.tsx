@@ -215,13 +215,13 @@ function CmspsTable() {
     const COLS = 48; // keep this in sync with the header
 
     const ATTACHMENTS = [
-        { key: 'application_form_path', label: 'application form', optional: false },
-        { key: 'grades_g12_s1_path', label: 'grades g12 s1', optional: false },
-        { key: 'grades_g12_s2_path', label: 'grades g12 s2', optional: false },
-        { key: 'birth_certificate_path', label: 'birth certificate', optional: false },
-        { key: 'proof_of_income_path', label: 'proof of income', optional: false },
-        { key: 'proof_of_special_group_path', label: 'special group', optional: true },
-        { key: 'guardianship_certificate_path', label: 'guardianship', optional: true },
+        { key: 'application_form_path', label: 'application form' },
+        { key: 'grades_g12_s1_path', label: 'grades g12 s1' },
+        { key: 'grades_g12_s2_path', label: 'grades g12 s2' },
+        { key: 'birth_certificate_path', label: 'birth certificate' },
+        { key: 'proof_of_income_path', label: 'proof of income' },
+        { key: 'proof_of_special_group_path', label: 'special group' },
+        { key: 'guardianship_certificate_path', label: 'guardianship' },
     ] as const;
 
     type AttachmentKey = typeof ATTACHMENTS[number]['key'];
@@ -235,58 +235,32 @@ function CmspsTable() {
     };
 
     const renderAttachments = (row: ApplicationRow) => {
-        const items = ATTACHMENTS.map(({ key, label, optional }) => ({
-            label,
-            url: normalizeAttachmentUrl(row[key]),
-            optional,
-        }));
+        const items = ATTACHMENTS
+            .map(({ key, label }) => {
+                const url = normalizeAttachmentUrl(row[key]);
+                return url ? { label, url } : null;
+            })
+            .filter((item): item is { label: string; url: string } => Boolean(item));
 
-        const badgeBase =
-            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide';
+        if (items.length === 0) {
+            return <span className="text-[11px] text-muted-foreground">No files</span>;
+        }
 
         return (
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-relaxed">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
                 <span className="font-medium text-muted-foreground">Files:</span>
-                {items.map((item) => {
-                    if (item.url) {
-                        return (
-                            <a
-                                key={item.label}
-                                href={item.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`${badgeBase} border border-emerald-600/30 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500`}
-                            >
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                                <span className="capitalize">{item.label}</span>
-                            </a>
-                        );
-                    }
-
-                    if (item.optional) {
-                        return (
-                            <span
-                                key={item.label}
-                                className={`${badgeBase} border border-zinc-400/40 bg-zinc-100 text-zinc-600 dark:border-zinc-600/60 dark:bg-zinc-900/60 dark:text-zinc-300`}
-                            >
-                                <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500" aria-hidden />
-                                <span className="capitalize">{item.label}</span>
-                                <span className="sr-only"> optional, not uploaded</span>
-                            </span>
-                        );
-                    }
-
-                    return (
-                        <span
-                            key={item.label}
-                            className={`${badgeBase} border border-rose-600/30 bg-rose-50 text-rose-700`}
-                        >
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" aria-hidden />
-                            <span className="capitalize">{item.label}</span>
-                            <span className="sr-only"> not uploaded</span>
-                        </span>
-                    );
-                })}
+                {items.map((item) => (
+                    <a
+                        key={item.label}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1"
+                    >
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                        <span className="capitalize">{item.label}</span>
+                    </a>
+                ))}
             </div>
         );
     };
