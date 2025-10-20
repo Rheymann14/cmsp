@@ -111,5 +111,10 @@ public function courseModel()    { return $this->belongsTo(\App\Models\Course::c
 public function districtR()      { return $this->districtModel(); }
 public function courseR()        { return $this->courseModel(); }
 
+public function validations()
+{
+    return $this->hasMany(Validation::class, 'cmsp_id');
+}
+
     
 }
