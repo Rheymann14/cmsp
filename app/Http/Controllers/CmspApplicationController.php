@@ -714,6 +714,21 @@ public function exportXlsx(Request $request)
         });
     }
 
+    $countsBase = clone $q;
+
+    $makeCount = static function (string $group) use ($countsBase) {
+        return (clone $countsBase)
+            ->whereJsonContains('a.special_groups', $group)
+            ->count();
+    };
+
+    $specialCounts = [
+        'pwd' => $makeCount('Person With Disability (PWD)'),
+        'solo_parent' => $makeCount('Solo Parent'),
+        'first_generation' => $makeCount('First Generation Students (first in the family to attend college or university)'),
+        'indigenous_people' => $makeCount('Indigenous People (IP)'),
+    ];
+
     $apps = $q->paginate($perPage)->appends($request->all());
 
     return response()->json([
@@ -723,6 +738,7 @@ public function exportXlsx(Request $request)
             'per_page'     => $apps->perPage(),
             'total'        => $apps->total(),
             'last_page'    => $apps->lastPage(),
+            'special_counts' => $specialCounts,
         ],
     ]);
 }
