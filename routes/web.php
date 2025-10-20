@@ -81,8 +81,6 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     ->name('cmsp-applications.export');
 
     Route::post('/validations', [ValidationController::class, 'store'])->name('validations.store');
-    Route::delete('/validations/{application}', [ValidationController::class, 'destroy'])
-        ->name('validations.destroy');
 
 
 

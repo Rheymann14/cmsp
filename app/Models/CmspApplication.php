@@ -116,10 +116,5 @@ public function validations()
     return $this->hasMany(Validation::class, 'cmsp_id');
 }
 
-public function latestValidation()
-{
-    return $this->hasOne(Validation::class, 'cmsp_id')->latestOfMany();
-}
-
-
+    
 }
