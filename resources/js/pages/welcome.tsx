@@ -1139,7 +1139,10 @@ export default function Welcome() {
         }
 
 
-        if (saved.birthdate) setDate(parseISO(saved.birthdate));
+        if (typeof saved.birthdate === 'string') {
+            setBirthdate(saved.birthdate);
+            if (saved.birthdate) setDate(parseISO(saved.birthdate));
+        }
 
         setTimeout(() => {
             applyDraftToForm(saved);
@@ -1266,7 +1269,7 @@ export default function Welcome() {
         fd.set('intended_school', schoolId ? String(schoolId) : '');
         fd.set('year_level', yearLevel || '');
         fd.set('course', courseId ? String(courseId) : '');
-        fd.set('birthdate', date ? format(date, 'yyyy-MM-dd') : '');
+        fd.set('birthdate', birthdate.trim() ? birthdate.trim() : '');
 
         clearInvalidMarks();
         const clientErrs = buildClientRequiredErrors(fd, nameRegion || "");
@@ -1329,6 +1332,7 @@ export default function Welcome() {
                 setYearLevel('');
                 setCourseId(null); setCourseLabel('');
                 setDate(undefined);
+                setBirthdate('');
                 setSex('');
 
                 const pageProps = page.props as unknown as WelcomePageProps | undefined;
@@ -2232,12 +2236,13 @@ export default function Welcome() {
                                                         </label>
                                                         <Input
                                                             id="birthdate"
+                                                            name="birthdate"
                                                             type="date"
                                                             value={birthdate}
                                                             onChange={(e) => {
                                                                 const v = e.target.value;       // yyyy-MM-dd (partial typing allowed)
                                                                 setBirthdate(v);
-                                                                if (v) persistDraft("birthdate", v);
+                                                                persistDraft("birthdate", v || "");
                                                             }}
                                                             onBlur={(e) => {
                                                                 const v = e.currentTarget.value;
