@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Validation extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'cmsp_id',
+        'tracking_no',
+        'documentary_requirements',
+        'checked_by',
+        'remarks',
+    ];
+
+    public function application()
+    {
+        return $this->belongsTo(CmspApplication::class, 'cmsp_id');
+    }
+
+    public function checker()
+    {
+        return $this->belongsTo(User::class, 'checked_by');
+    }
+}
