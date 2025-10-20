@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, KeyRound, Pencil } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -540,8 +540,8 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                 <th className="px-3 py-2 font-semibold">Ethnicity</th>
                                 <th className="px-3 py-2 font-semibold">Religion</th>
 
-                                <th className="px-3 py-2 font-semibold">Province/Municipality</th>
-                                <th className="px-3 py-2 font-semibold">District</th>
+                                <th className="px-3 py-2 font-semibold  min-w-[300px]">Province/Municipality</th>
+                                <th className="px-3 py-2 font-semibold  min-w-[200px]">District</th>
                                 <th className="px-3 py-2 font-semibold">Barangay</th>
                                 <th className="px-3 py-2 font-semibold">Purok/Street</th>
                                 <th className="px-3 py-2 font-semibold">ZIP</th>
@@ -573,20 +573,21 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                 <th className="px-3 py-2 font-semibold">Mother Income (monthly)</th>
                                 <th className="px-3 py-2 font-semibold">Mother Income (yearly)</th>
 
-                                <th className="px-3 py-2 font-semibold">Guardian</th>
+                                <th className="px-3 py-2 font-semibold  min-w-[200px]">Guardian</th>
                                 <th className="px-3 py-2 font-semibold">Guardian Occupation</th>
                                 <th className="px-3 py-2 font-semibold">Guardian Income (monthly)</th>
 
                                 <th className="px-3 py-2 font-semibold">GWA G12 S1</th>
                                 <th className="px-3 py-2 font-semibold">GWA G12 S2</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[400px]">Special Groups</th>
+                                <th className="px-3 py-2 font-semibold min-w-[300px]">Special Groups</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[220px]">Files</th>
+                                <th className="px-3 py-2 font-semibold min-w-[300px]">Files</th>
 
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
                                 <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
+                                <th className="px-3 py-2 font-semibold">Action</th>
                             </tr>
                         </thead>
 
@@ -789,6 +790,49 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             </span>
                                         </td>
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
+                                        <td className="px-3 py-2">
+                                            <Button
+                                                variant="ghost"
+                                                className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-3 py-1 rounded-md transition"
+                                                title="Reset Password"
+                                                // onClick={() => {
+                                                //     router.post(route('users.resetPassword', user.id), {}, {
+                                                //         preserveScroll: true,
+                                                //         preserveState: true,
+                                                //         onSuccess: () => {
+                                                //             toast.success(`Password reset for ${user.name}!`, {
+                                                //                 description: "Default password: 12345678",
+                                                //             });
+                                                //         },
+                                                //         onError: () => {
+                                                //             toast.error("Failed to reset password.");
+                                                //         },
+                                                //     });
+                                                // }}
+                                            >
+                                               <KeyRound  className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1 rounded-md transition"
+                                                title="Edit"
+                                                // onClick={() => {
+                                                //     setUserToEdit(user);
+                                                //     setEditData({
+                                                //         name: user.name,
+                                                //         email: user.email,
+                                                //         region_id: user.region_id || '',
+                                                //         role_ids: user.roles?.map(r => r.id) || []
+                                                //     });
+                                                //     setEditErrors({});
+                                                //     setEditDialogOpen(true);
+                                                // }}
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </Button>
+                                       
+                                        </td>
+                                        
                                     </tr>
                                 ))
                             )}
