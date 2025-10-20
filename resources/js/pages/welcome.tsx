@@ -2215,7 +2215,7 @@ export default function Welcome() {
                                                                     <CommandList>
                                                                         <CommandEmpty>No result</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {["Jr", "III", "Others", "N/A"].map((ext) => (
+                                                                            {["Jr","II",  "III", "Others"].map((ext) => (
                                                                                 <CommandItem
                                                                                     key={ext}
                                                                                     value={ext}
