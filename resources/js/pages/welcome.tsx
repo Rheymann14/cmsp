@@ -1232,10 +1232,14 @@ export default function Welcome() {
     const [open, setOpen] = useState(false)
     const [date, setDate] = useState<Date | undefined>(undefined)
     const [birthdate, setBirthdate] = useState<string>(date ? format(date, "yyyy-MM-dd") : "");
-
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        if (isSubmitting) {
+            return;
+        }
 
         if (!ayDeadline?.academic_year || !ayDeadline?.deadline) {
             toast.error("Missing academic year or deadline. Please reload the page.");
@@ -1302,7 +1306,7 @@ export default function Welcome() {
         }
 
 
-
+        setIsSubmitting(true);
         toast.loading('Submitting application…', { id: 'cmsp-submit' });
 
         router.post(route('cmsps.apply'), fd, {
@@ -1340,7 +1344,7 @@ export default function Welcome() {
                 console.log(errors);
             },
             onFinish: () => {
-                // no-op
+                setIsSubmitting(false);
             },
         });
     };
@@ -3947,11 +3951,13 @@ export default function Welcome() {
                                                 type="submit"
 
                                                 className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
-                                                hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
+                                                hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73]
                                                 disabled:cursor-not-allowed disabled:opacity-50
                                                 dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
+                                                disabled={isSubmitting}
+                                                aria-busy={isSubmitting}
                                             >
-                                                Submit Application
+                                               {isSubmitting ? 'Processing…' : 'Submit Application'}
                                             </Button>
                                         </div>
                                     </section>
