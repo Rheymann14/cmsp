@@ -195,6 +195,15 @@ function CmspsTable() {
         gwa_g12_s1: number;
         gwa_g12_s2: number;
 
+        // attachments
+        application_form_path: string | null;
+        grades_g12_s1_path: string | null;
+        grades_g12_s2_path: string | null;
+        birth_certificate_path: string | null;
+        proof_of_income_path: string | null;
+        proof_of_special_group_path: string | null;
+        guardianship_certificate_path: string | null;
+
         // misc
         special_groups: string[];
         consent: boolean;
@@ -203,7 +212,58 @@ function CmspsTable() {
         created_at: string; // ISO datetime
     };
 
-    const COLS = 47; // keep this in sync with the header
+    const COLS = 48; // keep this in sync with the header
+
+    const ATTACHMENTS = [
+        { key: 'application_form_path', label: 'application form' },
+        { key: 'grades_g12_s1_path', label: 'grades g12 s1' },
+        { key: 'grades_g12_s2_path', label: 'grades g12 s2' },
+        { key: 'birth_certificate_path', label: 'birth certificate' },
+        { key: 'proof_of_income_path', label: 'proof of income' },
+        { key: 'proof_of_special_group_path', label: 'special group' },
+        { key: 'guardianship_certificate_path', label: 'guardianship' },
+    ] as const;
+
+    type AttachmentKey = typeof ATTACHMENTS[number]['key'];
+
+    const normalizeAttachmentUrl = (path: ApplicationRow[AttachmentKey]) => {
+        if (!path) return null;
+        if (/^https?:\/\//i.test(path)) return path;
+        const trimmed = path.replace(/^\/+/, '');
+        const withoutStorage = trimmed.replace(/^storage\//, '');
+        return `/storage/${withoutStorage}`;
+    };
+
+    const renderAttachments = (row: ApplicationRow) => {
+        const items = ATTACHMENTS
+            .map(({ key, label }) => {
+                const url = normalizeAttachmentUrl(row[key]);
+                return url ? { label, url } : null;
+            })
+            .filter((item): item is { label: string; url: string } => Boolean(item));
+
+        if (items.length === 0) {
+            return <span className="text-[11px] text-muted-foreground">No files</span>;
+        }
+
+        return (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
+                <span className="font-medium text-muted-foreground">Files:</span>
+                {items.map((item) => (
+                    <a
+                        key={item.label}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1"
+                    >
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                        <span className="capitalize">{item.label}</span>
+                    </a>
+                ))}
+            </div>
+        );
+    };
 
     const [rows, setRows] = useState<ApplicationRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -448,6 +508,8 @@ function CmspsTable() {
                                 <th className="px-3 py-2 font-semibold">GWA G12 S1</th>
                                 <th className="px-3 py-2 font-semibold">GWA G12 S2</th>
 
+                                <th className="px-3 py-2 font-semibold min-w-[220px]">Files</th>
+
                                 <th className="px-3 py-2 font-semibold min-w-[400px]">Special Groups</th>
 
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
@@ -634,6 +696,10 @@ function CmspsTable() {
                                             <span className="inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
                                                 {r.gwa_g12_s2}
                                             </span>
+                                        </td>
+
+                                        <td className="px-3 py-2 align-top max-w-[260px]" title="Application attachments">
+                                            {renderAttachments(r)}
                                         </td>
 
                                         <td className="px-3 py-2" title={r.special_groups?.length ? r.special_groups.join(', ') : '—'}>
