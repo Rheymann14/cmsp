@@ -701,6 +701,7 @@ export default function Welcome() {
     // --- PERSIST DRAFT (all non-file fields) ---
     const STORAGE_KEY = 'cmspFormDraft';
     const draftRef = useRef<Record<string, any>>({});
+    const [draftHydrated, setDraftHydrated] = useState(false);
 
     const loadDraft = (): Record<string, any> => {
         try {
@@ -815,6 +816,8 @@ export default function Welcome() {
     const [courseId, setCourseId] = useState<number | null>(null);
     const [courseLabel, setCourseLabel] = useState<string>("");
     const [openCourse, setOpenCourse] = useState(false);
+    const [birthdateOpen, setBirthdateOpen] = useState(false);
+    const [date, setDate] = useState<Date | undefined>(undefined);
     const [locations, setLocations] = useState<{ id: number; label: string }[]>([]);
     const [loadingLocations, setLoadingLocations] = useState(true);
 
@@ -913,7 +916,7 @@ export default function Welcome() {
 
 
     useEffect(() => {
-        const onScroll = () => setOpen(false);
+        const onScroll = () => setBirthdateOpen(false);
         window.addEventListener('scroll', onScroll, { passive: true });
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
@@ -1139,13 +1142,31 @@ export default function Welcome() {
         }
 
 
-        if (saved.birthdate) setDate(parseISO(saved.birthdate));
+        if (typeof saved.birthdate === 'string' && saved.birthdate) {
+            try {
+                const parsed = parseISO(saved.birthdate);
+                if (!Number.isNaN(parsed.getTime())) {
+                    setDate(parsed);
+                }
+            } catch {
+                // ignore invalid saved date
+            }
+        }
 
         setTimeout(() => {
             applyDraftToForm(saved);
             enforceSpecialGroupRule();
         }, 0);
+
+        setDraftHydrated(true);
     }, []);
+
+    useEffect(() => {
+        if (!draftHydrated) return;
+        const value = date ? format(date, 'yyyy-MM-dd') : '';
+        if (!date && !draftRef.current.birthdate) return;
+        persistDraft('birthdate', value);
+    }, [date, draftHydrated]);
 
     useEffect(() => {
         if (sex === 'female') {
@@ -1227,13 +1248,14 @@ export default function Welcome() {
         }
     };
 
-
-
-    const [open, setOpen] = useState(false)
-    const [date, setDate] = useState<Date | undefined>(undefined)
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        if (isSubmitting) {
+            return;
+        }
 
         if (!ayDeadline?.academic_year || !ayDeadline?.deadline) {
             toast.error("Missing academic year or deadline. Please reload the page.");
@@ -1301,6 +1323,7 @@ export default function Welcome() {
 
 
 
+        setIsSubmitting(true);
         toast.loading('Submitting application…', { id: 'cmsp-submit' });
 
         router.post(route('cmsps.apply'), fd, {
@@ -1338,7 +1361,7 @@ export default function Welcome() {
                 console.log(errors);
             },
             onFinish: () => {
-                // no-op
+                setIsSubmitting(false);
             },
         });
     };
@@ -2224,7 +2247,7 @@ export default function Welcome() {
                                                         <label className="mb-1 block text-sm font-medium">
                                                             Birthdate <span className="text-red-500">*</span>
                                                         </label>
-                                                        <Popover open={open} onOpenChange={setOpen}>
+                                                        <Popover open={birthdateOpen} onOpenChange={setBirthdateOpen}>
                                                             <PopoverTrigger asChild>
                                                                 <Button
                                                                     variant="outline"
@@ -2243,7 +2266,7 @@ export default function Welcome() {
                                                                     selected={date}
                                                                     onSelect={(date) => {
                                                                         setDate(date);
-                                                                        setOpen(false);
+                                                                        setBirthdateOpen(false);
                                                                         if (date) {
                                                                             // store ISO date (yyyy-MM-dd)
                                                                             persistDraft('birthdate', format(date, 'yyyy-MM-dd'));
@@ -3963,11 +3986,13 @@ export default function Welcome() {
                                                 type="submit"
 
                                                 className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
-                                                hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73] 
+                                                hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73]
                                                 disabled:cursor-not-allowed disabled:opacity-50
                                                 dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
+                                                disabled={isSubmitting}
+                                                aria-busy={isSubmitting}
                                             >
-                                                Submit Application
+                                                {isSubmitting ? 'Processing…' : 'Submit Application'}
                                             </Button>
                                         </div>
                                     </section>
