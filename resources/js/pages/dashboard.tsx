@@ -174,6 +174,7 @@ function CmspsTable() {
         // SHS
         shs_name: string;
         shs_address: string;
+        shs_school_type: string;
 
         // family income
         father_name: string;
@@ -428,6 +429,7 @@ function CmspsTable() {
 
                                 <th className="px-3 py-2 font-semibold min-w-[400px]">SHS School Name</th>
                                 <th className="px-3 py-2 font-semibold">SHS School Address</th>
+                                <th className="px-3 py-2 font-semibold">SHS School Type</th>
 
                                 <th className="px-3 py-2 font-semibold">Father</th>
                                 <th className="px-3 py-2 font-semibold">Father Occupation</th>
@@ -591,6 +593,10 @@ function CmspsTable() {
 
                                         <td className="px-3 py-2" title={r.shs_address}>
                                             <TruncateCell value={r.shs_address} max={40} />
+                                        </td>
+
+                                        <td className="px-3 py-2" title={r.shs_school_type}>
+                                            <TruncateCell value={r.shs_school_type} max={40} />
                                         </td>
 
                                         <td className="px-3 py-2">{r.father_name ?? '—'}</td>
