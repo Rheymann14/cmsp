@@ -20,6 +20,21 @@ type SpecialGroupCounts = {
     indigenous_people: number;
 };
 
+type ValidationSummary = {
+    id: number;
+    cmsp_id: number;
+    tracking_no: string;
+    documentary_requirements: string;
+    remarks: string | null;
+    checked_by: number;
+    created_at: string;
+    updated_at: string;
+    checker?: {
+        id: number;
+        name: string;
+    } | null;
+};
+
 const EMPTY_SPECIAL_COUNTS: SpecialGroupCounts = {
     pwd: 0,
     solo_parent: 0,
@@ -70,6 +85,18 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Home" />
+            <Toaster
+                richColors
+                position="top-right"
+                closeButton
+                duration={4000}
+                toastOptions={{
+                    style: {
+                        borderRadius: '0.75rem',
+                        fontFamily: 'var(--font-sans, Instrument Sans, sans-serif)',
+                    },
+                }}
+            />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 overflow-x-hidden">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {/* PWD */}
@@ -266,6 +293,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         academic_year: string;
         deadline: string; // ISO date
         created_at: string; // ISO datetime
+        latest_validation?: ValidationSummary | null;
     };
 
     const COLS = 48; // keep this in sync with the header
@@ -853,8 +881,6 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             >
                                                <SquarePen className="w-4 h-4" />
                                             </Button>
-                                         
-                                       
                                         </td>
                                         
                                     </tr>
