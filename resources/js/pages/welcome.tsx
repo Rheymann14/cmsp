@@ -2,7 +2,7 @@
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import type { Page } from '@inertiajs/core';
-import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppearance } from '@/hooks/use-appearance';
 import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy } from 'lucide-react';
@@ -1468,8 +1468,9 @@ export default function Welcome() {
                         <DialogContent
                             className="
       p-0 rounded-3xl
-      sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl  /* wider dialog */
-      bg-white dark:bg-zinc-950               /* solid white/black, no translucency */
+      w-[95vw] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl
+      max-h-[90vh] overflow-y-auto
+      bg-white dark:bg-zinc-950
       border border-zinc-200/80 dark:border-zinc-800
       shadow-2xl
       [&>button:last-of-type]:hidden
@@ -1481,17 +1482,18 @@ export default function Welcome() {
                                 <button
                                     aria-label="Close"
                                     className="
-          absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center
+          absolute right-3 top-3 sm:right-4 sm:top-4 inline-flex h-8 w-8 sm:h-9 sm:w-9
+          items-center justify-center
           rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800
           dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100
           transition
         "
                                 >
-                                    <X className="h-5 w-5" />
+                                    <X className="h-4 w-4 sm:h-5 sm:w-5" />
                                 </button>
                             </DialogClose>
 
-                            <div className="p-5 sm:p-6"> {/* compact padding */}
+                            <div className="p-4 sm:p-6">
                                 <DialogHeader className="space-y-1">
                                     <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight">
                                         Track Application Status
@@ -1503,7 +1505,7 @@ export default function Welcome() {
 
                                 {/* OTP INPUT */}
                                 <div className="mt-4 space-y-3">
-                                    <div id="trackingCode" className="flex justify-center">
+                                    <div id="trackingCode" className="flex justify-center flex-wrap gap-1 sm:gap-2">
                                         <InputOTP
                                             data-input-otp
                                             maxLength={9}
@@ -1519,53 +1521,59 @@ export default function Welcome() {
                                                 setTrackingCode(normalizeTrackingInput(text));
                                                 if (trackError) setTrackError(null);
                                             }}
-                                            className="gap-2"
+                                            className="gap-1 sm:gap-2 justify-center"
                                         >
-                                            <InputOTPGroup className="gap-2">
-                                                {/* 5 alphanumeric */}
-                                                <InputOTPSlot
-                                                    index={0}
-                                                    className="
-                  h-12 w-10 sm:h-12 sm:w-11 text-center text-lg font-medium
-                  rounded-xl border-2 border-zinc-300 dark:border-zinc-700
-                  bg-white dark:bg-zinc-900 shadow-sm
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
-                  data-[state=selected]:border-[#1e3c73]
-                "
-                                                />
-                                                <InputOTPSlot index={1} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
-                                                <InputOTPSlot index={2} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
-                                                <InputOTPSlot index={3} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
-                                                <InputOTPSlot index={4} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                            <InputOTPGroup className="gap-1 sm:gap-2">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <InputOTPSlot
+                                                        key={i}
+                                                        index={i}
+                                                        className="
+                    h-10 w-9 sm:h-12 sm:w-11 text-base sm:text-lg font-medium
+                    rounded-xl border-2 border-zinc-300 dark:border-zinc-700
+                    bg-white dark:bg-zinc-900 shadow-sm
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
+                    data-[state=selected]:border-[#1e3c73]
+                  "
+                                                    />
+                                                ))}
                                             </InputOTPGroup>
 
                                             <InputOTPSeparator className="px-1 sm:px-2 text-zinc-400">–</InputOTPSeparator>
 
-                                            <InputOTPGroup className="gap-2">
-                                                {/* 4 digits */}
-                                                <InputOTPSlot index={5} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
-                                                <InputOTPSlot index={6} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
-                                                <InputOTPSlot index={7} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
-                                                <InputOTPSlot index={8} className="h-12 w-10 sm:h-12 sm:w-11 text-lg font-medium rounded-xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73] data-[state=selected]:border-[#1e3c73]" />
+                                            <InputOTPGroup className="gap-1 sm:gap-2">
+                                                {[...Array(4)].map((_, i) => (
+                                                    <InputOTPSlot
+                                                        key={i + 5}
+                                                        index={i + 5}
+                                                        className="
+                    h-10 w-9 sm:h-12 sm:w-11 text-base sm:text-lg font-medium
+                    rounded-xl border-2 border-zinc-300 dark:border-zinc-700
+                    bg-white dark:bg-zinc-900 shadow-sm
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
+                    data-[state=selected]:border-[#1e3c73]
+                  "
+                                                    />
+                                                ))}
                                             </InputOTPGroup>
                                         </InputOTP>
                                     </div>
 
                                     <p className="text-[11px] text-center text-zinc-500">
-                                        Format: <span className="font-mono">AAAAA-YYYY</span> (5 letters/numbers, hyphen, 4 digits).
+                                        Format: <span className="font-mono">AAAAA-YYYY</span>
                                     </p>
                                     {trackError && (
                                         <p className="text-xs text-center text-red-600 dark:text-red-400">{trackError}</p>
                                     )}
                                 </div>
 
-                                {/* STATUS RESULT AREA */}
+                                {/* STATUS RESULT */}
                                 <div
                                     id="statusResult"
                                     className="
-    mt-4 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700
-    bg-white dark:bg-zinc-950 p-4 sm:p-5 min-h-[96px]
-  "
+          mt-4 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700
+          bg-white dark:bg-zinc-950 p-3 sm:p-5 min-h-[96px]
+        "
                                 >
                                     {loadingTrack ? (
                                         <div className="space-y-3">
@@ -1578,7 +1586,7 @@ export default function Welcome() {
                                         <StatusCard data={trackResult} />
                                     ) : (
                                         <div className="flex flex-col items-center justify-center text-center text-zinc-500">
-                                            <FileClock className="mb-2 h-8 w-8 text-zinc-400 dark:text-zinc-600" />
+                                            <FileClock className="mb-2 h-7 w-7 sm:h-8 sm:w-8 text-zinc-400 dark:text-zinc-600" />
                                             <p className="text-sm">
                                                 Results will appear here after you enter your tracking number and click <b>Check Status</b>.
                                             </p>
@@ -1586,13 +1594,13 @@ export default function Welcome() {
                                     )}
                                 </div>
 
-
                                 <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800" />
 
                                 <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <Button
                                         variant="outline"
-                                        className="text-xs"
+                                        size="sm"
+                                        className="text-xs w-full sm:w-auto"
                                         onClick={() => {
                                             setTrackingCode("");
                                             setTrackError(null);
@@ -1603,7 +1611,8 @@ export default function Welcome() {
                                     </Button>
 
                                     <Button
-                                        className="text-xs bg-[#1e3c73] hover:bg-[#153159] text-white"
+                                        size="sm"
+                                        className="text-xs w-full sm:w-auto bg-[#1e3c73] hover:bg-[#153159] text-white"
                                         onClick={handleCheckStatus}
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter") handleCheckStatus();
@@ -1617,36 +1626,101 @@ export default function Welcome() {
                         </DialogContent>
                     </Dialog>
 
-                    <Dialog open={!isApplicationOpen}>
-                        <DialogContent 
-                            className="sm:max-w-4xl lg:max-w-5xl p-0 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/80 backdrop-blur-md shadow-2xl [&>button:last-of-type]:hidden"
-                            onInteractOutside={(e) => e.preventDefault()}
-                            onEscapeKeyDown={(e) => e.preventDefault()}
+
+                    {!isApplicationOpen && (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-zinc-950 overflow-hidden"
+                            style={{ height: '100vh', overflow: 'hidden' }}
                         >
-                            <div className="space-y-6 px-6 py-8 sm:px-10 sm:py-10">
-                                <DialogHeader className="items-center space-y-3 text-center">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
-                                        <span>CLOSED</span>
+                            <div className="w-full h-full max-h-screen overflow-y-auto mt-30">
+                                <div className="space-y-8 px-6 py-10 sm:px-10 sm:py-12 text-center max-w-4xl mx-auto">
+                                    {/* === Header Section === */}
+                                    <div className="items-center space-y-4 text-center">
+                                        <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 
+                                                        px-5 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-700 
+                                                        dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                                            <span>Application Closed</span>
+                                        </div>
+
+                                        <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                                            CMSP Online Application is Closed
+                                        </h2>
                                     </div>
-                                    <DialogTitle className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-                                        CMSP Online Application is Closed
-                                    </DialogTitle>
-                                    <DialogDescription className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-                                        The CMSP online application for {closedWindowLabel} is no longer accepting new submissions.
-                                        You may review the program details below and continue tracking your submitted application at any time.
-                                    </DialogDescription>
-                                </DialogHeader>
 
-                                <ApplicationInfoCard
-                                    ayDeadline={ayDeadline}
-                                    formattedDeadline={formattedDeadline}
-                                    onTrackClick={() => setTrackOpen(true)}
-                                />
+                                    {/* === Notice Box === */}
+                                    <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 
+                                                    dark:border-amber-900/40 dark:bg-amber-950/20">
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex-shrink-0">
+                                                <svg
+                                                    className="h-5 w-5 text-amber-600 dark:text-amber-300 mt-1"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M12 9v2m0 4h.01M12 19.5A7.5 7.5 0 1 0 12 4.5a7.5 7.5 0 0 0 0 15z"
+                                                    />
+                                                </svg>
+                                            </div>
 
-                  
+                                            <div className="space-y-2 text-left">
+                                                <p className="font-semibold text-amber-900 dark:text-amber-200">
+                                                    Important Notice
+                                                </p>
+                                                <div className="flex flex-wrap items-center justify-start gap-2 pt-1.5">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="rounded-full border-green-300 bg-green-100/80 text-[0.8rem] sm:text-sm 
+    font-medium text-green-800 px-2.5 py-0.5 
+    dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300"
+                                                    >
+                                                        {closedWindowLabel}
+                                                    </Badge>
+
+                                                    {ayDeadline && (
+                                                        <div
+                                                            className="inline-flex items-center rounded-full border border-red-300 bg-red-100/80 
+      text-xs text-red-800 px-3 py-1 
+      dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                                        >
+                                                            Application Deadline: {formattedDeadline}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <p className="text-sm sm:text-base text-zinc-700 dark:text-zinc-200 leading-relaxed mt-6">
+                                                    The CMSP online application for <strong>{closedWindowLabel}</strong> is no longer accepting new submissions.
+                                                    <br />
+                                                    You may still track your submitted application by clicking the button below.
+                                                </p>
+
+
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* === Track Button === */}
+                                    <div className="pt-3 flex justify-center">
+                                        <Button
+                                            onClick={() => setTrackOpen(true)}
+                                            className="bg-[#1e3c73] hover:bg-[#153159] text-white text-sm sm:text-base px-6 py-2.5 
+                                                        rounded-full shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out 
+                                                        w-full sm:w-auto"
+                                        >
+                                            <FileClock className="mr-2 h-4 w-4" />
+                                            Track Application Status
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
-                        </DialogContent>
-                    </Dialog>
+                        </div>
+                    )}
+
+
 
 
 
@@ -2372,19 +2446,19 @@ export default function Welcome() {
                                                                                         <CommandItem
                                                                                             key={loc.id}
                                                                                             value={loc.label}
-                                                                                        onSelect={() => {
-                                                                                            setProvinceId(loc.id);
-                                                                                            setProvinceLabel(loc.label);
-                                                                                            persistDraft('province_municipality', String(loc.id));
-                                                                                            persistDraft('province_municipality_label', loc.label);
-                                                                                            setDistricts([]);
-                                                                                            setDistrictId(null);
-                                                                                            setDistrictLabel("");
-                                                                                            persistDraft('district', '');
-                                                                                            persistDraft('district_label', '');
-                                                                                            setOpenProvince(false);
-                                                                                        }}
-                                                                                    >
+                                                                                            onSelect={() => {
+                                                                                                setProvinceId(loc.id);
+                                                                                                setProvinceLabel(loc.label);
+                                                                                                persistDraft('province_municipality', String(loc.id));
+                                                                                                persistDraft('province_municipality_label', loc.label);
+                                                                                                setDistricts([]);
+                                                                                                setDistrictId(null);
+                                                                                                setDistrictLabel("");
+                                                                                                persistDraft('district', '');
+                                                                                                persistDraft('district_label', '');
+                                                                                                setOpenProvince(false);
+                                                                                            }}
+                                                                                        >
                                                                                             {loc.label}
                                                                                         </CommandItem>
                                                                                     ))}
