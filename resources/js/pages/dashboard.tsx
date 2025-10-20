@@ -235,44 +235,32 @@ function CmspsTable() {
     };
 
     const renderAttachments = (row: ApplicationRow) => {
-        const items = ATTACHMENTS.map(({ key, label }) => ({
-            label,
-            url: normalizeAttachmentUrl(row[key]),
-        }));
+        const items = ATTACHMENTS
+            .map(({ key, label }) => {
+                const url = normalizeAttachmentUrl(row[key]);
+                return url ? { label, url } : null;
+            })
+            .filter((item): item is { label: string; url: string } => Boolean(item));
 
-        const badgeBase =
-            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide';
+        if (items.length === 0) {
+            return <span className="text-[11px] text-muted-foreground">No files</span>;
+        }
 
         return (
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-relaxed">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
                 <span className="font-medium text-muted-foreground">Files:</span>
-                {items.map((item) => {
-                    if (item.url) {
-                        return (
-                            <a
-                                key={item.label}
-                                href={item.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`${badgeBase} border border-emerald-600/30 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500`}
-                            >
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                                <span className="capitalize">{item.label}</span>
-                            </a>
-                        );
-                    }
-
-                    return (
-                        <span
-                            key={item.label}
-                            className={`${badgeBase} border border-rose-600/30 bg-rose-50 text-rose-700`}
-                        >
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" aria-hidden />
-                            <span className="capitalize">{item.label}</span>
-                            <span className="sr-only"> not uploaded</span>
-                        </span>
-                    );
-                })}
+                {items.map((item) => (
+                    <a
+                        key={item.label}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1"
+                    >
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                        <span className="capitalize">{item.label}</span>
+                    </a>
+                ))}
             </div>
         );
     };
