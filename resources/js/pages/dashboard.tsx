@@ -202,6 +202,7 @@ function CmspsTable() {
         birth_certificate_path: string | null;
         proof_of_income_path: string | null;
         proof_of_special_group_path: string | null;
+        guardianship_certificate_path: string | null;
 
         // misc
         special_groups: string[];
@@ -220,6 +221,7 @@ function CmspsTable() {
         { key: 'birth_certificate_path', label: 'birth certificate' },
         { key: 'proof_of_income_path', label: 'proof of income' },
         { key: 'proof_of_special_group_path', label: 'special group' },
+        { key: 'guardianship_certificate_path', label: 'guardianship' },
     ] as const;
 
     type AttachmentKey = typeof ATTACHMENTS[number]['key'];
@@ -233,50 +235,32 @@ function CmspsTable() {
     };
 
     const renderAttachments = (row: ApplicationRow) => {
-        const badgeBase =
-            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide';
+        const items = ATTACHMENTS
+            .map(({ key, label }) => {
+                const url = normalizeAttachmentUrl(row[key]);
+                return url ? { label, url } : null;
+            })
+            .filter((item): item is { label: string; url: string } => Boolean(item));
+
+        if (items.length === 0) {
+            return <span className="text-[11px] text-muted-foreground">No files</span>;
+        }
 
         return (
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-relaxed">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
                 <span className="font-medium text-muted-foreground">Files:</span>
-                {ATTACHMENTS.map(({ key, label }) => {
-                    const rawValue = row[key];
-                    const normalized: string | null =
-                        typeof rawValue === 'string' ? rawValue.trim() : rawValue ?? null;
-                    const isPlaceholder =
-                        normalized === null || normalized === '' || normalized === 'null' || normalized === 'undefined';
-                    const hasFile = !isPlaceholder;
-                    const href = hasFile ? normalizeAttachmentUrl(normalized) : null;
-                    const commonClass = `${badgeBase} ${
-                        hasFile
-                            ? 'border border-emerald-600/30 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500'
-                            : 'border border-rose-600/30 bg-rose-50 text-rose-700'
-                    }`;
-
-                    if (hasFile && href) {
-                        return (
-                            <a
-                                key={label}
-                                href={href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={commonClass}
-                                title={`Open ${label}`}
-                            >
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                                <span className="capitalize">{label}</span>
-                            </a>
-                        );
-                    }
-
-                    return (
-                        <span key={label} className={commonClass} title={`${label} not uploaded`}>
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" aria-hidden />
-                            <span className="capitalize">{label}</span>
-                            <span className="pl-1 text-[9px] font-medium uppercase tracking-wider">Missing</span>
-                        </span>
-                    );
-                })}
+                {items.map((item) => (
+                    <a
+                        key={item.label}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1"
+                    >
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                        <span className="capitalize">{item.label}</span>
+                    </a>
+                ))}
             </div>
         );
     };
