@@ -678,6 +678,21 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+    const latestValidation = validationRow?.latest_validation ?? null;
+    const validationStatusTone = latestValidation
+        ? {
+            container:
+                'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-300',
+            badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300',
+        }
+        : {
+            container:
+                'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200',
+            badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
+        };
+    const checkedByLabel = latestValidation?.checker?.name ?? '—';
+    const dateCheckedLabel = latestValidation?.created_at ? fmtDate(latestValidation.created_at) : '—';
+
     const handleExport = useCallback(async () => {
         try {
             setExporting(true);
@@ -1122,43 +1137,65 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                         }}
                     >
                         <DialogHeader className="space-y-2 pb-4 border-b border-zinc-200/70 dark:border-zinc-800/70">
-                            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#1e3c73]/30 bg-[#1e3c73]/10 px-3 py-1 text-[11px] font-semibold tracking-wide text-[#1e3c73]">
-                                Validate Application
+                            <div className=" py-1 text-[22px] font-semibold tracking-wide text-[#1e3c73]">
+                                Validate Application {" "}
+                                <span className="rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 px-2.5 py-1 text-xs font-medium">
+                                     Tracking: {validationRow?.tracking_no ?? '—'}
+                                </span>
                             </div>
                             <DialogDescription className="text-sm text-zinc-600 dark:text-zinc-400">
                                 Review the applicant details and record the validation outcome.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-5">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 px-2.5 py-1 text-xs font-medium">
-                                    Tracking: {validationRow?.tracking_no ?? '—'}
-                                </span>
-                                <span className="rounded-full bg-zinc-100 uppercase text-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-200 px-2.5 py-1 text-xs font-medium">
-                                    Applicant: {formatApplicantName(validationRow)}
+
+
+                            <div
+                                className={cn(
+                                    'rounded-lg border px-4 py-3 text-sm transition-colors',
+                                    validationStatusTone.container,
+                                )}
+                            >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="grid gap-2">
+                                        <span className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                                            Validation status
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                'inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold',
+                                                validationStatusTone.badge,
+                                            )}
+                                        >
+                                            {latestValidation ? 'Validated' : 'Pending'}
+                                        </span>
+                                    </div>
+                                    <div className="grid gap-3 text-xs sm:text-right">
+                                        <div className="grid gap-1">
+                                            <span className="font-semibold uppercase tracking-wide opacity-80">
+                                                Checked by
+                                            </span>
+                                            <span className="text-sm font-semibold">
+                                                {checkedByLabel}
+                                            </span>
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <span className="font-semibold uppercase tracking-wide opacity-80">
+                                                Date checked
+                                            </span>
+                                            <span className="text-sm font-semibold">
+                                                {dateCheckedLabel}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap  gap-2">
+
+                                <span className=" uppercase  dark:text-zinc-200  py-1 text-[18px] text-xs text-[#1e3c73] font-medium">
+                                    {formatApplicantName(validationRow)}
                                 </span>
                             </div>
-
-                            <div className="rounded-lg border  border-blue-300 bg-blue-100 dark:border-[#1e3c73]/40 dark:bg-[#1e3c73]/10 p-3 grid gap-3 sm:grid-cols-2">
-                                {/* border-red-300 text-red-700 bg-red-50/60 hover:text-red-900 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:bg-red-900/20 */}
-                                {/* Checked by */}
-                                <div className="grid gap-1 text-sm">
-                                    <span className="text-xs font-semibold  tracking-wide text-blue-800">Checked by</span>
-                                    <span className="font-semibold text-gray-700 dark:text-blue-100">
-                                        {validationRow?.latest_validation?.checker?.name ?? '—'}
-                                    </span>
-                                </div>
-                                {/* Date checked */}
-                                <div className="grid gap-1 text-sm">
-                                    <span className="text-xs font-semibold  tracking-wide text-blue-800">Date checked</span>
-                                    <span className="font-semibold text-gray-700 dark:text-blue-100">
-                                        {validationRow?.latest_validation?.created_at
-                                            ? fmtDate(validationRow.latest_validation.created_at)
-                                            : '—'}
-                                    </span>
-                                </div>
-                            </div>
-
 
                             <div className="grid gap-2">
                                 <Label htmlFor="validation-document-status">Status of Documentary Requirements</Label>
