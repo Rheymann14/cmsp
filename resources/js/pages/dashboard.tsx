@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, KeyRound, Pencil,GraduationCap } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, SquarePen, Check, GraduationCap } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -777,7 +777,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
 
                                         <td className="px-3 py-2 align-top max-w-[260px]" title="Application attachments">
                                             {renderAttachments(r)}
-                                        </td>
+                u                        </td>
 
                                         <td className="px-3 py-2">
                                             <span className="inline-block rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
@@ -794,8 +794,9 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             <Button
                                                 variant="ghost"
                                                 className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-3 py-1 rounded-md transition"
-                                                title="Reset Password"
-                                                // onClick={() => {
+                                                title="Validate Application"
+                                                // example password reset action
+                                                //onClick={() => {
                                                 //     router.post(route('users.resetPassword', user.id), {}, {
                                                 //         preserveScroll: true,
                                                 //         preserveState: true,
@@ -810,26 +811,9 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                                 //     });
                                                 // }}
                                             >
-                                               <KeyRound  className="w-4 h-4" />
+                                               <SquarePen  className="w-4 h-4" />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1 rounded-md transition"
-                                                title="Edit"
-                                                // onClick={() => {
-                                                //     setUserToEdit(user);
-                                                //     setEditData({
-                                                //         name: user.name,
-                                                //         email: user.email,
-                                                //         region_id: user.region_id || '',
-                                                //         role_ids: user.roles?.map(r => r.id) || []
-                                                //     });
-                                                //     setEditErrors({});
-                                                //     setEditDialogOpen(true);
-                                                // }}
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </Button>
+                                         
                                        
                                         </td>
                                         
