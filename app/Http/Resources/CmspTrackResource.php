@@ -8,6 +8,14 @@ class CmspTrackResource extends JsonResource
 {
     public function toArray($request)
     {
+
+          $latestValidation = $this->whenLoaded('latestValidation');
+    $documentStatus   = $latestValidation->document_status ?? null;
+
+    // YOUR rule: any validation row => under_review
+    $hasValidation = (bool) ($this->validations_exists ?? $latestValidation);
+    $isUnderReview = $hasValidation;
+
         // Build a readable address based on which set is filled
         $addr = $this->province_municipality
             ? [
@@ -46,9 +54,9 @@ class CmspTrackResource extends JsonResource
                 'document_status' => $documentStatus,
             ] : null,
             'application_status' => [
-                'key' => $isValidated ? 'under_review' : 'submitted',
-                'label' => $isValidated ? 'Application under review' : 'Submitted',
-            ],
+            'key'   => $isUnderReview ? 'under_review' : 'submitted',
+            'label' => $isUnderReview ? 'Application under review' : 'Submitted',
+        ],
 
             'applicant' => [
                 'name' => trim(collect([$this->first_name, $this->middle_name, $this->last_name, $this->name_extension])->filter()->implode(' ')),

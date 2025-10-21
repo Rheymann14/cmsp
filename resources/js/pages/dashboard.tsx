@@ -936,7 +936,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                                 setSelectedId(prev => (prev === r.id ? null : r.id));
                                             }
                                         }}
-                                        className={`border-t border-zinc-100 dark:border-zinc-800 cursor-pointer transition-all
+                                        className={`border-t border-zinc-100 dark:border-zinc-800 cursor-auto transition-all
                                                 hover:bg-zinc-50 dark:hover:bg-zinc-900/40
                                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500
                                                 ${selectedId === r.id
@@ -948,7 +948,13 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                         </td>
 
                                         <td className="px-3 py-2">
-                                            <span className="inline-block rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                                            <span  className={cn(
+                                                    'inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 ',
+                                                    r.latest_validation
+                                                        ? 'bg-emerald-100 text-emerald-700  dark:bg-emerald-900/40 dark:text-emerald-300'
+                                                        : 'text-amber-600'
+                                                )}>
+                                                  
                                                 {r.tracking_no}
                                             </span>
                                         </td>
