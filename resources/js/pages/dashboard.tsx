@@ -395,7 +395,8 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const buildUrl = useCallback((p: number, s: string, pp: number) => {
         const base = resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json');
 
-        const u = new URL(base, window.location.origin);
+        const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
+        const u = new URL(base, origin);
         u.searchParams.set('page', String(p));
         u.searchParams.set('per_page', String(pp));
         u.searchParams.set('full', '1');            // ask for all columns
@@ -406,7 +407,8 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const buildExportUrl = useCallback((s: string) => {
         const base = resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export');
 
-        const u = new URL(base, window.location.origin);
+        const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
+        const u = new URL(base, origin);
         if (s.trim()) u.searchParams.set('search', s.trim());
         return u.toString();
     }, []);
@@ -825,7 +827,9 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error(error);
-            window.alert('Failed to export rank list. Please try again.');
+            if (typeof window !== 'undefined') {
+                window.alert('Failed to export rank list. Please try again.');
+            }
         } finally {
             setExporting(false);
         }
