@@ -14,6 +14,7 @@ import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe
 import { Toaster, toast } from 'sonner';
 import React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { Badge } from "@/components/ui/badge";
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
@@ -33,7 +34,7 @@ const EMPTY_SPECIAL_COUNTS: SpecialGroupCounts = {
     indigenous_people: 0,
 };
 
-const SIBLING_OPTIONS = Array.from({ length: 20 }, (_, index) => index + 1);
+const SIBLING_OPTIONS = Array.from({ length: 15 }, (_, index) => index + 1);
 const INITIAL_RANK_OPTIONS = ['FPESFA', 'FPESFA-GAD', 'FSSP', 'HPESFA', 'HPGAD', 'HSSP'] as const;
 const EMPTY_VALIDATION_FORM = {
     document_status: '',
@@ -123,7 +124,7 @@ export default function Dashboard() {
                 closeButton
                 duration={4000}
             />
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 overflow-x-hidden">
+            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-hidden">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {/* PWD */}
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
@@ -182,13 +183,15 @@ export default function Dashboard() {
                     </Card>
                 </div>
 
-                <div className="-mx-4 sm:-mx-6 lg:-mx-8">
-                    <div className="mx-auto max-w-[1280px] px-4">
+                <div className="w-full min-w-0">
+                    {/* full-bleed: match AppLayout page padding p-4 sm:p-6 lg:p-8 */}
+                    <div className="mx-[-1rem] sm:mx-[-1.5rem] lg:mx-[-2rem]">
                         <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                             <CmspsTable onSpecialCounts={handleSpecialCounts} />
                         </div>
                     </div>
                 </div>
+
             </div>
         </AppLayout>
     );
@@ -512,6 +515,15 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         return `${base}${suffix}`.trim();
     };
 
+    useEffect(() => {
+        document.documentElement.classList.add('overflow-x-hidden');
+        document.body.classList.add('overflow-x-hidden');
+        return () => {
+            document.documentElement.classList.remove('overflow-x-hidden');
+            document.body.classList.remove('overflow-x-hidden');
+        };
+    }, []);
+
     const resetValidationState = () => {
         setValidationRow(null);
         setValidationForm({ ...EMPTY_VALIDATION_FORM });
@@ -712,7 +724,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     }, [buildExportUrl, search]);
 
     return (
-        <div className="mt-5 px-4 py-4">
+        <div className="mt-5 px-4 py-4 w-full max-w-full min-w-0">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 {/* Left: search */}
                 <div className="flex items-center gap-2">
@@ -796,10 +808,14 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-                <div className="overflow-x-auto">
-                    <table className="min-w-[2000px] text-left text-sm">
-                        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 [&>tr>th]:whitespace-nowrap">
+            <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 w-full max-w-full">
+                <div className="overflow-x-auto w-full max-w-full min-w-0">
+                    <table className="w-full table-auto text-left text-sm
+                        [&>tbody>tr>td]:break-words
+                        [&>tbody>tr>td]:align-top
+                        [&>tbody>tr>td]:max-w-[240px]">
+                        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300
+                          [&>tr>th]:whitespace-normal [&>tr>th]:break-words">
                             <tr className="[&>th]:whitespace-nowrap">
                                 <th className="px-3 py-2 font-semibold">No</th>
                                 <th className="px-3 py-2 font-semibold min-w-[160px]">Tracking No</th>
@@ -1098,22 +1114,52 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 </div>
 
                 <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogChange}>
-                    <DialogContent ref={dialogContentRef} className="sm:max-w-lg overflow-visible">
-                        <DialogHeader>
-                            <DialogTitle>Validate application</DialogTitle>
-                            <DialogDescription>
+                    <DialogContent
+                        ref={dialogContentRef}
+                        className="w-[92vw] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl overflow-visible rounded-2xl border border-zinc-200/70 dark:border-zinc-800/70 bg-white/95 dark:bg-zinc-950/80 backdrop-blur-md shadow-2xl ring-1 ring-[#1e3c73]/10"
+                        onInteractOutside={(e) => {
+                            e.preventDefault();
+                        }}
+                    >
+                        <DialogHeader className="space-y-2 pb-4 border-b border-zinc-200/70 dark:border-zinc-800/70">
+                            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#1e3c73]/30 bg-[#1e3c73]/10 px-3 py-1 text-[11px] font-semibold tracking-wide text-[#1e3c73]">
+                                Validate Application
+                            </div>
+                            <DialogDescription className="text-sm text-zinc-600 dark:text-zinc-400">
                                 Review the applicant details and record the validation outcome.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-5">
-                            <div className="grid gap-1 text-sm">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tracking number</span>
-                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{validationRow?.tracking_no ?? '—'}</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 px-2.5 py-1 text-xs font-medium">
+                                    Tracking: {validationRow?.tracking_no ?? '—'}
+                                </span>
+                                <span className="rounded-full bg-zinc-100 uppercase text-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-200 px-2.5 py-1 text-xs font-medium">
+                                    Applicant: {formatApplicantName(validationRow)}
+                                </span>
                             </div>
-                            <div className="grid gap-1 text-sm">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name of applicant</span>
-                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatApplicantName(validationRow)}</span>
+
+                            <div className="rounded-lg border  border-blue-300 bg-blue-100 dark:border-[#1e3c73]/40 dark:bg-[#1e3c73]/10 p-3 grid gap-3 sm:grid-cols-2">
+                                {/* border-red-300 text-red-700 bg-red-50/60 hover:text-red-900 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:bg-red-900/20 */}
+                                {/* Checked by */}
+                                <div className="grid gap-1 text-sm">
+                                    <span className="text-xs font-semibold  tracking-wide text-blue-800">Checked by</span>
+                                    <span className="font-semibold text-gray-700 dark:text-blue-100">
+                                        {validationRow?.latest_validation?.checker?.name ?? '—'}
+                                    </span>
+                                </div>
+                                {/* Date checked */}
+                                <div className="grid gap-1 text-sm">
+                                    <span className="text-xs font-semibold  tracking-wide text-blue-800">Date checked</span>
+                                    <span className="font-semibold text-gray-700 dark:text-blue-100">
+                                        {validationRow?.latest_validation?.created_at
+                                            ? fmtDate(validationRow.latest_validation.created_at)
+                                            : '—'}
+                                    </span>
+                                </div>
                             </div>
+
+
                             <div className="grid gap-2">
                                 <Label htmlFor="validation-document-status">Status of Documentary Requirements</Label>
                                 <Input
@@ -1247,7 +1293,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                 <Label htmlFor="validation-remarks">Remarks</Label>
                                 <textarea
                                     id="validation-remarks"
-                                    className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40"
+                                    className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200"
                                     value={validationForm.remarks}
                                     onChange={(event) => {
                                         const value = event.target.value;
@@ -1265,9 +1311,10 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                     variant="outline"
                                     onClick={handleClearValidation}
                                     disabled={validationSubmitting || clearingValidation}
+                                    className="border-red-300 text-red-700 bg-red-50/60 hover:text-red-900 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:bg-red-900/20"
                                 >
                                     {clearingValidation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Clear validation
+                                    Clear Validation
                                 </Button>
                             )}
                             <div className="flex flex-1 items-center justify-end gap-2">
@@ -1284,9 +1331,10 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                     type="button"
                                     onClick={handleValidationSubmit}
                                     disabled={validationSubmitting || clearingValidation}
+                                    className="bg-[#1e3c73] hover:bg-[#1a3565] text-white shadow-sm"
                                 >
                                     {validationSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save validation
+                                    Save Validation
                                 </Button>
                             </div>
                         </DialogFooter>
@@ -1322,6 +1370,6 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
