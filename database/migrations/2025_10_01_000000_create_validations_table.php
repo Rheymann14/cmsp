@@ -10,13 +10,16 @@ return new class extends Migration {
         Schema::create('validations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('cmsp_id')->constrained('cmsp_applications')->cascadeOnDelete();
-            $table->string('tracking_no', 10);
-            $table->string('documentary_requirements');
+            $table->string('tracking_no', 12);
+            $table->string('document_status');
+            $table->unsignedTinyInteger('no_siblings');
+            $table->string('initial_rank', 40);
+            $table->text('remarks')->nullable();
             $table->foreignId('checked_by')->constrained('users')->restrictOnDelete();
-            $table->string('remarks')->nullable();
             $table->timestamps();
 
             $table->index('tracking_no');
+            $table->unique('cmsp_id');
         });
     }
 

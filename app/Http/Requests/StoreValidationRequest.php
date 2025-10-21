@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreValidationRequest extends FormRequest
 {
@@ -15,8 +16,10 @@ class StoreValidationRequest extends FormRequest
     {
         return [
             'cmsp_id' => ['required', 'integer', 'exists:cmsp_applications,id'],
-            'documentary_requirements' => ['required', 'string', 'max:255'],
-            'remarks' => ['nullable', 'string', 'max:1000'],
+            'document_status' => ['required', 'string', 'max:255'],
+            'no_siblings' => ['required', 'integer', 'between:1,20'],
+            'initial_rank' => ['required', 'string', Rule::in(['FPESFA', 'FPESFA-GAD', 'FSSP', 'HPESFA', 'HPGAD', 'HSSP'])],
+            'remarks' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }
