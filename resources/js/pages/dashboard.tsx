@@ -377,6 +377,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const [lastPage, setLastPage] = useState(1);
     const [total, setTotal] = useState(0);
     const [perPage, setPerPage] = useState(10);
+    const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -392,9 +393,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
 
     const buildUrl = useCallback((p: number, s: string, pp: number) => {
-        const base = (window as any).route
-            ? (window as any).route('cmsp-applications.index.json')
-            : '/cmsp-applications/json';
+        const base = resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json');
 
         const u = new URL(base, window.location.origin);
         u.searchParams.set('page', String(p));
@@ -405,9 +404,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     }, []);
 
     const buildExportUrl = useCallback((s: string) => {
-        const base = (window as any).route
-            ? (window as any).route('cmsp-applications.export')
-            : '/cmsp-applications/export';
+        const base = resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export');
 
         const u = new URL(base, window.location.origin);
         if (s.trim()) u.searchParams.set('search', s.trim());
@@ -449,9 +446,183 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         } finally {
             setLoading(false);
         }
-    }, [buildUrl, onSpecialCounts, page, perPage, search]);
+    }, [buildUrl, onSpecialCounts]);
 
-    useEffect(() => { fetchData(1, search, perPage); }, [perPage]); // refetch when perPage changes
+    const commitSearch = (value: string) => {
+        const trimmed = value.trim();
+        const targetPage = 1;
+        const shouldRefetchImmediately = trimmed === search && page === targetPage;
+
+        setPage(targetPage);
+        setSearch(trimmed);
+
+        if (shouldRefetchImmediately) {
+            void fetchData(targetPage, trimmed, perPage);
+        }
+    };
+
+    useEffect(() => { fetchData(page, search, perPage); }, [fetchData, page, perPage, search]);
+
+    const formatApplicantName = (row?: ApplicationRow | null) => {
+        if (!row) return '—';
+        const givenNames = [row.first_name, row.middle_name]
+            .filter((part) => part && String(part).trim() !== '')
+            .join(' ');
+        const base = givenNames
+            ? `${row.last_name.toUpperCase()}, ${givenNames}`
+            : row.last_name.toUpperCase();
+        const suffix = row.name_extension ? ` ${row.name_extension}` : '';
+        return `${base}${suffix}`.trim();
+    };
+
+    const resetValidationState = () => {
+        setValidationRow(null);
+        setValidationForm({ ...EMPTY_VALIDATION_FORM });
+        setValidationErrors({});
+        setValidationSubmitting(false);
+        setClearingValidation(false);
+        setSiblingsPopoverOpen(false);
+        setRankPopoverOpen(false);
+        setSelectedId(null);
+    };
+
+    const openValidationDialog = (row: ApplicationRow) => {
+        setValidationRow(row);
+        setSelectedId(row.id);
+        setValidationForm({
+            document_status: row.latest_validation?.document_status ?? '',
+            no_siblings: row.latest_validation?.no_siblings ? String(row.latest_validation.no_siblings) : '',
+            initial_rank: row.latest_validation?.initial_rank ?? '',
+            remarks: row.latest_validation?.remarks ?? '',
+        });
+        setValidationErrors({});
+        setValidationSubmitting(false);
+        setClearingValidation(false);
+        setSiblingsPopoverOpen(false);
+        setRankPopoverOpen(false);
+        setValidationDialogOpen(true);
+    };
+
+    const handleValidationDialogChange = (open: boolean) => {
+        setValidationDialogOpen(open);
+        if (!open) {
+            resetValidationState();
+        }
+    };
+
+    const handleValidationSubmit = async () => {
+        if (!validationRow) return;
+
+        const nextErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
+        if (!validationForm.document_status.trim()) {
+            nextErrors.document_status = 'Document status is required.';
+        }
+        if (!validationForm.no_siblings) {
+            nextErrors.no_siblings = 'Select the number of siblings.';
+        }
+        if (!validationForm.initial_rank) {
+            nextErrors.initial_rank = 'Select the initial rank.';
+        }
+        setValidationErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) {
+            return;
+        }
+
+        setValidationSubmitting(true);
+        try {
+            const payload = {
+                cmsp_id: validationRow.id,
+                document_status: validationForm.document_status.trim(),
+                no_siblings: Number(validationForm.no_siblings),
+                initial_rank: validationForm.initial_rank,
+                remarks: validationForm.remarks.trim() ? validationForm.remarks.trim() : null,
+            };
+
+            const res = await fetch(getValidationStoreUrl(), {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload),
+            });
+
+            let json: any = null;
+            try {
+                json = await res.json();
+            } catch (err) {
+                json = null;
+            }
+
+            if (!res.ok) {
+                if (json?.errors) {
+                    const serverErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
+                    if (json.errors.document_status?.length) {
+                        serverErrors.document_status = json.errors.document_status[0];
+                    }
+                    if (json.errors.no_siblings?.length) {
+                        serverErrors.no_siblings = json.errors.no_siblings[0];
+                    }
+                    if (json.errors.initial_rank?.length) {
+                        serverErrors.initial_rank = json.errors.initial_rank[0];
+                    }
+                    setValidationErrors((prev) => ({ ...prev, ...serverErrors }));
+                }
+                throw new Error(json?.message ?? 'Failed to save validation.');
+            }
+
+            toast.success(json?.message ?? 'Application validation saved successfully.');
+            handleValidationDialogChange(false);
+            await fetchData(page, search, perPage);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to save validation.';
+            toast.error(message);
+        } finally {
+            setValidationSubmitting(false);
+        }
+    };
+
+    const handleClearValidation = async () => {
+        if (!validationRow?.latest_validation) {
+            return;
+        }
+
+        setClearingValidation(true);
+        try {
+            const res = await fetch(getValidationDestroyUrl(validationRow.latest_validation.id), {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            let json: any = null;
+            try {
+                json = await res.json();
+            } catch (err) {
+                json = null;
+            }
+
+            if (!res.ok) {
+                throw new Error(json?.message ?? 'Failed to clear validation.');
+            }
+
+            toast.success(json?.message ?? 'Application validation cleared.');
+            handleValidationDialogChange(false);
+            await fetchData(page, search, perPage);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to clear validation.';
+            toast.error(message);
+        } finally {
+            setClearingValidation(false);
+        }
+    };
 
     const formatApplicantName = (row?: ApplicationRow | null) => {
         if (!row) return '—';
@@ -671,18 +842,24 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                             type="text"
                             placeholder="Search by name or course…"
                             className="h-9 w-72 rounded-md border border-zinc-300 bg-white pl-8 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') fetchData(1, search, perPage);
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    commitSearch(e.currentTarget.value);
+                                }
                             }}
                         />
-                        {search && (
+                        {searchInput && (
                             <button
                                 type="button"
                                 aria-label="Clear search"
                                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:hover:bg-zinc-800"
-                                onClick={() => { setSearch(''); fetchData(1, '', perPage); }}
+                                onClick={() => {
+                                    setSearchInput('');
+                                    commitSearch('');
+                                }}
                             >
                                 <X className="h-4 w-4" />
                             </button>
@@ -694,7 +871,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                         variant="outline"
                         size="sm"
                         className="group relative overflow-hidden bg-[#1e3c73] hover:bg-[#1a3565] text-white px-3 py-1.5 rounded-md transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-[#1e3c73]"
-                        onClick={() => fetchData(1, search, perPage)}
+                        onClick={() => commitSearch(searchInput)}
                     >
                         <Search className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
                     </Button>
@@ -1239,7 +1416,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                             variant="outline"
                             size="sm"
                             disabled={loading || page <= 1}
-                            onClick={() => fetchData(page - 1, search, perPage)}
+                            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                         >
                             <ChevronLeft className="mr-1 h-4 w-4" />
                             Prev
@@ -1249,7 +1426,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                             variant="outline"
                             size="sm"
                             disabled={loading || page >= lastPage}
-                            onClick={() => fetchData(page + 1, search, perPage)}
+                            onClick={() => setPage((prev) => Math.min(lastPage, prev + 1))}
                         >
                             Next
                             <ChevronRight className="ml-1 h-4 w-4" />
