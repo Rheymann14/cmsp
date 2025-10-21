@@ -666,6 +666,21 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+    const latestValidation = validationRow?.latest_validation ?? null;
+    const validationStatusTone = latestValidation
+        ? {
+            container:
+                'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-300',
+            badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300',
+        }
+        : {
+            container:
+                'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200',
+            badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
+        };
+    const checkedByLabel = latestValidation?.checker?.name ?? '—';
+    const dateCheckedLabel = latestValidation?.created_at ? fmtDate(latestValidation.created_at) : '—';
+
     const handleExport = useCallback(async () => {
         try {
             setExporting(true);
@@ -1113,6 +1128,46 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                             <div className="grid gap-1 text-sm">
                                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name of applicant</span>
                                 <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatApplicantName(validationRow)}</span>
+                            </div>
+                            <div
+                                className={cn(
+                                    'rounded-lg border px-4 py-3 text-sm transition-colors',
+                                    validationStatusTone.container,
+                                )}
+                            >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="grid gap-2">
+                                        <span className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                                            Validation status
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                'inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold',
+                                                validationStatusTone.badge,
+                                            )}
+                                        >
+                                            {latestValidation ? 'Validated' : 'Pending'}
+                                        </span>
+                                    </div>
+                                    <div className="grid gap-3 text-xs sm:text-right">
+                                        <div className="grid gap-1">
+                                            <span className="font-semibold uppercase tracking-wide opacity-80">
+                                                Checked by
+                                            </span>
+                                            <span className="text-sm font-semibold">
+                                                {checkedByLabel}
+                                            </span>
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <span className="font-semibold uppercase tracking-wide opacity-80">
+                                                Date checked
+                                            </span>
+                                            <span className="text-sm font-semibold">
+                                                {dateCheckedLabel}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="validation-document-status">Status of Documentary Requirements</Label>
