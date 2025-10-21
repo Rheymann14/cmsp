@@ -12,9 +12,15 @@ class Validation extends Model
     protected $fillable = [
         'cmsp_id',
         'tracking_no',
-        'documentary_requirements',
-        'checked_by',
+        'document_status',
+        'no_siblings',
+        'initial_rank',
         'remarks',
+        'checked_by',
+    ];
+
+    protected $casts = [
+        'no_siblings' => 'integer',
     ];
 
     public function application()

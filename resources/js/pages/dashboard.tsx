@@ -1,10 +1,17 @@
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, FileCheck, SquarePen, GraduationCap } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
@@ -22,6 +29,15 @@ const EMPTY_SPECIAL_COUNTS: SpecialGroupCounts = {
     solo_parent: 0,
     first_generation: 0,
     indigenous_people: 0,
+};
+
+const SIBLING_OPTIONS = Array.from({ length: 20 }, (_, index) => index + 1);
+const INITIAL_RANK_OPTIONS = ['FPESFA', 'FPESFA-GAD', 'FSSP', 'HPESFA', 'HPGAD', 'HSSP'] as const;
+const EMPTY_VALIDATION_FORM = {
+    document_status: '',
+    no_siblings: '',
+    initial_rank: '',
+    remarks: '',
 };
 
 const parseSpecialGroupCounts = (input: unknown): SpecialGroupCounts => {
@@ -67,6 +83,12 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Home" />
+            <Toaster
+                richColors
+                position="top-right"
+                closeButton
+                duration={4000}
+            />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 overflow-x-hidden">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {/* PWD */}
@@ -263,6 +285,23 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         academic_year: string;
         deadline: string; // ISO date
         created_at: string; // ISO datetime
+
+        latest_validation?: {
+            id: number;
+            cmsp_id: number;
+            tracking_no: string;
+            document_status: string;
+            no_siblings: number;
+            initial_rank: string;
+            remarks: string | null;
+            checked_by: number;
+            created_at: string;
+            updated_at: string;
+            checker?: {
+                id: number;
+                name: string;
+            } | null;
+        } | null;
     };
 
     const COLS = 48; // keep this in sync with the header
@@ -341,6 +380,16 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const [search, setSearch] = useState('');
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+    const [validationRow, setValidationRow] = useState<ApplicationRow | null>(null);
+    const [validationForm, setValidationForm] = useState({ ...EMPTY_VALIDATION_FORM });
+    const [validationErrors, setValidationErrors] = useState<{ document_status?: string; no_siblings?: string; initial_rank?: string }>({});
+    const [validationSubmitting, setValidationSubmitting] = useState(false);
+    const [clearingValidation, setClearingValidation] = useState(false);
+    const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
+    const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
 
     const buildUrl = useCallback((p: number, s: string, pp: number) => {
         const base = (window as any).route
@@ -364,6 +413,14 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         if (s.trim()) u.searchParams.set('search', s.trim());
         return u.toString();
     }, []);
+
+    const getValidationStoreUrl = () => (
+        (window as any).route ? (window as any).route('validations.store') : '/validations'
+    );
+
+    const getValidationDestroyUrl = (id: number) => (
+        (window as any).route ? (window as any).route('validations.destroy', id) : `/validations/${id}`
+    );
 
     const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
         setLoading(true);
@@ -395,6 +452,167 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     }, [buildUrl, onSpecialCounts, page, perPage, search]);
 
     useEffect(() => { fetchData(1, search, perPage); }, [perPage]); // refetch when perPage changes
+
+    const formatApplicantName = (row?: ApplicationRow | null) => {
+        if (!row) return '—';
+        const givenNames = [row.first_name, row.middle_name]
+            .filter((part) => part && String(part).trim() !== '')
+            .join(' ');
+        const base = givenNames
+            ? `${row.last_name.toUpperCase()}, ${givenNames}`
+            : row.last_name.toUpperCase();
+        const suffix = row.name_extension ? ` ${row.name_extension}` : '';
+        return `${base}${suffix}`.trim();
+    };
+
+    const resetValidationState = () => {
+        setValidationRow(null);
+        setValidationForm({ ...EMPTY_VALIDATION_FORM });
+        setValidationErrors({});
+        setValidationSubmitting(false);
+        setClearingValidation(false);
+        setSiblingsPopoverOpen(false);
+        setRankPopoverOpen(false);
+        setSelectedId(null);
+    };
+
+    const openValidationDialog = (row: ApplicationRow) => {
+        setValidationRow(row);
+        setSelectedId(row.id);
+        setValidationForm({
+            document_status: row.latest_validation?.document_status ?? '',
+            no_siblings: row.latest_validation?.no_siblings ? String(row.latest_validation.no_siblings) : '',
+            initial_rank: row.latest_validation?.initial_rank ?? '',
+            remarks: row.latest_validation?.remarks ?? '',
+        });
+        setValidationErrors({});
+        setValidationSubmitting(false);
+        setClearingValidation(false);
+        setSiblingsPopoverOpen(false);
+        setRankPopoverOpen(false);
+        setValidationDialogOpen(true);
+    };
+
+    const handleValidationDialogChange = (open: boolean) => {
+        setValidationDialogOpen(open);
+        if (!open) {
+            resetValidationState();
+        }
+    };
+
+    const handleValidationSubmit = async () => {
+        if (!validationRow) return;
+
+        const nextErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
+        if (!validationForm.document_status.trim()) {
+            nextErrors.document_status = 'Document status is required.';
+        }
+        if (!validationForm.no_siblings) {
+            nextErrors.no_siblings = 'Select the number of siblings.';
+        }
+        if (!validationForm.initial_rank) {
+            nextErrors.initial_rank = 'Select the initial rank.';
+        }
+        setValidationErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) {
+            return;
+        }
+
+        setValidationSubmitting(true);
+        try {
+            const payload = {
+                cmsp_id: validationRow.id,
+                document_status: validationForm.document_status.trim(),
+                no_siblings: Number(validationForm.no_siblings),
+                initial_rank: validationForm.initial_rank,
+                remarks: validationForm.remarks.trim() ? validationForm.remarks.trim() : null,
+            };
+
+            const res = await fetch(getValidationStoreUrl(), {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload),
+            });
+
+            let json: any = null;
+            try {
+                json = await res.json();
+            } catch (err) {
+                json = null;
+            }
+
+            if (!res.ok) {
+                if (json?.errors) {
+                    const serverErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
+                    if (json.errors.document_status?.length) {
+                        serverErrors.document_status = json.errors.document_status[0];
+                    }
+                    if (json.errors.no_siblings?.length) {
+                        serverErrors.no_siblings = json.errors.no_siblings[0];
+                    }
+                    if (json.errors.initial_rank?.length) {
+                        serverErrors.initial_rank = json.errors.initial_rank[0];
+                    }
+                    setValidationErrors((prev) => ({ ...prev, ...serverErrors }));
+                }
+                throw new Error(json?.message ?? 'Failed to save validation.');
+            }
+
+            toast.success(json?.message ?? 'Application validation saved successfully.');
+            handleValidationDialogChange(false);
+            await fetchData(page, search, perPage);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to save validation.';
+            toast.error(message);
+        } finally {
+            setValidationSubmitting(false);
+        }
+    };
+
+    const handleClearValidation = async () => {
+        if (!validationRow?.latest_validation) {
+            return;
+        }
+
+        setClearingValidation(true);
+        try {
+            const res = await fetch(getValidationDestroyUrl(validationRow.latest_validation.id), {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            let json: any = null;
+            try {
+                json = await res.json();
+            } catch (err) {
+                json = null;
+            }
+
+            if (!res.ok) {
+                throw new Error(json?.message ?? 'Failed to clear validation.');
+            }
+
+            toast.success(json?.message ?? 'Application validation cleared.');
+            handleValidationDialogChange(false);
+            await fetchData(page, search, perPage);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to clear validation.';
+            toast.error(message);
+        } finally {
+            setClearingValidation(false);
+        }
+    };
 
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -792,29 +1010,26 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                         <td className="px-3 py-2">
                                             <Button
+                                                type="button"
                                                 variant="ghost"
-                                                className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-3 py-1 rounded-md transition"
-                                                title="Reset Password"
-                                                // sample code for password reset action
-                                                //onClick={() => {
-                                                //     router.post(route('users.resetPassword', user.id), {}, {
-                                                //         preserveScroll: true,
-                                                //         preserveState: true,
-                                                //         onSuccess: () => {
-                                                //             toast.success(`Password reset for ${user.name}!`, {
-                                                //                 description: "Default password: 12345678",
-                                                //             });
-                                                //         },
-                                                //         onError: () => {
-                                                //             toast.error("Failed to reset password.");
-                                                //         },
-                                                //     });
-                                                // }}
+                                                className={cn(
+                                                    'px-3 py-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 flex items-center justify-center',
+                                                    r.latest_validation
+                                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60'
+                                                        : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30'
+                                                )}
+                                                onClick={() => openValidationDialog(r)}
+                                                title={r.latest_validation ? 'View validation' : 'Validate application'}
                                             >
-                                               <SquarePen  className="w-4 h-4" />
+                                                {r.latest_validation ? (
+                                                    <Check className="h-4 w-4" />
+                                                ) : (
+                                                    <SquarePen className="h-4 w-4" />
+                                                )}
+                                                <span className="sr-only">
+                                                    {r.latest_validation ? 'View validation' : 'Validate application'}
+                                                </span>
                                             </Button>
-                                         
-                                       
                                         </td>
                                         
                                     </tr>
@@ -824,6 +1039,194 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                     </table>
 
                 </div>
+
+                <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogChange}>
+                    <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Validate application</DialogTitle>
+                            <DialogDescription>
+                                Review the applicant details and record the validation outcome.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-5">
+                            <div className="grid gap-1 text-sm">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tracking number</span>
+                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{validationRow?.tracking_no ?? '—'}</span>
+                            </div>
+                            <div className="grid gap-1 text-sm">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name of applicant</span>
+                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatApplicantName(validationRow)}</span>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="validation-document-status">Status of Documentary Requirements</Label>
+                                <Input
+                                    id="validation-document-status"
+                                    value={validationForm.document_status}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setValidationForm((prev) => ({ ...prev, document_status: value }));
+                                        if (validationErrors.document_status) {
+                                            setValidationErrors((prev) => ({ ...prev, document_status: undefined }));
+                                        }
+                                    }}
+                                    placeholder="e.g. Complete"
+                                    aria-invalid={validationErrors.document_status ? 'true' : 'false'}
+                                />
+                                {validationErrors.document_status && (
+                                    <p className="text-xs text-red-600">{validationErrors.document_status}</p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>No. of Siblings</Label>
+                                <Popover open={siblingsPopoverOpen} onOpenChange={setSiblingsPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={siblingsPopoverOpen}
+                                            className={cn(
+                                                'justify-between',
+                                                !validationForm.no_siblings && 'text-muted-foreground'
+                                            )}
+                                        >
+                                            {validationForm.no_siblings
+                                                ? `${validationForm.no_siblings} ${Number(validationForm.no_siblings) === 1 ? 'sibling' : 'siblings'}`
+                                                : 'Select siblings'}
+                                            <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" sideOffset={8}>
+                                        <Command>
+                                            <CommandInput placeholder="Search count..." />
+                                            <CommandList>
+                                                <CommandEmpty>No results found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {SIBLING_OPTIONS.map((count) => {
+                                                        const value = String(count);
+                                                        return (
+                                                            <CommandItem
+                                                                key={value}
+                                                                value={value}
+                                                                onSelect={(currentValue) => {
+                                                                    setValidationForm((prev) => ({ ...prev, no_siblings: currentValue }));
+                                                                    setValidationErrors((prev) => ({ ...prev, no_siblings: undefined }));
+                                                                    setSiblingsPopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check className={cn('mr-2 h-4 w-4', validationForm.no_siblings === value ? 'opacity-100' : 'opacity-0')} />
+                                                                {value}
+                                                            </CommandItem>
+                                                        );
+                                                    })}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                                {validationErrors.no_siblings && (
+                                    <p className="text-xs text-red-600">{validationErrors.no_siblings}</p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Initial Rank</Label>
+                                <Popover open={rankPopoverOpen} onOpenChange={setRankPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={rankPopoverOpen}
+                                            className={cn(
+                                                'justify-between',
+                                                !validationForm.initial_rank && 'text-muted-foreground'
+                                            )}
+                                        >
+                                            {validationForm.initial_rank || 'Select initial rank'}
+                                            <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" sideOffset={8}>
+                                        <Command>
+                                            <CommandInput placeholder="Search rank..." />
+                                            <CommandList>
+                                                <CommandEmpty>No results found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {INITIAL_RANK_OPTIONS.map((option) => {
+                                                        const value = String(option);
+                                                        return (
+                                                            <CommandItem
+                                                                key={value}
+                                                                value={value}
+                                                                onSelect={(currentValue) => {
+                                                                    setValidationForm((prev) => ({ ...prev, initial_rank: currentValue }));
+                                                                    setValidationErrors((prev) => ({ ...prev, initial_rank: undefined }));
+                                                                    setRankPopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check className={cn('mr-2 h-4 w-4', validationForm.initial_rank === value ? 'opacity-100' : 'opacity-0')} />
+                                                                {value}
+                                                            </CommandItem>
+                                                        );
+                                                    })}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                                {validationErrors.initial_rank && (
+                                    <p className="text-xs text-red-600">{validationErrors.initial_rank}</p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="validation-remarks">Remarks</Label>
+                                <textarea
+                                    id="validation-remarks"
+                                    className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40"
+                                    value={validationForm.remarks}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setValidationForm((prev) => ({ ...prev, remarks: value }));
+                                    }}
+                                    maxLength={2000}
+                                    placeholder="Add remarks (optional)"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter className="gap-2 sm:justify-between">
+                            {validationRow?.latest_validation && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleClearValidation}
+                                    disabled={validationSubmitting || clearingValidation}
+                                >
+                                    {clearingValidation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Clear validation
+                                </Button>
+                            )}
+                            <div className="flex flex-1 items-center justify-end gap-2">
+                                <DialogClose asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        disabled={validationSubmitting || clearingValidation}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+                                <Button
+                                    type="button"
+                                    onClick={handleValidationSubmit}
+                                    disabled={validationSubmitting || clearingValidation}
+                                >
+                                    {validationSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save validation
+                                </Button>
+                            </div>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Pagination bar */}
                 <div className="flex items-center justify-between border-t border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
