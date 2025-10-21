@@ -15,23 +15,14 @@ class ValidationController extends Controller
 
         $application = CmspApplication::findOrFail($data['cmsp_id']);
 
-        Validation::updateOrCreate(
-            ['cmsp_id' => $application->id],
-            [
-                'tracking_no' => $application->tracking_no,
-                'documentary_requirements' => $data['documentary_requirements'],
-                'checked_by' => $request->user()->id,
-                'remarks' => $data['remarks'] ?? null,
-            ]
-        );
+        Validation::create([
+            'cmsp_id' => $application->id,
+            'tracking_no' => $application->tracking_no,
+            'documentary_requirements' => $data['documentary_requirements'],
+            'checked_by' => $request->user()->id,
+            'remarks' => $data['remarks'] ?? null,
+        ]);
 
         return back()->with('success', 'Application validation saved successfully.');
-    }
-
-    public function destroy(CmspApplication $application): RedirectResponse
-    {
-        Validation::where('cmsp_id', $application->id)->delete();
-
-        return back()->with('success', 'Application validation cleared.');
     }
 }

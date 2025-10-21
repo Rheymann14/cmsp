@@ -2,13 +2,13 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, FileCheck, SquarePen, GraduationCap, Check } from 'lucide-react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, FileCheck, SquarePen, GraduationCap } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Toaster, toast } from 'sonner';
+import { Toaster, toast } from "sonner";
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
@@ -382,6 +382,19 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         remarks: '',
     });
 
+    const { data, setData, post, processing, errors, reset, clearErrors } = validationForm;
+
+    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+    const [selectedApplication, setSelectedApplication] = useState<ApplicationRow | null>(null);
+
+    const firstError = (value: string | string[] | undefined) =>
+        Array.isArray(value) ? value[0] : value;
+
+    const buildUrl = useCallback((p: number, s: string, pp: number) => {
+        const base = (window as any).route
+            ? (window as any).route('cmsp-applications.index.json')
+            : '/cmsp-applications/json';
+
     const { data, setData, post, delete: destroy, processing, errors, reset, clearErrors } = validationForm;
 
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
@@ -534,6 +547,40 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             },
         });
     }, [destroy, fetchData, handleValidationDialogOpenChange, page, perPage, search, selectedApplication]);
+
+    const handleValidationDialogOpenChange = useCallback((open: boolean) => {
+        setValidationDialogOpen(open);
+        if (!open) {
+            setSelectedApplication(null);
+            reset();
+            clearErrors();
+        }
+    }, [clearErrors, reset]);
+
+    const handleValidationOpen = useCallback((row: ApplicationRow) => {
+        setSelectedApplication(row);
+        setSelectedId(row.id);
+        setData('cmsp_id', row.id);
+        setData('documentary_requirements', '');
+        setData('remarks', '');
+        clearErrors();
+        setValidationDialogOpen(true);
+    }, [clearErrors, setData]);
+
+    const handleValidationSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!selectedApplication || !data.cmsp_id) {
+            return;
+        }
+
+        post(route('validations.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                handleValidationDialogOpenChange(false);
+                fetchData(page, search, perPage);
+            },
+        });
+    }, [data.cmsp_id, fetchData, handleValidationDialogOpenChange, page, perPage, post, search, selectedApplication]);
 
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -934,15 +981,11 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             <Button
                                                 type="button"
                                                 variant="ghost"
-                                                className={`${r.latest_validation ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30' : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30'} px-3 py-1 rounded-md transition`}
-                                                title={r.latest_validation ? 'View validation' : 'Validate Application'}
+                                                className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-3 py-1 rounded-md transition"
+                                                title="Validate Application"
                                                 onClick={() => handleValidationOpen(r)}
                                             >
-                                                {r.latest_validation ? (
-                                                    <Check className="w-4 h-4" />
-                                                ) : (
-                                                    <SquarePen className="w-4 h-4" />
-                                                )}
+                                               <SquarePen className="w-4 h-4" />
                                             </Button>
                                         </td>
                                         
@@ -1015,7 +1058,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                 <Label htmlFor="validation-checked-by">Checked By</Label>
                                 <Input
                                     id="validation-checked-by"
-                                    value={selectedApplication?.latest_validation?.checker?.name ?? auth?.user?.name ?? ''}
+                                    value={auth?.user?.name ?? ''}
                                     readOnly
                                     disabled
                                 />
@@ -1045,16 +1088,6 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                 >
                                     Cancel
                                 </Button>
-                                {hasExistingValidation && (
-                                    <Button
-                                        type="button"
-                                        variant="destructive"
-                                        onClick={handleValidationClear}
-                                        disabled={processing}
-                                    >
-                                        Clear Validation
-                                    </Button>
-                                )}
                                 <Button type="submit" disabled={processing} className="bg-[#1e3c73] text-white hover:bg-[#1a3565]">
                                     {processing ? (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
