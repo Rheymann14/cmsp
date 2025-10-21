@@ -40,33 +40,6 @@ const EMPTY_VALIDATION_FORM = {
     remarks: '',
 };
 
-const missingRouteWarnings = new Set<string>();
-
-const resolveRoute = (
-    name: string,
-    params: Record<string, unknown> | number | string | null | undefined,
-    fallback: string,
-) => {
-    const routeFn = (window as any).route;
-
-    if (typeof routeFn === 'function') {
-        try {
-            if (params === undefined || params === null) {
-                return routeFn(name);
-            }
-
-            return routeFn(name, params);
-        } catch (error) {
-            if (!missingRouteWarnings.has(name)) {
-                missingRouteWarnings.add(name);
-                console.warn(`Falling back for missing Ziggy route: ${name}`, error);
-            }
-        }
-    }
-
-    return fallback;
-};
-
 const parseSpecialGroupCounts = (input: unknown): SpecialGroupCounts => {
     const toNumber = (value: unknown): number => {
         if (typeof value === 'number') {
@@ -439,14 +412,14 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     }, []);
 
     const getValidationStoreUrl = () => (
-        resolveRoute('validations.store', undefined, '/validations')
+        (window as any).route ? (window as any).route('validations.store') : '/validations'
     );
 
     const getValidationDestroyUrl = (id: number) => (
-        resolveRoute('validations.destroy', id, `/validations/${id}`)
+        (window as any).route ? (window as any).route('validations.destroy', id) : `/validations/${id}`
     );
 
-    const fetchData = useCallback(async (p: number, s: string, pp: number) => {
+    const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
         setLoading(true);
         try {
             const res = await fetch(buildUrl(p, s, pp), {
@@ -489,6 +462,167 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     };
 
     useEffect(() => { fetchData(page, search, perPage); }, [fetchData, page, perPage, search]);
+
+    const formatApplicantName = (row?: ApplicationRow | null) => {
+        if (!row) return '—';
+        const givenNames = [row.first_name, row.middle_name]
+            .filter((part) => part && String(part).trim() !== '')
+            .join(' ');
+        const base = givenNames
+            ? `${row.last_name.toUpperCase()}, ${givenNames}`
+            : row.last_name.toUpperCase();
+        const suffix = row.name_extension ? ` ${row.name_extension}` : '';
+        return `${base}${suffix}`.trim();
+    };
+
+    const resetValidationState = () => {
+        setValidationRow(null);
+        setValidationForm({ ...EMPTY_VALIDATION_FORM });
+        setValidationErrors({});
+        setValidationSubmitting(false);
+        setClearingValidation(false);
+        setSiblingsPopoverOpen(false);
+        setRankPopoverOpen(false);
+        setSelectedId(null);
+    };
+
+    const openValidationDialog = (row: ApplicationRow) => {
+        setValidationRow(row);
+        setSelectedId(row.id);
+        setValidationForm({
+            document_status: row.latest_validation?.document_status ?? '',
+            no_siblings: row.latest_validation?.no_siblings ? String(row.latest_validation.no_siblings) : '',
+            initial_rank: row.latest_validation?.initial_rank ?? '',
+            remarks: row.latest_validation?.remarks ?? '',
+        });
+        setValidationErrors({});
+        setValidationSubmitting(false);
+        setClearingValidation(false);
+        setSiblingsPopoverOpen(false);
+        setRankPopoverOpen(false);
+        setValidationDialogOpen(true);
+    };
+
+    const handleValidationDialogChange = (open: boolean) => {
+        setValidationDialogOpen(open);
+        if (!open) {
+            resetValidationState();
+        }
+    };
+
+    const handleValidationSubmit = async () => {
+        if (!validationRow) return;
+
+        const nextErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
+        if (!validationForm.document_status.trim()) {
+            nextErrors.document_status = 'Document status is required.';
+        }
+        if (!validationForm.no_siblings) {
+            nextErrors.no_siblings = 'Select the number of siblings.';
+        }
+        if (!validationForm.initial_rank) {
+            nextErrors.initial_rank = 'Select the initial rank.';
+        }
+        setValidationErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) {
+            return;
+        }
+
+        setValidationSubmitting(true);
+        try {
+            const payload = {
+                cmsp_id: validationRow.id,
+                document_status: validationForm.document_status.trim(),
+                no_siblings: Number(validationForm.no_siblings),
+                initial_rank: validationForm.initial_rank,
+                remarks: validationForm.remarks.trim() ? validationForm.remarks.trim() : null,
+            };
+
+            const res = await fetch(getValidationStoreUrl(), {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload),
+            });
+
+            let json: any = null;
+            try {
+                json = await res.json();
+            } catch (err) {
+                json = null;
+            }
+
+            if (!res.ok) {
+                if (json?.errors) {
+                    const serverErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
+                    if (json.errors.document_status?.length) {
+                        serverErrors.document_status = json.errors.document_status[0];
+                    }
+                    if (json.errors.no_siblings?.length) {
+                        serverErrors.no_siblings = json.errors.no_siblings[0];
+                    }
+                    if (json.errors.initial_rank?.length) {
+                        serverErrors.initial_rank = json.errors.initial_rank[0];
+                    }
+                    setValidationErrors((prev) => ({ ...prev, ...serverErrors }));
+                }
+                throw new Error(json?.message ?? 'Failed to save validation.');
+            }
+
+            toast.success(json?.message ?? 'Application validation saved successfully.');
+            handleValidationDialogChange(false);
+            await fetchData(page, search, perPage);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to save validation.';
+            toast.error(message);
+        } finally {
+            setValidationSubmitting(false);
+        }
+    };
+
+    const handleClearValidation = async () => {
+        if (!validationRow?.latest_validation) {
+            return;
+        }
+
+        setClearingValidation(true);
+        try {
+            const res = await fetch(getValidationDestroyUrl(validationRow.latest_validation.id), {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            let json: any = null;
+            try {
+                json = await res.json();
+            } catch (err) {
+                json = null;
+            }
+
+            if (!res.ok) {
+                throw new Error(json?.message ?? 'Failed to clear validation.');
+            }
+
+            toast.success(json?.message ?? 'Application validation cleared.');
+            handleValidationDialogChange(false);
+            await fetchData(page, search, perPage);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to clear validation.';
+            toast.error(message);
+        } finally {
+            setClearingValidation(false);
+        }
+    };
 
     const formatApplicantName = (row?: ApplicationRow | null) => {
         if (!row) return '—';
