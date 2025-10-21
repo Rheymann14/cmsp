@@ -110,18 +110,18 @@ const resolveRoute = (name: string, params?: any, fallback?: string) => {
 
 // Read the XSRF cookie set by Laravel's CSRF middleware
 const getXsrfToken = () => {
-  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : '';
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
 };
 
 // Strip host from any Ziggy/route() output so requests stay same-origin
 const toPath = (href: string) => {
-  try {
-    const u = new URL(href, window.location.origin);
-    return u.pathname + u.search + u.hash;
-  } catch {
-    return href;
-  }
+    try {
+        const u = new URL(href, window.location.origin);
+        return u.pathname + u.search + u.hash;
+    } catch {
+        return href;
+    }
 };
 
 export default function Dashboard() {
@@ -140,8 +140,16 @@ export default function Dashboard() {
                 closeButton
                 duration={4000}
             />
+            <div className="text-center mt-2 mb-6">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1e3c73] dark:text-zinc-100">
+                    CHED Merit Scholarship Program (CMSP)
+                </h1>
+            </div>
+
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
                     {/* PWD */}
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
