@@ -108,6 +108,49 @@ const resolveRoute = (name: string, params?: any, fallback?: string) => {
     return fallback || '/';
 };
 
+const getCookieValue = (name: string): string => {
+    if (typeof document === 'undefined') return '';
+
+    const encodedName = encodeURIComponent(name);
+    const match = document.cookie
+        .split(';')
+        .map((entry) => entry.trim())
+        .find((entry) => entry.startsWith(`${encodedName}=`));
+
+    if (!match) {
+        return '';
+    }
+
+    const value = match.split('=').slice(1).join('=');
+    return value ? decodeURIComponent(value) : '';
+};
+
+const getCsrfToken = () =>
+    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+const buildCsrfHeaders = (contentType?: string) => {
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    const metaToken = getCsrfToken();
+    if (metaToken) {
+        headers['X-CSRF-TOKEN'] = metaToken;
+    }
+
+    const xsrfCookie = getCookieValue('XSRF-TOKEN');
+    if (xsrfCookie) {
+        headers['X-XSRF-TOKEN'] = xsrfCookie;
+    }
+
+    if (contentType) {
+        headers['Content-Type'] = contentType;
+    }
+
+    return headers;
+};
+
 export default function Dashboard() {
     const [specialCounts, setSpecialCounts] = useState<SpecialGroupCounts>({ ...EMPTY_SPECIAL_COUNTS });
 
@@ -419,8 +462,6 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const [search, setSearch] = useState('');
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const [validationRow, setValidationRow] = useState<ApplicationRow | null>(null);
     const [validationForm, setValidationForm] = useState({ ...EMPTY_VALIDATION_FORM });
@@ -589,12 +630,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
 
             const res = await fetch(getValidationStoreUrl(), {
                 method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers: buildCsrfHeaders('application/json'),
                 credentials: 'same-origin',
                 body: JSON.stringify(payload),
             });
@@ -626,8 +662,53 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             }
 
             toast.success(json?.message ?? 'Application validation saved successfully.');
-            handleValidationDialogChange(false);
-            await fetchData(page, search, perPage);
+
+            const savedValidation = json?.validation ?? null;
+            const targetRowId = savedValidation?.cmsp_id ?? validationRow.id;
+            if (savedValidation) {
+                setValidationRow((prev) => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        latest_validation: savedValidation,
+                    };
+                });
+
+                setRows((prevRows) =>
+                    prevRows.map((row) =>
+                        row.id === targetRowId
+                            ? {
+                                ...row,
+                                latest_validation: savedValidation,
+                            }
+                            : row,
+                    ),
+                );
+
+                setValidationForm({
+                    document_status: savedValidation.document_status ?? '',
+                    no_siblings:
+                        typeof savedValidation.no_siblings === 'number'
+                            ? String(savedValidation.no_siblings)
+                            : '',
+                    initial_rank: savedValidation.initial_rank ?? '',
+                    remarks: savedValidation.remarks ?? '',
+                });
+            } else {
+                setValidationForm({
+                    document_status: payload.document_status,
+                    no_siblings: String(payload.no_siblings),
+                    initial_rank: payload.initial_rank,
+                    remarks: payload.remarks ?? '',
+                });
+            }
+
+            setValidationErrors({});
+
+            setSelectedId(targetRowId);
+            fetchData(page, search, perPage).then(() => {
+                setSelectedId(targetRowId);
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to save validation.';
             toast.error(message);
@@ -645,11 +726,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         try {
             const res = await fetch(getValidationDestroyUrl(validationRow.latest_validation.id), {
                 method: 'DELETE',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers: buildCsrfHeaders(),
                 credentials: 'same-origin',
             });
 
@@ -665,8 +742,28 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             }
 
             toast.success(json?.message ?? 'Application validation cleared.');
-            handleValidationDialogChange(false);
-            await fetchData(page, search, perPage);
+
+            const targetRowId = validationRow.id;
+            setValidationRow((prev) => (prev ? { ...prev, latest_validation: null } : prev));
+            setRows((prevRows) =>
+                prevRows.map((row) =>
+                    row.id === targetRowId
+                        ? {
+                            ...row,
+                            latest_validation: null,
+                        }
+                        : row,
+                ),
+            );
+            setValidationForm({ ...EMPTY_VALIDATION_FORM });
+            setValidationErrors({});
+            setSiblingsPopoverOpen(false);
+            setRankPopoverOpen(false);
+
+            setSelectedId(targetRowId);
+            fetchData(page, search, perPage).then(() => {
+                setSelectedId(targetRowId);
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to clear validation.';
             toast.error(message);
