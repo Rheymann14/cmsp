@@ -626,8 +626,51 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             }
 
             toast.success(json?.message ?? 'Application validation saved successfully.');
-            handleValidationDialogChange(false);
+
+            const savedValidation = json?.validation ?? null;
+            const targetRowId = savedValidation?.cmsp_id ?? validationRow.id;
+            if (savedValidation) {
+                setValidationRow((prev) => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        latest_validation: savedValidation,
+                    };
+                });
+
+                setRows((prevRows) =>
+                    prevRows.map((row) =>
+                        row.id === targetRowId
+                            ? {
+                                ...row,
+                                latest_validation: savedValidation,
+                            }
+                            : row,
+                    ),
+                );
+
+                setValidationForm({
+                    document_status: savedValidation.document_status ?? '',
+                    no_siblings:
+                        typeof savedValidation.no_siblings === 'number'
+                            ? String(savedValidation.no_siblings)
+                            : '',
+                    initial_rank: savedValidation.initial_rank ?? '',
+                    remarks: savedValidation.remarks ?? '',
+                });
+            } else {
+                setValidationForm({
+                    document_status: payload.document_status,
+                    no_siblings: String(payload.no_siblings),
+                    initial_rank: payload.initial_rank,
+                    remarks: payload.remarks ?? '',
+                });
+            }
+
+            setValidationErrors({});
+
             await fetchData(page, search, perPage);
+            setSelectedId(targetRowId);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to save validation.';
             toast.error(message);
