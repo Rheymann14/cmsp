@@ -1618,7 +1618,7 @@ export default function Welcome() {
                                     )}
                                 </div>
 
-                                <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800" />
+                            <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800" />
 
                                 <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <Button
@@ -1652,94 +1652,85 @@ export default function Welcome() {
 
 
                     {!isApplicationOpen && (
-                        <div
-                            className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-zinc-950 overflow-hidden"
-                            style={{ height: '100vh', overflow: 'hidden' }}
-                        >
-                            <div className="w-full h-full max-h-screen overflow-y-auto mt-30">
-                                <div className="space-y-8 px-6 py-10 sm:px-10 sm:py-12 text-center max-w-4xl mx-auto">
-                                    {/* === Header Section === */}
-                                    <div className="items-center space-y-4 text-center">
-                                        <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 
-                                                        px-5 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-700 
-                                                        dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
-                                            <span>Application Closed</span>
+                        <div className="fixed inset-0 z-50">
+                            {/* Ambient background */}
+                            <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_-10%,#e6f0ff_0%,transparent_60%),radial-gradient(60%_50%_at_50%_110%,#fff2cc_0%,transparent_60%)]
+                    dark:bg-[radial-gradient(60%_50%_at_50%_-10%,rgba(30,60,115,.25)_0%,transparent_60%),radial-gradient(60%_50%_at_50%_110%,rgba(245,158,11,.15)_0%,transparent_60%)]" />
+                            <div className="absolute inset-0 backdrop-blur-xl bg-white/55 dark:bg-zinc-950/55" />
+
+                            {/* Card with square top, rounded bottom */}
+                            <div className="relative mx-auto grid h-full max-w-4xl place-items-center p-6">
+                                <motion.div
+                                    initial={{ y: 16, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ duration: 0.3, ease: "easeOut" }}
+                                    className="w-full rounded-b-3xl rounded-tl-none rounded-tr-none border border-zinc-200/70 dark:border-zinc-800/70 bg-white/80 dark:bg-zinc-950/70 shadow-2xl"
+                                >
+                                    <div className="relative p-8 sm:p-10">
+                                        {/* Accent bar */}
+                                        <div className="absolute -top-px left-0 right-0 h-1 bg-gradient-to-r from-[#1e3c73] via-sky-500 to-emerald-500" />
+
+                                        {/* Header chip */}
+                                        <div className="mb-3 flex justify-center">
+                                            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                                                Application Closed
+                                            </div>
                                         </div>
 
-                                        <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                                        <h2 className="text-center text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
                                             CMSP Online Application is Closed
                                         </h2>
-                                    </div>
 
-                                    {/* === Notice Box === */}
-                                    <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 
-                                                    dark:border-amber-900/40 dark:bg-amber-950/20">
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex-shrink-0">
-                                                <svg
-                                                    className="h-5 w-5 text-amber-600 dark:text-amber-300 mt-1"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        d="M12 9v2m0 4h.01M12 19.5A7.5 7.5 0 1 0 12 4.5a7.5 7.5 0 0 0 0 15z"
-                                                    />
-                                                </svg>
-                                            </div>
-
-                                            <div className="space-y-2 text-left">
-                                                <p className="font-semibold text-amber-900 dark:text-amber-200">
-                                                    Important Notice
-                                                </p>
-                                                <div className="flex flex-wrap items-center justify-start gap-2 pt-1.5">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="rounded-full border-green-300 bg-green-100/80 text-[0.8rem] sm:text-sm 
-    font-medium text-green-800 px-2.5 py-0.5 
-    dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300"
-                                                    >
-                                                        {closedWindowLabel}
-                                                    </Badge>
-
-                                                    {ayDeadline && (
-                                                        <div
-                                                            className="inline-flex items-center rounded-full border border-red-300 bg-red-100/80 
-      text-xs text-red-800 px-3 py-1 
-      dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
-                                                        >
-                                                            Application Deadline: {formattedDeadline}
-                                                        </div>
-                                                    )}
+                                        {/* Notice */}
+                                        <div className="mt-6 rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/75 dark:bg-amber-950/20 p-5">
+                                            <div className="flex items-start gap-3">
+                                                <div className="mt-0.5 inline-flex h-8 w-8 flex-none items-center justify-center rounded-full ring-1 ring-amber-400/40 dark:ring-amber-700/50">
+                                                    <svg className="h-5 w-5 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 19.5A7.5 7.5 0 1 0 12 4.5a7.5 7.5 0 0 0 0 15z" />
+                                                    </svg>
                                                 </div>
 
-                                                <p className="text-sm sm:text-base text-zinc-700 dark:text-zinc-200 leading-relaxed mt-6">
-                                                    The CMSP online application for <strong>{closedWindowLabel}</strong> is no longer accepting new submissions.
-                                                    <br />
-                                                    You may still track your submitted application by clicking the button below.
-                                                </p>
+                                                <div className="space-y-3 text-left">
+                                                    <p className="font-semibold text-amber-900 dark:text-amber-200">Important Notice</p>
 
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="rounded-full border border-green-300/70 bg-green-100/80 text-[0.8rem] sm:text-sm font-medium text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300"
+                                                        >
+                                                            {closedWindowLabel}
+                                                        </Badge>
 
+                                                        {ayDeadline && (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="rounded-full border border-red-300 bg-red-100/80 text-[0.75rem] sm:text-xs font-medium text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                                            >
+                                                                Application Deadline: {formattedDeadline}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+
+                                                    <p className="text-sm sm:text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+                                                        The CMSP online application for <strong>{closedWindowLabel}</strong> is no longer accepting new submissions.
+                                                        You may still track your submitted application below.
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* === Track Button === */}
-                                    <div className="pt-3 flex justify-center">
-                                        <Button
-                                            onClick={() => setTrackOpen(true)}
-                                            className="bg-[#1e3c73] hover:bg-[#153159] text-white text-sm sm:text-base px-6 py-2.5 
-                                                        rounded-full shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out 
-                                                        w-full sm:w-auto"
-                                        >
-                                            <FileClock className="mr-2 h-4 w-4" />
-                                            Track Application Status
-                                        </Button>
+                                        {/* CTA */}
+                                        <div className="mt-8 flex justify-center">
+                                            <Button
+                                                onClick={() => setTrackOpen(true)}
+                                                className="rounded-full bg-[#1e3c73] hover:bg-[#18325f] px-6 py-2.5 text-white text-sm sm:text-base shadow-sm shadow-[#1e3c73]/10 focus-visible:ring-2 focus-visible:ring-[#1e3c73] focus-visible:ring-offset-2"
+                                            >
+                                                <FileClock className="mr-2 h-4 w-4" />
+                                                Track Application Status
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             </div>
                         </div>
                     )}
@@ -2222,7 +2213,7 @@ export default function Welcome() {
                                                                     <CommandList>
                                                                         <CommandEmpty>No result</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {["Jr","II",  "III", "Others"].map((ext) => (
+                                                                            {["Jr", "II", "III", "Others"].map((ext) => (
                                                                                 <CommandItem
                                                                                     key={ext}
                                                                                     value={ext}
@@ -3976,7 +3967,7 @@ export default function Welcome() {
                                                 disabled={isSubmitting}
                                                 aria-busy={isSubmitting}
                                             >
-                                               {isSubmitting ? 'Processing…' : 'Submit Application'}
+                                                {isSubmitting ? 'Processing…' : 'Submit Application'}
                                             </Button>
                                         </div>
                                     </section>

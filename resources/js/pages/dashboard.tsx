@@ -108,6 +108,22 @@ const resolveRoute = (name: string, params?: any, fallback?: string) => {
     return fallback || '/';
 };
 
+// Read the XSRF cookie set by Laravel's CSRF middleware
+const getXsrfToken = () => {
+  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+};
+
+// Strip host from any Ziggy/route() output so requests stay same-origin
+const toPath = (href: string) => {
+  try {
+    const u = new URL(href, window.location.origin);
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return href;
+  }
+};
+
 export default function Dashboard() {
     const [specialCounts, setSpecialCounts] = useState<SpecialGroupCounts>({ ...EMPTY_SPECIAL_COUNTS });
 
@@ -430,34 +446,31 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
 
+    // AFTER
     const buildUrl = useCallback((p: number, s: string, pp: number) => {
-        const base = resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json');
-
-        const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
-        const u = new URL(base, origin);
+        const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
+        const u = new URL(basePath, window.location.origin);
         u.searchParams.set('page', String(p));
         u.searchParams.set('per_page', String(pp));
-        u.searchParams.set('full', '1');            // ask for all columns
+        u.searchParams.set('full', '1');
         if (s.trim()) u.searchParams.set('search', s.trim());
-        return u.toString();
+        // return a same-origin path
+        return u.pathname + u.search + u.hash;
     }, []);
 
     const buildExportUrl = useCallback((s: string) => {
-        const base = resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export');
-
-        const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
-        const u = new URL(base, origin);
+        const basePath = toPath(resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export'));
+        const u = new URL(basePath, window.location.origin);
         if (s.trim()) u.searchParams.set('search', s.trim());
-        return u.toString();
+        return u.pathname + u.search + u.hash;
     }, []);
 
-    const getValidationStoreUrl = () => (
-        (window as any).route ? (window as any).route('validations.store') : '/validations'
-    );
+    const getValidationStoreUrl = () =>
+        toPath((window as any).route ? (window as any).route('validations.store') : '/validations');
 
-    const getValidationDestroyUrl = (id: number) => (
-        (window as any).route ? (window as any).route('validations.destroy', id) : `/validations/${id}`
-    );
+    const getValidationDestroyUrl = (id: number) =>
+        toPath((window as any).route ? (window as any).route('validations.destroy', id) : `/validations/${id}`);
+
 
     const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
         setLoading(true);
@@ -589,13 +602,15 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
 
             const res = await fetch(getValidationStoreUrl(), {
                 method: 'POST',
+
                 headers: {
                     Accept: 'application/json',
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': getXsrfToken(),      // ← use cookie token
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
+
                 body: JSON.stringify(payload),
             });
 
@@ -688,12 +703,14 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         try {
             const res = await fetch(getValidationDestroyUrl(validationRow.latest_validation.id), {
                 method: 'DELETE',
+                // AFTER
                 headers: {
                     Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': getXsrfToken(),      // ← use cookie token
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
+
             });
 
             let json: any = null;
@@ -1011,13 +1028,13 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                         </td>
 
                                         <td className="px-3 py-2">
-                                            <span  className={cn(
-                                                    'inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 ',
-                                                    r.latest_validation
-                                                        ? 'bg-emerald-100 text-emerald-700  dark:bg-emerald-900/40 dark:text-emerald-300'
-                                                        : 'text-amber-600'
-                                                )}>
-                                                  
+                                            <span className={cn(
+                                                'inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 ',
+                                                r.latest_validation
+                                                    ? 'bg-emerald-100 text-emerald-700  dark:bg-emerald-900/40 dark:text-emerald-300'
+                                                    : 'text-amber-600'
+                                            )}>
+
                                                 {r.tracking_no}
                                             </span>
                                         </td>
@@ -1209,7 +1226,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                             <div className=" py-1 text-[22px] font-semibold tracking-wide text-[#1e3c73]">
                                 Validate Application {" "}
                                 <span className="rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 px-2.5 py-1 text-xs font-medium">
-                                     Tracking: {validationRow?.tracking_no ?? '—'}
+                                    Tracking: {validationRow?.tracking_no ?? '—'}
                                 </span>
                             </div>
                             <DialogDescription className="text-sm text-zinc-600 dark:text-zinc-400">
