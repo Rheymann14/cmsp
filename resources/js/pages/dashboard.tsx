@@ -395,32 +395,69 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             ? (window as any).route('cmsp-applications.index.json')
             : '/cmsp-applications/json';
 
-        const u = new URL(base, window.location.origin);
+    const { data, setData, post, delete: destroy, processing, errors, reset, clearErrors } = validationForm;
+
+    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+    const [selectedApplication, setSelectedApplication] = useState<ApplicationRow | null>(null);
+    const hasExistingValidation = Boolean(selectedApplication?.latest_validation);
+
+    const firstError = (value: string | string[] | undefined) =>
+        Array.isArray(value) ? value[0] : value;
+
+    type ZiggyRouteResolver = (name: string, params?: Record<string, unknown>, absolute?: boolean) => unknown;
+
+    const resolveRouteUrl = useCallback((name: string, fallbackPath: string) => {
+        if (typeof window !== 'undefined') {
+            const scopedWindow = window as typeof window & { route?: ZiggyRouteResolver };
+            const ziggyRoute = scopedWindow.route;
+            if (typeof ziggyRoute === 'function') {
+                try {
+                    const resolved = ziggyRoute(name);
+                    if (typeof resolved === 'string') {
+                        return resolved;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to resolve route "${name}" via Ziggy. Falling back to relative path.`, error);
+                }
+            }
+
+            return new URL(fallbackPath, scopedWindow.location.origin).toString();
+        }
+
+        return fallbackPath;
+    }, []);
+
+    const buildUrl = useCallback((p: number, s: string, pp: number) => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+        const base = resolveRouteUrl('cmsp-applications.index.json', '/cmsp-applications/json');
+        const u = new URL(base, origin);
         u.searchParams.set('page', String(p));
         u.searchParams.set('per_page', String(pp));
         u.searchParams.set('full', '1');            // ask for all columns
         if (s.trim()) u.searchParams.set('search', s.trim());
         return u.toString();
-    }, []);
+    }, [resolveRouteUrl]);
 
     const buildExportUrl = useCallback((s: string) => {
-        const base = (window as any).route
-            ? (window as any).route('cmsp-applications.export')
-            : '/cmsp-applications/export';
-
-        const u = new URL(base, window.location.origin);
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+        const base = resolveRouteUrl('cmsp-applications.export', '/cmsp-applications/export');
+        const u = new URL(base, origin);
         if (s.trim()) u.searchParams.set('search', s.trim());
         return u.toString();
-    }, []);
+    }, [resolveRouteUrl]);
 
-    const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
+    const fetchData = useCallback(async (p: number, s: string, pp: number) => {
         setLoading(true);
         try {
             const res = await fetch(buildUrl(p, s, pp), {
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
+                credentials: 'include',
             });
             if (!res.ok) throw new Error('Failed to load');
+            const contentType = res.headers.get('Content-Type') ?? '';
+            if (!contentType.toLowerCase().includes('application/json')) {
+                throw new Error('Unexpected response format');
+            }
             const json = await res.json();
             setRows(json.data ?? []);
             setTotal(json.meta?.total ?? 0);
@@ -430,7 +467,8 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
             }
             setSelectedId(null);
-        } catch (e) {
+        } catch (error) {
+            console.error('Failed to fetch CMSP applications.', error);
             setRows([]);
             setTotal(0);
             setLastPage(1);
@@ -440,9 +478,75 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         } finally {
             setLoading(false);
         }
-    }, [buildUrl, onSpecialCounts, page, perPage, search]);
+    }, [buildUrl, onSpecialCounts]);
 
-    useEffect(() => { fetchData(1, search, perPage); }, [perPage]); // refetch when perPage changes
+    const latestSearchRef = useRef(search);
+    useEffect(() => { latestSearchRef.current = search; }, [search]);
+
+    useEffect(() => {
+        fetchData(1, latestSearchRef.current, perPage);
+    }, [fetchData, perPage]); // refetch when perPage changes
+
+    const handleValidationDialogOpenChange = useCallback((open: boolean) => {
+        setValidationDialogOpen(open);
+        if (!open) {
+            setSelectedApplication(null);
+            reset();
+            clearErrors();
+        }
+    }, [clearErrors, reset]);
+
+    const handleValidationOpen = useCallback((row: ApplicationRow) => {
+        setSelectedApplication(row);
+        setSelectedId(row.id);
+        setData('cmsp_id', row.id);
+        const latest = row.latest_validation ?? null;
+        setData('documentary_requirements', latest?.documentary_requirements ?? '');
+        setData('remarks', latest?.remarks ?? '');
+        clearErrors();
+        setValidationDialogOpen(true);
+    }, [clearErrors, setData]);
+
+    const handleValidationSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!selectedApplication || !data.cmsp_id) {
+            return;
+        }
+
+        post(route('validations.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Validation saved!');
+                handleValidationDialogOpenChange(false);
+                fetchData(page, search, perPage);
+            },
+            onError: (formErrors) => {
+                if (formErrors && Object.keys(formErrors).length > 0) {
+                    toast.error('Please review the highlighted fields.');
+                } else {
+                    toast.error('Failed to save validation.');
+                }
+            },
+        });
+    }, [data.cmsp_id, fetchData, handleValidationDialogOpenChange, page, perPage, post, search, selectedApplication]);
+
+    const handleValidationClear = useCallback(() => {
+        if (!selectedApplication) {
+            return;
+        }
+
+        destroy(route('validations.destroy', selectedApplication.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Validation cleared.');
+                handleValidationDialogOpenChange(false);
+                fetchData(page, search, perPage);
+            },
+            onError: () => {
+                toast.error('Failed to clear validation.');
+            },
+        });
+    }, [destroy, fetchData, handleValidationDialogOpenChange, page, perPage, search, selectedApplication]);
 
     const handleValidationDialogOpenChange = useCallback((open: boolean) => {
         setValidationDialogOpen(open);
@@ -488,6 +592,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 headers: {
                     Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 },
+                credentials: 'include',
             });
             if (!res.ok) {
                 throw new Error('Failed to export');
@@ -503,7 +608,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 if (match && match[1]) {
                     try {
                         filename = decodeURIComponent(match[1].replace(/"/g, ''));
-                    } catch (err) {
+                    } catch {
                         filename = match[1].replace(/"/g, '');
                     }
                 }
