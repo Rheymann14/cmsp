@@ -669,10 +669,8 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
 
             setValidationErrors({});
 
+            await fetchData(page, search, perPage);
             setSelectedId(targetRowId);
-            fetchData(page, search, perPage).then(() => {
-                setSelectedId(targetRowId);
-            });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to save validation.';
             toast.error(message);
