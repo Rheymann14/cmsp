@@ -29,10 +29,26 @@ class CmspTrackResource extends JsonResource
               ];
 
         // Minimal, non-sensitive snapshot
+        $latestValidation = $this->whenLoaded('latestValidation');
+
+        $isValidated = false;
+        $documentStatus = null;
+        if ($latestValidation) {
+            $documentStatus = $latestValidation->document_status;
+            $isValidated = strcasecmp($documentStatus ?? '', 'validated') === 0;
+        }
+
         return [
             'tracking_no' => $this->tracking_no,
             'submitted_at' => $this->created_at?->toDateTimeString(),
             'incoming' => (bool) $this->incoming, // if you want to show a tag
+            'latest_validation' => $latestValidation ? [
+                'document_status' => $documentStatus,
+            ] : null,
+            'application_status' => [
+                'key' => $isValidated ? 'under_review' : 'submitted',
+                'label' => $isValidated ? 'Application under review' : 'Submitted',
+            ],
 
             'applicant' => [
                 'name' => trim(collect([$this->first_name, $this->middle_name, $this->last_name, $this->name_extension])->filter()->implode(' ')),
