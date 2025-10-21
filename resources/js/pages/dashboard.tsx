@@ -8,7 +8,6 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Toaster, toast } from "sonner";
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
@@ -19,21 +18,6 @@ type SpecialGroupCounts = {
     solo_parent: number;
     first_generation: number;
     indigenous_people: number;
-};
-
-type ValidationSummary = {
-    id: number;
-    cmsp_id: number;
-    tracking_no: string;
-    documentary_requirements: string;
-    remarks: string | null;
-    checked_by: number;
-    created_at: string;
-    updated_at: string;
-    checker?: {
-        id: number;
-        name: string;
-    } | null;
 };
 
 const EMPTY_SPECIAL_COUNTS: SpecialGroupCounts = {
@@ -86,18 +70,6 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Home" />
-            <Toaster
-                richColors
-                position="top-right"
-                closeButton
-                duration={4000}
-                toastOptions={{
-                    style: {
-                        borderRadius: '0.75rem',
-                        fontFamily: 'var(--font-sans, Instrument Sans, sans-serif)',
-                    },
-                }}
-            />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 overflow-x-hidden">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {/* PWD */}
@@ -294,7 +266,6 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         academic_year: string;
         deadline: string; // ISO date
         created_at: string; // ISO datetime
-        latest_validation?: ValidationSummary | null;
     };
 
     const COLS = 48; // keep this in sync with the header
@@ -395,69 +366,32 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             ? (window as any).route('cmsp-applications.index.json')
             : '/cmsp-applications/json';
 
-    const { data, setData, post, delete: destroy, processing, errors, reset, clearErrors } = validationForm;
-
-    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
-    const [selectedApplication, setSelectedApplication] = useState<ApplicationRow | null>(null);
-    const hasExistingValidation = Boolean(selectedApplication?.latest_validation);
-
-    const firstError = (value: string | string[] | undefined) =>
-        Array.isArray(value) ? value[0] : value;
-
-    type ZiggyRouteResolver = (name: string, params?: Record<string, unknown>, absolute?: boolean) => unknown;
-
-    const resolveRouteUrl = useCallback((name: string, fallbackPath: string) => {
-        if (typeof window !== 'undefined') {
-            const scopedWindow = window as typeof window & { route?: ZiggyRouteResolver };
-            const ziggyRoute = scopedWindow.route;
-            if (typeof ziggyRoute === 'function') {
-                try {
-                    const resolved = ziggyRoute(name);
-                    if (typeof resolved === 'string') {
-                        return resolved;
-                    }
-                } catch (error) {
-                    console.warn(`Failed to resolve route "${name}" via Ziggy. Falling back to relative path.`, error);
-                }
-            }
-
-            return new URL(fallbackPath, scopedWindow.location.origin).toString();
-        }
-
-        return fallbackPath;
-    }, []);
-
-    const buildUrl = useCallback((p: number, s: string, pp: number) => {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-        const base = resolveRouteUrl('cmsp-applications.index.json', '/cmsp-applications/json');
-        const u = new URL(base, origin);
+        const u = new URL(base, window.location.origin);
         u.searchParams.set('page', String(p));
         u.searchParams.set('per_page', String(pp));
         u.searchParams.set('full', '1');            // ask for all columns
         if (s.trim()) u.searchParams.set('search', s.trim());
         return u.toString();
-    }, [resolveRouteUrl]);
+    }, []);
 
     const buildExportUrl = useCallback((s: string) => {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-        const base = resolveRouteUrl('cmsp-applications.export', '/cmsp-applications/export');
-        const u = new URL(base, origin);
+        const base = (window as any).route
+            ? (window as any).route('cmsp-applications.export')
+            : '/cmsp-applications/export';
+
+        const u = new URL(base, window.location.origin);
         if (s.trim()) u.searchParams.set('search', s.trim());
         return u.toString();
-    }, [resolveRouteUrl]);
+    }, []);
 
-    const fetchData = useCallback(async (p: number, s: string, pp: number) => {
+    const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
         setLoading(true);
         try {
             const res = await fetch(buildUrl(p, s, pp), {
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'include',
+                credentials: 'same-origin',
             });
             if (!res.ok) throw new Error('Failed to load');
-            const contentType = res.headers.get('Content-Type') ?? '';
-            if (!contentType.toLowerCase().includes('application/json')) {
-                throw new Error('Unexpected response format');
-            }
             const json = await res.json();
             setRows(json.data ?? []);
             setTotal(json.meta?.total ?? 0);
@@ -467,8 +401,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
             }
             setSelectedId(null);
-        } catch (error) {
-            console.error('Failed to fetch CMSP applications.', error);
+        } catch (e) {
             setRows([]);
             setTotal(0);
             setLastPage(1);
@@ -478,75 +411,9 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         } finally {
             setLoading(false);
         }
-    }, [buildUrl, onSpecialCounts]);
+    }, [buildUrl, onSpecialCounts, page, perPage, search]);
 
-    const latestSearchRef = useRef(search);
-    useEffect(() => { latestSearchRef.current = search; }, [search]);
-
-    useEffect(() => {
-        fetchData(1, latestSearchRef.current, perPage);
-    }, [fetchData, perPage]); // refetch when perPage changes
-
-    const handleValidationDialogOpenChange = useCallback((open: boolean) => {
-        setValidationDialogOpen(open);
-        if (!open) {
-            setSelectedApplication(null);
-            reset();
-            clearErrors();
-        }
-    }, [clearErrors, reset]);
-
-    const handleValidationOpen = useCallback((row: ApplicationRow) => {
-        setSelectedApplication(row);
-        setSelectedId(row.id);
-        setData('cmsp_id', row.id);
-        const latest = row.latest_validation ?? null;
-        setData('documentary_requirements', latest?.documentary_requirements ?? '');
-        setData('remarks', latest?.remarks ?? '');
-        clearErrors();
-        setValidationDialogOpen(true);
-    }, [clearErrors, setData]);
-
-    const handleValidationSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!selectedApplication || !data.cmsp_id) {
-            return;
-        }
-
-        post(route('validations.store'), {
-            preserveScroll: true,
-            onSuccess: () => {
-                toast.success('Validation saved!');
-                handleValidationDialogOpenChange(false);
-                fetchData(page, search, perPage);
-            },
-            onError: (formErrors) => {
-                if (formErrors && Object.keys(formErrors).length > 0) {
-                    toast.error('Please review the highlighted fields.');
-                } else {
-                    toast.error('Failed to save validation.');
-                }
-            },
-        });
-    }, [data.cmsp_id, fetchData, handleValidationDialogOpenChange, page, perPage, post, search, selectedApplication]);
-
-    const handleValidationClear = useCallback(() => {
-        if (!selectedApplication) {
-            return;
-        }
-
-        destroy(route('validations.destroy', selectedApplication.id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                toast.success('Validation cleared.');
-                handleValidationDialogOpenChange(false);
-                fetchData(page, search, perPage);
-            },
-            onError: () => {
-                toast.error('Failed to clear validation.');
-            },
-        });
-    }, [destroy, fetchData, handleValidationDialogOpenChange, page, perPage, search, selectedApplication]);
+    useEffect(() => { fetchData(1, search, perPage); }, [perPage]); // refetch when perPage changes
 
     const handleValidationDialogOpenChange = useCallback((open: boolean) => {
         setValidationDialogOpen(open);
@@ -592,7 +459,6 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 headers: {
                     Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 },
-                credentials: 'include',
             });
             if (!res.ok) {
                 throw new Error('Failed to export');
@@ -608,7 +474,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 if (match && match[1]) {
                     try {
                         filename = decodeURIComponent(match[1].replace(/"/g, ''));
-                    } catch {
+                    } catch (err) {
                         filename = match[1].replace(/"/g, '');
                     }
                 }
@@ -987,6 +853,8 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             >
                                                <SquarePen className="w-4 h-4" />
                                             </Button>
+                                         
+                                       
                                         </td>
                                         
                                     </tr>
