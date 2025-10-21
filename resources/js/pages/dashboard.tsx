@@ -9,9 +9,11 @@ import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
+import React from "react";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
@@ -39,6 +41,27 @@ const EMPTY_VALIDATION_FORM = {
     initial_rank: '',
     remarks: '',
 };
+
+const InDialogPopoverContent = React.forwardRef<
+    HTMLDivElement,
+    PopoverPrimitive.PopoverContentProps & { container?: HTMLElement | null }
+>(({ container, sideOffset = 8, className, ...props }, ref) => {
+    return (
+        <PopoverPrimitive.Portal container={container ?? undefined}>
+            <PopoverPrimitive.Content
+                ref={ref}
+                sideOffset={sideOffset}
+                className={cn(
+                    "z-[1000] w-[var(--radix-popover-trigger-width)] rounded-md border bg-popover p-0 text-popover-foreground shadow-md outline-none",
+                    className
+                )}
+                {...props}
+            />
+        </PopoverPrimitive.Portal>
+    );
+});
+InDialogPopoverContent.displayName = "InDialogPopoverContent";
+
 
 const parseSpecialGroupCounts = (input: unknown): SpecialGroupCounts => {
     const toNumber = (value: unknown): number => {
@@ -71,6 +94,17 @@ const parseSpecialGroupCounts = (input: unknown): SpecialGroupCounts => {
         first_generation: toNumber(raw.first_generation),
         indigenous_people: toNumber(raw.indigenous_people),
     };
+};
+
+const resolveRoute = (name: string, params?: any, fallback?: string) => {
+    try {
+        if ((window as any).route) {
+            return (window as any).route(name, params);
+        }
+    } catch {
+        /* ignore */
+    }
+    return fallback || '/';
 };
 
 export default function Dashboard() {
@@ -199,6 +233,7 @@ function TruncateCell({
 }
 
 function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGroupCounts) => void }) {
+    const dialogContentRef = useRef<HTMLDivElement | null>(null);
     type ApplicationRow = {
         id: number;
         incoming: boolean;
@@ -559,166 +594,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 json = null;
             }
 
-            if (!res.ok) {
-                if (json?.errors) {
-                    const serverErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
-                    if (json.errors.document_status?.length) {
-                        serverErrors.document_status = json.errors.document_status[0];
-                    }
-                    if (json.errors.no_siblings?.length) {
-                        serverErrors.no_siblings = json.errors.no_siblings[0];
-                    }
-                    if (json.errors.initial_rank?.length) {
-                        serverErrors.initial_rank = json.errors.initial_rank[0];
-                    }
-                    setValidationErrors((prev) => ({ ...prev, ...serverErrors }));
-                }
-                throw new Error(json?.message ?? 'Failed to save validation.');
-            }
-
-            toast.success(json?.message ?? 'Application validation saved successfully.');
-            handleValidationDialogChange(false);
-            await fetchData(page, search, perPage);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to save validation.';
-            toast.error(message);
-        } finally {
-            setValidationSubmitting(false);
-        }
-    };
-
-    const handleClearValidation = async () => {
-        if (!validationRow?.latest_validation) {
-            return;
-        }
-
-        setClearingValidation(true);
-        try {
-            const res = await fetch(getValidationDestroyUrl(validationRow.latest_validation.id), {
-                method: 'DELETE',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-            });
-
-            let json: any = null;
-            try {
-                json = await res.json();
-            } catch (err) {
-                json = null;
-            }
-
-            if (!res.ok) {
-                throw new Error(json?.message ?? 'Failed to clear validation.');
-            }
-
-            toast.success(json?.message ?? 'Application validation cleared.');
-            handleValidationDialogChange(false);
-            await fetchData(page, search, perPage);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to clear validation.';
-            toast.error(message);
-        } finally {
-            setClearingValidation(false);
-        }
-    };
-
-    const formatApplicantName = (row?: ApplicationRow | null) => {
-        if (!row) return '—';
-        const givenNames = [row.first_name, row.middle_name]
-            .filter((part) => part && String(part).trim() !== '')
-            .join(' ');
-        const base = givenNames
-            ? `${row.last_name.toUpperCase()}, ${givenNames}`
-            : row.last_name.toUpperCase();
-        const suffix = row.name_extension ? ` ${row.name_extension}` : '';
-        return `${base}${suffix}`.trim();
-    };
-
-    const resetValidationState = () => {
-        setValidationRow(null);
-        setValidationForm({ ...EMPTY_VALIDATION_FORM });
-        setValidationErrors({});
-        setValidationSubmitting(false);
-        setClearingValidation(false);
-        setSiblingsPopoverOpen(false);
-        setRankPopoverOpen(false);
-        setSelectedId(null);
-    };
-
-    const openValidationDialog = (row: ApplicationRow) => {
-        setValidationRow(row);
-        setSelectedId(row.id);
-        setValidationForm({
-            document_status: row.latest_validation?.document_status ?? '',
-            no_siblings: row.latest_validation?.no_siblings ? String(row.latest_validation.no_siblings) : '',
-            initial_rank: row.latest_validation?.initial_rank ?? '',
-            remarks: row.latest_validation?.remarks ?? '',
-        });
-        setValidationErrors({});
-        setValidationSubmitting(false);
-        setClearingValidation(false);
-        setSiblingsPopoverOpen(false);
-        setRankPopoverOpen(false);
-        setValidationDialogOpen(true);
-    };
-
-    const handleValidationDialogChange = (open: boolean) => {
-        setValidationDialogOpen(open);
-        if (!open) {
-            resetValidationState();
-        }
-    };
-
-    const handleValidationSubmit = async () => {
-        if (!validationRow) return;
-
-        const nextErrors: { document_status?: string; no_siblings?: string; initial_rank?: string } = {};
-        if (!validationForm.document_status.trim()) {
-            nextErrors.document_status = 'Document status is required.';
-        }
-        if (!validationForm.no_siblings) {
-            nextErrors.no_siblings = 'Select the number of siblings.';
-        }
-        if (!validationForm.initial_rank) {
-            nextErrors.initial_rank = 'Select the initial rank.';
-        }
-        setValidationErrors(nextErrors);
-        if (Object.keys(nextErrors).length > 0) {
-            return;
-        }
-
-        setValidationSubmitting(true);
-        try {
-            const payload = {
-                cmsp_id: validationRow.id,
-                document_status: validationForm.document_status.trim(),
-                no_siblings: Number(validationForm.no_siblings),
-                initial_rank: validationForm.initial_rank,
-                remarks: validationForm.remarks.trim() ? validationForm.remarks.trim() : null,
-            };
-
-            const res = await fetch(getValidationStoreUrl(), {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload),
-            });
-
-            let json: any = null;
-            try {
-                json = await res.json();
-            } catch (err) {
-                json = null;
-            }
+            const contentType = res.headers.get('content-type') || '';
 
             if (!res.ok) {
                 if (json?.errors) {
@@ -1212,7 +1088,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                                 </span>
                                             </Button>
                                         </td>
-                                        
+
                                     </tr>
                                 ))
                             )}
@@ -1222,7 +1098,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                 </div>
 
                 <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogChange}>
-                    <DialogContent className="sm:max-w-lg">
+                    <DialogContent ref={dialogContentRef} className="sm:max-w-lg overflow-visible">
                         <DialogHeader>
                             <DialogTitle>Validate application</DialogTitle>
                             <DialogDescription>
@@ -1259,7 +1135,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                             </div>
                             <div className="grid gap-2">
                                 <Label>No. of Siblings</Label>
-                                <Popover open={siblingsPopoverOpen} onOpenChange={setSiblingsPopoverOpen}>
+                                <Popover open={siblingsPopoverOpen} onOpenChange={setSiblingsPopoverOpen} modal={false} >
                                     <PopoverTrigger asChild>
                                         <Button
                                             type="button"
@@ -1277,7 +1153,11 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" sideOffset={8}>
+                                    <InDialogPopoverContent
+                                        container={dialogContentRef.current}
+                                        align="start"
+                                        sideOffset={8}
+                                    >
                                         <Command>
                                             <CommandInput placeholder="Search count..." />
                                             <CommandList>
@@ -1303,7 +1183,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                                 </CommandGroup>
                                             </CommandList>
                                         </Command>
-                                    </PopoverContent>
+                                    </InDialogPopoverContent>
                                 </Popover>
                                 {validationErrors.no_siblings && (
                                     <p className="text-xs text-red-600">{validationErrors.no_siblings}</p>
@@ -1311,7 +1191,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                             </div>
                             <div className="grid gap-2">
                                 <Label>Initial Rank</Label>
-                                <Popover open={rankPopoverOpen} onOpenChange={setRankPopoverOpen}>
+                                <Popover open={rankPopoverOpen} onOpenChange={setRankPopoverOpen} modal={false} >
                                     <PopoverTrigger asChild>
                                         <Button
                                             type="button"
@@ -1327,7 +1207,11 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                             <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" sideOffset={8}>
+                                    <InDialogPopoverContent
+                                        container={dialogContentRef.current}
+                                        align="start"
+                                        sideOffset={8}
+                                    >
                                         <Command>
                                             <CommandInput placeholder="Search rank..." />
                                             <CommandList>
@@ -1353,7 +1237,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                                 </CommandGroup>
                                             </CommandList>
                                         </Command>
-                                    </PopoverContent>
+                                    </InDialogPopoverContent>
                                 </Popover>
                                 {validationErrors.initial_rank && (
                                     <p className="text-xs text-red-600">{validationErrors.initial_rank}</p>
