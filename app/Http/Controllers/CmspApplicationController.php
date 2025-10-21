@@ -638,8 +638,9 @@ public function exportXlsx(Request $request)
             $sheet->setCellValue("Z{$row}", $entry['grade_weighted']);
             $sheet->setCellValue("AA{$row}", $entry['income_weighted']);
             $sheet->setCellValue("AB{$row}", $entry['total_points']);
+            $sheet->mergeCells("AC{$row}:AD{$row}");
             $sheet->setCellValue("AC{$row}", $specialGroupText);
-            $sheet->setCellValue("AD{$row}", '');
+            // $sheet->setCellValue("AD{$row}", '');
             $sheet->setCellValue("AE{$row}", $entry['plus_five']);
             $sheet->setCellValue("AF{$row}", $entry['final_points']);
             $sheet->setCellValue("AG{$row}", $index + 1);
