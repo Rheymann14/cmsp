@@ -301,13 +301,18 @@ public function exportXlsx(Request $request)
                 DB::raw('CONCAT_WS(", ", l.municipality, l.province) as province_municipality_name'),
                 DB::raw('l.municipality as municipality_name'),
                 DB::raw('l.province as province_name'),
+                DB::raw('v.document_status as validation_document_status'),
+                DB::raw('v.remarks as validation_remarks'),
+                DB::raw('v.no_siblings as validation_no_siblings'),
+                DB::raw('v.initial_rank as validation_initial_rank'),
             ])
             ->leftJoin('ethnicities as e', 'e.id', '=', 'a.ethnicity_id')
             ->leftJoin('religions as r', 'r.id', '=', 'a.religion_id')
             ->leftJoin('locations as l', 'l.id', '=', 'a.province_municipality')
             ->leftJoin('districts as d', 'd.id', '=', 'a.district')
             ->leftJoin('schools as s2', 's2.id', '=', 'a.intended_school')
-            ->leftJoin('courses as c', 'c.id', '=', 'a.course');
+            ->leftJoin('courses as c', 'c.id', '=', 'a.course')
+            ->leftJoin('validations as v', 'v.cmsp_id', '=', 'a.id');
 
         if ($term !== '') {
             $query->where(function ($w) use ($term) {
@@ -638,10 +643,10 @@ public function exportXlsx(Request $request)
             $sheet->setCellValue("AE{$row}", $entry['plus_five']);
             $sheet->setCellValue("AF{$row}", $entry['final_points']);
             $sheet->setCellValue("AG{$row}", $index + 1);
-            $sheet->setCellValue("AH{$row}", '');
-            $sheet->setCellValue("AI{$row}", '');
-            $sheet->setCellValue("AJ{$row}", '');
-            $sheet->setCellValue("AK{$row}", '');
+            $sheet->setCellValue("AH{$row}", $app->validation_document_status ?? '');
+            $sheet->setCellValue("AI{$row}", $app->validation_remarks ?? '');
+            $sheet->setCellValue("AJ{$row}", $app->validation_no_siblings ?? '');
+            $sheet->setCellValue("AK{$row}", $app->validation_initial_rank ?? '');
         }
 
         $lastRow = $startRow + count($computed) - 1;
