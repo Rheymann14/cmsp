@@ -27,6 +27,7 @@ class TrackApplicationController extends Controller
                 'districtModel:id,name',
                 'school:id,name',
                 'courseModel:id,name',
+                'latestValidation:id,cmsp_id,document_status',
             ])
             ->where('tracking_no', $normalized)
             ->first();

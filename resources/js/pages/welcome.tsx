@@ -65,6 +65,13 @@ type TrackData = {
     tracking_no: string;
     submitted_at: string | null;
     incoming: boolean;
+    latest_validation: {
+        document_status: string | null;
+    } | null;
+    application_status: {
+        key: 'submitted' | 'under_review';
+        label: string;
+    };
     applicant: {
         name: string | null;
         birthdate: string | null;

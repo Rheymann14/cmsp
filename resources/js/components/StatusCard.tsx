@@ -8,6 +8,13 @@ export type TrackData = {
   tracking_no: string;
   submitted_at: string | null;
   incoming: boolean;
+  latest_validation: {
+    document_status: string | null;
+  } | null;
+  application_status: {
+    key: 'submitted' | 'under_review';
+    label: string;
+  };
   applicant: {
     name: string | null;
     birthdate: string | null;
@@ -85,6 +92,11 @@ export default function StatusCard({ data }: { data: TrackData }) {
 
   const fileEntries = Object.entries(data.files as Record<string, boolean>);
 
+  const isUnderReview = data.application_status.key === 'under_review';
+  const statusBadgeClasses = isUnderReview
+    ? 'rounded-full border-amber-300 bg-amber-100/80 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+    : 'rounded-full border-blue-200 bg-blue-100/80 text-blue-800 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-200';
+
   return (
     <Card className="border border-zinc-200/80 dark:border-zinc-800 rounded-xl">
       <CardContent className="p-4 sm:p-5 space-y-3">
@@ -94,14 +106,9 @@ export default function StatusCard({ data }: { data: TrackData }) {
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                 {data.applicant.name || 'Applicant'}
               </span>
-              {data.incoming && (
-                <Badge
-                  variant="outline"
-                  className="rounded-full border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300"
-                >
-                  Incoming
-                </Badge>
-              )}
+              <Badge variant="outline" className={statusBadgeClasses}>
+                {data.application_status.label}
+              </Badge>
             </div>
             <div className="text-xs text-zinc-500">
               Tracking: <span className="font-mono">{data.tracking_no}</span>
