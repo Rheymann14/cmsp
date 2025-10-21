@@ -27,9 +27,7 @@ class TrackApplicationController extends Controller
                 'districtModel:id,name',
                 'school:id,name',
                 'courseModel:id,name',
-                'latestValidation' => function ($query) {
-                    $query->select('validations.id', 'validations.cmsp_id', 'validations.document_status');
-                },
+                'latestValidation:id,cmsp_id,document_status',
             ])
             ->where('tracking_no', $normalized)
             ->first();
