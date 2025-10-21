@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CmspApplication extends Model
 {
@@ -110,6 +111,16 @@ public function courseModel()    { return $this->belongsTo(\App\Models\Course::c
 // Backwards-compatible aliases (older relationship names used elsewhere)
 public function districtR()      { return $this->districtModel(); }
 public function courseR()        { return $this->courseModel(); }
+
+public function validations()
+{
+    return $this->hasMany(Validation::class, 'cmsp_id');
+}
+
+public function latestValidation(): HasOne
+{
+    return $this->hasOne(Validation::class, 'cmsp_id')->latestOfMany();
+}
 
     
 }
