@@ -708,8 +708,28 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
             }
 
             toast.success(json?.message ?? 'Application validation cleared.');
-            handleValidationDialogChange(false);
-            await fetchData(page, search, perPage);
+
+            const targetRowId = validationRow.id;
+            setValidationRow((prev) => (prev ? { ...prev, latest_validation: null } : prev));
+            setRows((prevRows) =>
+                prevRows.map((row) =>
+                    row.id === targetRowId
+                        ? {
+                            ...row,
+                            latest_validation: null,
+                        }
+                        : row,
+                ),
+            );
+            setValidationForm({ ...EMPTY_VALIDATION_FORM });
+            setValidationErrors({});
+            setSiblingsPopoverOpen(false);
+            setRankPopoverOpen(false);
+
+            setSelectedId(targetRowId);
+            fetchData(page, search, perPage).then(() => {
+                setSelectedId(targetRowId);
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to clear validation.';
             toast.error(message);
