@@ -265,6 +265,9 @@ export default function Welcome() {
     const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(
         flash?.trackingNo ?? flash?.tracking_no ?? null,
     );
+    const lastHandledTrackingRef = useRef<string | null>(
+        flash?.trackingNo ?? flash?.tracking_no ?? null,
+    );
 
     const [trackOpen, setTrackOpen] = useState(false);
     const [trackingCode, setTrackingCode] = useState("");
@@ -364,10 +367,18 @@ export default function Welcome() {
 
     useEffect(() => {
         const tracking = flash?.trackingNo ?? flash?.tracking_no ?? null;
-        if (tracking) {
+
+        if (tracking && tracking !== lastHandledTrackingRef.current) {
+            lastHandledTrackingRef.current = tracking;
             setGeneratedTrackingNo(tracking);
+            setSuccessOpen(true);
+            const successMessage =
+                typeof flash?.success === 'string'
+                    ? flash?.success
+                    : 'Application submitted successfully!';
+            toast.success(successMessage, { id: 'cmsp-submit' });
         }
-    }, [flash?.trackingNo, flash?.tracking_no]);
+    }, [flash?.trackingNo, flash?.tracking_no, flash?.success]);
 
 
     // confetti viewport size
