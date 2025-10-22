@@ -222,7 +222,11 @@ const TRACKING_RAW_REGEX = /^[A-Z0-9]{5}\d{4}$/;
 type WelcomePageProps = {
     auth: SharedData['auth'];
     ayDeadline: AyDeadline;
-    flash?: { trackingNo?: string | null; tracking_no?: string | null };
+    flash?: {
+        trackingNo?: string | null;
+        tracking_no?: string | null;
+        success?: string;
+    };
 };
 
 const normalizeTrackingInput = (value: string) => {
@@ -1359,7 +1363,11 @@ export default function Welcome() {
 
                 const pageProps = page.props as unknown as WelcomePageProps | undefined;
                 const flashData = pageProps?.flash as
-                    | { trackingNo?: string | null; tracking_no?: string | null }
+                    | {
+                          trackingNo?: string | null;
+                          tracking_no?: string | null;
+                          success?: string;
+                      }
                     | undefined;
                 const trackingNo = flashData?.trackingNo ?? flashData?.tracking_no ?? null;
                 setGeneratedTrackingNo(trackingNo);
