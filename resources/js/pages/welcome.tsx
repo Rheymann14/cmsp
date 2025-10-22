@@ -222,7 +222,11 @@ const TRACKING_RAW_REGEX = /^[A-Z0-9]{5}\d{4}$/;
 type WelcomePageProps = {
     auth: SharedData['auth'];
     ayDeadline: AyDeadline;
-    flash?: { trackingNo?: string | null; tracking_no?: string | null };
+    flash?: {
+        trackingNo?: string | null;
+        tracking_no?: string | null;
+        success?: string;
+    };
 };
 
 const normalizeTrackingInput = (value: string) => {
@@ -263,6 +267,9 @@ export default function Welcome() {
     const [successOpen, setSuccessOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"form" | "req">("form");
     const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(
+        flash?.trackingNo ?? flash?.tracking_no ?? null,
+    );
+    const lastHandledTrackingRef = useRef<string | null>(
         flash?.trackingNo ?? flash?.tracking_no ?? null,
     );
 
@@ -364,10 +371,18 @@ export default function Welcome() {
 
     useEffect(() => {
         const tracking = flash?.trackingNo ?? flash?.tracking_no ?? null;
-        if (tracking) {
+
+        if (tracking && tracking !== lastHandledTrackingRef.current) {
+            lastHandledTrackingRef.current = tracking;
             setGeneratedTrackingNo(tracking);
+            setSuccessOpen(true);
+            const successMessage =
+                typeof flash?.success === 'string'
+                    ? flash?.success
+                    : 'Application submitted successfully!';
+            toast.success(successMessage, { id: 'cmsp-submit' });
         }
-    }, [flash?.trackingNo, flash?.tracking_no]);
+    }, [flash?.trackingNo, flash?.tracking_no, flash?.success]);
 
 
     // confetti viewport size
@@ -1348,7 +1363,11 @@ export default function Welcome() {
 
                 const pageProps = page.props as unknown as WelcomePageProps | undefined;
                 const flashData = pageProps?.flash as
-                    | { trackingNo?: string | null; tracking_no?: string | null }
+                    | {
+                          trackingNo?: string | null;
+                          tracking_no?: string | null;
+                          success?: string;
+                      }
                     | undefined;
                 const trackingNo = flashData?.trackingNo ?? flashData?.tracking_no ?? null;
                 setGeneratedTrackingNo(trackingNo);
