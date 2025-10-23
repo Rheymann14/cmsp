@@ -923,7 +923,7 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
                                 <th className="px-3 py-2 font-semibold">No</th>
                                 <th className="px-3 py-2 font-semibold min-w-[160px]">Tracking No</th>
                                 <th className="px-3 py-2 font-semibold">LRN</th>
-                                <th className="px-3 py-2 font-semibold">Email</th>
+                                <th className="px-3 py-2 font-semibold min-w-[240px]">Email</th>
                                 <th className="px-3 py-2 font-semibold">Contact #</th>
                                 <th className="px-3 py-2 font-semibold min-w-[160px]">Name</th>
                                 <th className="px-3 py-2 font-semibold">Name Ext.</th>
@@ -1049,8 +1049,10 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
 
                                         <td className="px-3 py-2">{r.lrn}</td>
 
-                                        <td className="px-3 py-2" title={r.email}>
-                                            <TruncateCell value={r.email} max={30} />
+                                        <td className="px-3 py-2 relative" title={r.email}>
+                                            <div className="flex items-center gap-2 max-w-[280px]">
+                                                <TruncateCell value={r.email} max={20} />
+                                                </div>
                                         </td>
 
                                         <td className="px-3 py-2" title={r.contact_number}>
