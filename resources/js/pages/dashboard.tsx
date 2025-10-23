@@ -235,8 +235,8 @@ function TruncateCell({
     const shown = !isLong || expanded ? raw : raw.slice(0, Math.max(0, max - 1)) + '…';
 
     return (
-        <div className="flex items-start gap-1">
-            <span className="whitespace-pre-wrap break-words leading-snug">{shown}</span>
+        <div className="inline-flex max-w-full flex-wrap items-start gap-1">
+            <span className="whitespace-pre-wrap break-words leading-snug min-w-0">{shown}</span>
             {isLong && (
                 <button
                     type="button"
