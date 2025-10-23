@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, CalendarRange, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
@@ -260,34 +260,42 @@ export default function Dashboard() {
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1e3c73] dark:text-zinc-100">
                     CHED Merit Scholarship Program (CMSP)
                 </h1>
+                <div className="w-full flex flex-col items-center justify-center text-center gap-1">
+                    <div className="inline-flex items-center gap-2">
+                        <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                            {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
+                        </span>
+
+                    </div>
+
+                    <span className="text-xs text-muted-foreground">
+                        {selectedDeadline?.deadline_formatted
+                            ? `Deadline: ${selectedDeadline.deadline_formatted}`
+                            : 'No deadline date selected'}
+                    </span>
+                </div>
+
             </div>
 
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-hidden">
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-sm text-muted-foreground">Showing data for</span>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
-                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'All academic years'}
-                            </span>
-                            {selectedDeadline?.is_enabled ? (
-                                <Badge variant="secondary" className="whitespace-nowrap">
-                                    Enabled
-                                </Badge>
-                            ) : null}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                            {selectedDeadline?.deadline_formatted
-                                ? `Deadline: ${selectedDeadline.deadline_formatted}`
-                                : 'No deadline date selected'}
-                        </span>
-                    </div>
+
 
                     <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="self-start sm:self-auto">
-                                {selectedAcademicYear ? 'Change academic year' : 'Select academic year'}
+
+                            <Button
+                                variant="outline"
+                                className={cn(
+                                    "self-start sm:self-auto gap-2",
+                                    selectedAcademicYear
+                                        ? "border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700/60 dark:text-blue-300 dark:hover:bg-blue-900/20"
+                                        : "border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10 dark:border-[#1e3c73] dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20"
+                                )}
+                            >
+                                <CalendarRange className="h-4 w-4" />
+                                {selectedAcademicYear ? "Change academic year" : "Select academic year"}
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
@@ -1284,7 +1292,7 @@ function CmspsTable({
                                         <td className="px-3 py-2 relative" title={r.email}>
                                             <div className="flex items-center gap-2 max-w-[280px]">
                                                 <TruncateCell value={r.email} max={20} />
-                                                </div>
+                                            </div>
                                         </td>
 
                                         <td className="px-3 py-2" title={r.contact_number}>
