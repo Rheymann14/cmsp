@@ -682,6 +682,12 @@ public function indexJson(\Illuminate\Http\Request $request)
 {
     $term    = trim((string) $request->get('search', ''));
     $perPage = (int) $request->integer('per_page', 10);
+    $academicYear = trim((string) $request->get('academic_year', ''));
+    $deadlineInput = trim((string) $request->get('deadline', ''));
+    $deadlineDate = null;
+    if ($deadlineInput !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadlineInput) === 1) {
+        $deadlineDate = $deadlineInput;
+    }
 
     $q = CmspApplication::query()
         ->with([
@@ -697,6 +703,14 @@ public function indexJson(\Illuminate\Http\Request $request)
     'latestValidation.checker:id,name',
 ])
         ->latest();
+
+    if ($academicYear !== '') {
+        $q->where('academic_year', $academicYear);
+    }
+
+    if ($deadlineDate !== null) {
+        $q->whereDate('deadline', $deadlineDate);
+    }
 
     if ($term !== '') {
         $q->where(function ($w) use ($term) {
@@ -715,12 +729,26 @@ public function indexJson(\Illuminate\Http\Request $request)
         });
     }
 
-    // special group counts
+    // special group counts filtered by academic year / deadline when provided
+    $makeCountsQuery = static function () use ($academicYear, $deadlineDate) {
+        $query = CmspApplication::query();
+
+        if ($academicYear !== '') {
+            $query->where('academic_year', $academicYear);
+        }
+
+        if ($deadlineDate !== null) {
+            $query->whereDate('deadline', $deadlineDate);
+        }
+
+        return $query;
+    };
+
     $specialCounts = [
-        'pwd' => CmspApplication::whereJsonContains('special_groups', 'Person With Disability (PWD)')->count(),
-        'solo_parent' => CmspApplication::whereJsonContains('special_groups', 'Solo Parent')->count(),
-        'first_generation' => CmspApplication::whereJsonContains('special_groups', 'First Generation Students (first in the family to attend college or university)')->count(),
-        'indigenous_people' => CmspApplication::whereJsonContains('special_groups', 'Indigenous People (IP)')->count(),
+        'pwd' => $makeCountsQuery()->whereJsonContains('special_groups', 'Person With Disability (PWD)')->count(),
+        'solo_parent' => $makeCountsQuery()->whereJsonContains('special_groups', 'Solo Parent')->count(),
+        'first_generation' => $makeCountsQuery()->whereJsonContains('special_groups', 'First Generation Students (first in the family to attend college or university)')->count(),
+        'indigenous_people' => $makeCountsQuery()->whereJsonContains('special_groups', 'Indigenous People (IP)')->count(),
     ];
 
     $apps = $q->paginate($perPage)->appends($request->all());

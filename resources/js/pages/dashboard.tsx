@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import React from "react";
@@ -32,6 +32,59 @@ const EMPTY_SPECIAL_COUNTS: SpecialGroupCounts = {
     solo_parent: 0,
     first_generation: 0,
     indigenous_people: 0,
+};
+
+const toStringOrEmpty = (value: unknown): string => {
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    return String(value);
+};
+
+type AyDeadlineOption = {
+    id: number;
+    academic_year: string;
+    deadline: string;
+    deadline_formatted: string;
+    is_enabled: boolean;
+};
+
+const parseAyDeadlines = (input: unknown): AyDeadlineOption[] => {
+    if (!Array.isArray(input)) {
+        return [];
+    }
+
+    return input.reduce<AyDeadlineOption[]>((acc, item) => {
+        if (!item || typeof item !== 'object') {
+            return acc;
+        }
+
+        const raw = item as Record<string, unknown>;
+        const rawId = raw.id;
+        const parsedId =
+            typeof rawId === 'number'
+                ? rawId
+                : Number.parseInt(typeof rawId === 'string' ? rawId : toStringOrEmpty(rawId), 10);
+
+        if (!Number.isFinite(parsedId)) {
+            return acc;
+        }
+
+        acc.push({
+            id: parsedId,
+            academic_year: toStringOrEmpty(raw.academic_year),
+            deadline: toStringOrEmpty(raw.deadline),
+            deadline_formatted: toStringOrEmpty(raw.deadline_formatted),
+            is_enabled: Boolean(raw.is_enabled),
+        });
+
+        return acc;
+    }, []);
 };
 
 const SIBLING_OPTIONS = Array.from({ length: 15 }, (_, index) => index + 1);
@@ -126,6 +179,69 @@ const toPath = (href: string) => {
 
 export default function Dashboard() {
     const [specialCounts, setSpecialCounts] = useState<SpecialGroupCounts>({ ...EMPTY_SPECIAL_COUNTS });
+    const [ayDeadlines, setAyDeadlines] = useState<AyDeadlineOption[]>([]);
+    const [selectedDeadlineId, setSelectedDeadlineId] = useState<number | null>(null);
+    const [deadlinesLoading, setDeadlinesLoading] = useState(false);
+    const [deadlineDialogOpen, setDeadlineDialogOpen] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadDeadlines = async () => {
+            setDeadlinesLoading(true);
+            try {
+                const url = toPath(resolveRoute('ay-deadlines.index', undefined, '/ay-deadlines'));
+                const res = await fetch(url, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+
+                if (!res.ok) {
+                    throw new Error('Failed to fetch academic year deadlines.');
+                }
+
+                const json = await res.json();
+                if (cancelled) return;
+
+                const parsed = parseAyDeadlines((json as { deadlines?: unknown })?.deadlines);
+                setAyDeadlines(parsed);
+                setSelectedDeadlineId((current) => {
+                    if (current !== null && parsed.some((deadline) => deadline.id === current)) {
+                        return current;
+                    }
+
+                    const preferred = parsed.find((deadline) => deadline.is_enabled) ?? parsed[0] ?? null;
+                    return preferred ? preferred.id : null;
+                });
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                setAyDeadlines([]);
+                setSelectedDeadlineId(null);
+                toast.error('Failed to load academic year deadlines.');
+            } finally {
+                if (!cancelled) {
+                    setDeadlinesLoading(false);
+                }
+            }
+        };
+
+        void loadDeadlines();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const selectedDeadline = useMemo(
+        () => ayDeadlines.find((deadline) => deadline.id === selectedDeadlineId) ?? null,
+        [ayDeadlines, selectedDeadlineId]
+    );
+
+    const selectedAcademicYear = selectedDeadline?.academic_year ?? null;
+    const selectedDeadlineDate = selectedDeadline?.deadline ?? null;
 
     const handleSpecialCounts = useCallback((counts: SpecialGroupCounts) => {
         setSpecialCounts({ ...counts });
@@ -147,6 +263,88 @@ export default function Dashboard() {
             </div>
 
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm text-muted-foreground">Showing data for</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'All academic years'}
+                            </span>
+                            {selectedDeadline?.is_enabled ? (
+                                <Badge variant="secondary" className="whitespace-nowrap">
+                                    Enabled
+                                </Badge>
+                            ) : null}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                            {selectedDeadline?.deadline_formatted
+                                ? `Deadline: ${selectedDeadline.deadline_formatted}`
+                                : 'No deadline date selected'}
+                        </span>
+                    </div>
+
+                    <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="self-start sm:self-auto">
+                                {selectedAcademicYear ? 'Change academic year' : 'Select academic year'}
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Select academic year</DialogTitle>
+                                <DialogDescription>
+                                    Choose an academic year deadline to filter the dashboard data.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <Command>
+                                <CommandInput placeholder="Search academic year..." />
+                                <CommandList>
+                                    <CommandEmpty>
+                                        {deadlinesLoading
+                                            ? 'Loading deadlines...'
+                                            : 'No academic year deadlines found.'}
+                                    </CommandEmpty>
+                                    {ayDeadlines.length > 0 ? (
+                                        <CommandGroup heading="Academic year deadlines">
+                                            {ayDeadlines.map((deadline) => (
+                                                <CommandItem
+                                                    key={deadline.id}
+                                                    value={`AY ${deadline.academic_year}`}
+                                                    onSelect={() => {
+                                                        setSelectedDeadlineId(deadline.id);
+                                                        setDeadlineDialogOpen(false);
+                                                    }}
+                                                >
+                                                    <div className="flex flex-1 flex-col">
+                                                        <span className="font-medium">
+                                                            AY {deadline.academic_year}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {deadline.deadline_formatted
+                                                                ? `Deadline: ${deadline.deadline_formatted}`
+                                                                : 'No deadline date'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {deadline.is_enabled ? (
+                                                            <Badge variant="secondary" className="whitespace-nowrap">
+                                                                Enabled
+                                                            </Badge>
+                                                        ) : null}
+                                                        {selectedDeadlineId === deadline.id ? (
+                                                            <Check className="h-4 w-4 text-[#1e3c73]" />
+                                                        ) : null}
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    ) : null}
+                                </CommandList>
+                            </Command>
+                        </DialogContent>
+                    </Dialog>
+                </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -211,7 +409,11 @@ export default function Dashboard() {
                     {/* full-bleed: match AppLayout page padding p-4 sm:p-6 lg:p-8 */}
                     <div className="mx-[-1rem] sm:mx-[-1.5rem] lg:mx-[-2rem]">
                         <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                            <CmspsTable onSpecialCounts={handleSpecialCounts} />
+                            <CmspsTable
+                                onSpecialCounts={handleSpecialCounts}
+                                academicYear={selectedAcademicYear}
+                                deadline={selectedDeadlineDate}
+                            />
                         </div>
                     </div>
                 </div>
@@ -259,7 +461,15 @@ function TruncateCell({
     );
 }
 
-function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGroupCounts) => void }) {
+function CmspsTable({
+    onSpecialCounts,
+    academicYear,
+    deadline,
+}: {
+    onSpecialCounts?: (counts: SpecialGroupCounts) => void;
+    academicYear?: string | null;
+    deadline?: string | null;
+}) {
     const dialogContentRef = useRef<HTMLDivElement | null>(null);
     type ApplicationRow = {
         id: number;
@@ -454,6 +664,10 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
 
+    useEffect(() => {
+        setPage(1);
+    }, [academicYear, deadline]);
+
     // AFTER
     const buildUrl = useCallback((p: number, s: string, pp: number) => {
         const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
@@ -461,17 +675,35 @@ function CmspsTable({ onSpecialCounts }: { onSpecialCounts?: (counts: SpecialGro
         u.searchParams.set('page', String(p));
         u.searchParams.set('per_page', String(pp));
         u.searchParams.set('full', '1');
-        if (s.trim()) u.searchParams.set('search', s.trim());
+        const trimmedSearch = s.trim();
+        if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
+        const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
+        if (trimmedAcademicYear) {
+            u.searchParams.set('academic_year', trimmedAcademicYear);
+        }
+        const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
+        if (trimmedDeadline) {
+            u.searchParams.set('deadline', trimmedDeadline);
+        }
         // return a same-origin path
         return u.pathname + u.search + u.hash;
-    }, []);
+    }, [academicYear, deadline]);
 
     const buildExportUrl = useCallback((s: string) => {
         const basePath = toPath(resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export'));
         const u = new URL(basePath, window.location.origin);
-        if (s.trim()) u.searchParams.set('search', s.trim());
+        const trimmedSearch = s.trim();
+        if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
+        const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
+        if (trimmedAcademicYear) {
+            u.searchParams.set('academic_year', trimmedAcademicYear);
+        }
+        const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
+        if (trimmedDeadline) {
+            u.searchParams.set('deadline', trimmedDeadline);
+        }
         return u.pathname + u.search + u.hash;
-    }, []);
+    }, [academicYear, deadline]);
 
     const getValidationStoreUrl = () =>
         toPath((window as any).route ? (window as any).route('validations.store') : '/validations');
