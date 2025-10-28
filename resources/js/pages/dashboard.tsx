@@ -266,7 +266,7 @@ export default function Dashboard() {
 
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-hidden">
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
                         <DialogTrigger asChild>
                             <Button
@@ -336,19 +336,21 @@ export default function Dashboard() {
                             </Command>
                         </DialogContent>
                     </Dialog>
-                    <div className="flex flex-col items-center text-center gap-1 sm:items-start sm:text-left">
-                        <div className="inline-flex items-center gap-2">
-                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
-                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
+                    <div className="w-full sm:w-auto flex justify-center sm:justify-end">
+                        <div className="w-full flex flex-col items-center justify-center text-center gap-1">
+                            <div className="inline-flex items-center gap-2">
+                                <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                    {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
+                                </span>
+
+                            </div>
+
+                            <span className="text-xs text-muted-foreground">
+                                {selectedDeadline?.deadline_formatted
+                                    ? `Deadline: ${selectedDeadline.deadline_formatted}`
+                                    : 'No deadline date selected'}
                             </span>
                         </div>
-
-                        <span className="text-xs text-muted-foreground">
-                            {selectedDeadline?.deadline_formatted
-                                ? `Deadline: ${selectedDeadline.deadline_formatted}`
-                                : 'No deadline date selected'}
-                        </span>
-                    </div>
                     </div>
                 </div>
 
@@ -1228,7 +1230,7 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
                                 <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
-                                <th className="px-3 py-2 font-semibold sticky right-0 z-30 border-l border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.18)] dark:shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.5)]">
+                                <th className="px-3 py-2 font-semibold sticky right-0 z-20 bg-zinc-50 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800">
                                     Action
                                 </th>
                             </tr>
@@ -1278,7 +1280,7 @@ function CmspsTable({
                                             'hover:bg-zinc-50 dark:hover:bg-zinc-900/40',
                                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
                                             selectedId === r.id &&
-                                                'bg-blue-100 dark:bg-blue-900 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
+                                                'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
                                         )}
                                     >
                                         <td
@@ -1449,9 +1451,9 @@ function CmspsTable({
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                         <td
                                             className={cn(
-                                                'px-3 py-2 sticky right-0 z-20 border-l border-zinc-200 dark:border-zinc-800 shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.18)] dark:shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.5)]',
+                                                'px-3 py-2 sticky right-0 z-10 border-l border-zinc-200 dark:border-zinc-800',
                                                 selectedId === r.id
-                                                    ? 'bg-blue-100 dark:bg-blue-900'
+                                                    ? 'bg-blue-100/80 dark:bg-blue-900/50'
                                                     : 'bg-white dark:bg-zinc-950 group-hover:bg-zinc-50 dark:group-hover:bg-zinc-900/40'
                                             )}
                                         >
