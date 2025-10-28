@@ -183,6 +183,7 @@ export default function Dashboard() {
     const [selectedDeadlineId, setSelectedDeadlineId] = useState<number | null>(null);
     const [deadlinesLoading, setDeadlinesLoading] = useState(false);
     const [deadlineDialogOpen, setDeadlineDialogOpen] = useState(false);
+    const [tableFiltersReady, setTableFiltersReady] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -224,6 +225,7 @@ export default function Dashboard() {
             } finally {
                 if (!cancelled) {
                     setDeadlinesLoading(false);
+                    setTableFiltersReady(true);
                 }
             }
         };
@@ -419,6 +421,7 @@ export default function Dashboard() {
                                 onSpecialCounts={handleSpecialCounts}
                                 academicYear={selectedAcademicYear}
                                 deadline={selectedDeadlineDate}
+                                ready={tableFiltersReady}
                             />
                         </div>
                     </div>
@@ -471,10 +474,12 @@ function CmspsTable({
     onSpecialCounts,
     academicYear,
     deadline,
+    ready = true,
 }: {
     onSpecialCounts?: (counts: SpecialGroupCounts) => void;
     academicYear?: string | null;
     deadline?: string | null;
+    ready?: boolean;
 }) {
     const dialogContentRef = useRef<HTMLDivElement | null>(null);
     type ApplicationRow = {
@@ -760,7 +765,13 @@ function CmspsTable({
         }
     };
 
-    useEffect(() => { fetchData(page, search, perPage); }, [fetchData, page, perPage, search]);
+    useEffect(() => {
+        if (!ready) {
+            return;
+        }
+
+        fetchData(page, search, perPage);
+    }, [fetchData, page, perPage, search, ready]);
 
     const formatApplicantName = (row?: ApplicationRow | null) => {
         if (!row) return '—';
