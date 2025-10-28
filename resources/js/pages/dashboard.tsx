@@ -183,6 +183,7 @@ export default function Dashboard() {
     const [selectedDeadlineId, setSelectedDeadlineId] = useState<number | null>(null);
     const [deadlinesLoading, setDeadlinesLoading] = useState(false);
     const [deadlineDialogOpen, setDeadlineDialogOpen] = useState(false);
+    const [tableFiltersReady, setTableFiltersReady] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -224,6 +225,7 @@ export default function Dashboard() {
             } finally {
                 if (!cancelled) {
                     setDeadlinesLoading(false);
+                    setTableFiltersReady(true);
                 }
             }
         };
@@ -260,31 +262,13 @@ export default function Dashboard() {
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1e3c73] dark:text-zinc-100">
                     CHED Merit Scholarship Program (CMSP)
                 </h1>
-                <div className="w-full flex flex-col items-center justify-center text-center gap-1">
-                    <div className="inline-flex items-center gap-2">
-                        <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
-                            {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
-                        </span>
-
-                    </div>
-
-                    <span className="text-xs text-muted-foreground">
-                        {selectedDeadline?.deadline_formatted
-                            ? `Deadline: ${selectedDeadline.deadline_formatted}`
-                            : 'No deadline date selected'}
-                    </span>
-                </div>
-
             </div>
 
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-hidden">
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-
-
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
                     <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
                         <DialogTrigger asChild>
-
                             <Button
                                 variant="outline"
                                 className={cn(
@@ -352,6 +336,20 @@ export default function Dashboard() {
                             </Command>
                         </DialogContent>
                     </Dialog>
+                    <div className="flex flex-col items-center text-center gap-1 sm:items-start sm:text-left">
+                        <div className="inline-flex items-center gap-2">
+                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
+                            </span>
+                        </div>
+
+                        <span className="text-xs text-muted-foreground">
+                            {selectedDeadline?.deadline_formatted
+                                ? `Deadline: ${selectedDeadline.deadline_formatted}`
+                                : 'No deadline date selected'}
+                        </span>
+                    </div>
+                    </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -421,6 +419,7 @@ export default function Dashboard() {
                                 onSpecialCounts={handleSpecialCounts}
                                 academicYear={selectedAcademicYear}
                                 deadline={selectedDeadlineDate}
+                                ready={tableFiltersReady}
                             />
                         </div>
                     </div>
@@ -473,10 +472,12 @@ function CmspsTable({
     onSpecialCounts,
     academicYear,
     deadline,
+    ready = true,
 }: {
     onSpecialCounts?: (counts: SpecialGroupCounts) => void;
     academicYear?: string | null;
     deadline?: string | null;
+    ready?: boolean;
 }) {
     const dialogContentRef = useRef<HTMLDivElement | null>(null);
     type ApplicationRow = {
@@ -762,7 +763,13 @@ function CmspsTable({
         }
     };
 
-    useEffect(() => { fetchData(page, search, perPage); }, [fetchData, page, perPage, search]);
+    useEffect(() => {
+        if (!ready) {
+            return;
+        }
+
+        fetchData(page, search, perPage);
+    }, [fetchData, page, perPage, search, ready]);
 
     const formatApplicantName = (row?: ApplicationRow | null) => {
         if (!row) return '—';
@@ -1221,7 +1228,9 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
                                 <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
-                                <th className="px-3 py-2 font-semibold">Action</th>
+                                <th className="px-3 py-2 font-semibold sticky right-0 z-30 border-l border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.18)] dark:shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.5)]">
+                                    Action
+                                </th>
                             </tr>
                         </thead>
 
@@ -1264,14 +1273,20 @@ function CmspsTable({
                                                 setSelectedId(prev => (prev === r.id ? null : r.id));
                                             }
                                         }}
-                                        className={`border-t border-zinc-100 dark:border-zinc-800 cursor-auto transition-all
-                                                hover:bg-zinc-50 dark:hover:bg-zinc-900/40
-                                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500
-                                                ${selectedId === r.id
-                                                ? 'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
-                                                : ''}`}
+                                        className={cn(
+                                            'group border-t border-zinc-100 dark:border-zinc-800 cursor-auto transition-all',
+                                            'hover:bg-zinc-50 dark:hover:bg-zinc-900/40',
+                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
+                                            selectedId === r.id &&
+                                                'bg-blue-100 dark:bg-blue-900 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
+                                        )}
                                     >
-                                        <td className={`px-3 py-2 ${selectedId === r.id ? 'border-l-4 border-blue-500 pl-2 dark:border-blue-600' : ''}`}>
+                                        <td
+                                            className={cn(
+                                                'px-3 py-2',
+                                                selectedId === r.id && 'border-l-4 border-blue-500 pl-2 dark:border-blue-600'
+                                            )}
+                                        >
                                             {idx + 1 + (page - 1) * perPage}
                                         </td>
 
@@ -1432,7 +1447,14 @@ function CmspsTable({
                                             </span>
                                         </td>
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className={cn(
+                                                'px-3 py-2 sticky right-0 z-20 border-l border-zinc-200 dark:border-zinc-800 shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.18)] dark:shadow-[inset_-8px_0_8px_-8px_rgba(15,23,42,0.5)]',
+                                                selectedId === r.id
+                                                    ? 'bg-blue-100 dark:bg-blue-900'
+                                                    : 'bg-white dark:bg-zinc-950 group-hover:bg-zinc-50 dark:group-hover:bg-zinc-900/40'
+                                            )}
+                                        >
                                             <Button
                                                 type="button"
                                                 variant="ghost"
