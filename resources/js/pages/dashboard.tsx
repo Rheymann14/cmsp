@@ -282,7 +282,7 @@ export default function Dashboard() {
                                 {selectedAcademicYear ? "Change academic year" : "Select academic year"}
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
+                        <DialogContent className="sm:max-w-[800px]">
                             <DialogHeader>
                                 <DialogTitle>Select academic year</DialogTitle>
                                 <DialogDescription>
@@ -336,9 +336,9 @@ export default function Dashboard() {
                             </Command>
                         </DialogContent>
                     </Dialog>
-                    <div className="w-full sm:w-auto flex justify-center sm:justify-end">
-                        <div className="w-full flex flex-col items-center justify-center text-center gap-1">
-                            <div className="inline-flex items-center gap-2">
+                  
+                        <div className="w-full flex flex-col   gap-1">
+                            <div className="inline-flex  gap-2">
                                 <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
                                     {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
                                 </span>
@@ -351,7 +351,7 @@ export default function Dashboard() {
                                     : 'No deadline date selected'}
                             </span>
                         </div>
-                    </div>
+                   
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1451,9 +1451,9 @@ function CmspsTable({
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                         <td
                                             className={cn(
-                                                'px-3 py-2 sticky right-0 z-10 border-l border-zinc-200 dark:border-zinc-800',
+                                                'px-3 py-2 sticky right-0 z-20 border-l border-zinc-200 dark:border-zinc-800',
                                                 selectedId === r.id
-                                                    ? 'bg-blue-100/80 dark:bg-blue-900/50'
+                                                    ? 'bg-blue-100 dark:bg-blue-900'
                                                     : 'bg-white dark:bg-zinc-950 group-hover:bg-zinc-50 dark:group-hover:bg-zinc-900/40'
                                             )}
                                         >
