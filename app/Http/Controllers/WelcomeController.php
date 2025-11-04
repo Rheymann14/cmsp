@@ -9,7 +9,12 @@ class WelcomeController extends Controller
 {
     public function index()
     {
-        $ayDeadline = AyDeadline::latest()->first();
+        $activeDeadline = AyDeadline::query()
+            ->where('is_enabled', true)
+            ->latest()
+            ->first();
+
+        $ayDeadline = $activeDeadline ?? AyDeadline::latest()->first();
 
         return Inertia::render('welcome', [
             'ayDeadline' => $ayDeadline,

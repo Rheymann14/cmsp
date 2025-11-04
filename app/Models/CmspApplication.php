@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CmspApplication extends Model
@@ -120,6 +121,11 @@ public function validations()
 public function latestValidation(): HasOne
 {
     return $this->hasOne(Validation::class, 'cmsp_id')->latestOfMany();
+}
+
+public function ayDeadline(): BelongsTo
+{
+    return $this->belongsTo(AyDeadline::class, 'academic_year', 'academic_year');
 }
 
     

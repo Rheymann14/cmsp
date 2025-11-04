@@ -69,6 +69,13 @@ class CmspTrackResource extends JsonResource
             'academic' => [
                 'academic_year' => $this->academic_year,
                 'deadline' => $this->deadline?->toDateString(),
+                'window' => $this->whenLoaded('ayDeadline', function () {
+                    return [
+                        'academic_year' => $this->ayDeadline->academic_year,
+                        'deadline' => $this->ayDeadline->deadline?->toDateString(),
+                        'is_enabled' => (bool) $this->ayDeadline->is_enabled,
+                    ];
+                }),
                 'school' => [
                     'name' => optional($this->school)->name,
                     'type' => $this->school_type,

@@ -18,23 +18,23 @@ class TrackApplicationController extends Controller
                 'tracking_no' => 'Invalid tracking number format (AAAAA-YYYY).',
             ]);
         }
-
-$app = CmspApplication::query()
-    ->with([
-        'ethnicity:id,label',
-        'religion:id,label',
-        'location:id,province,municipality',
-        'districtModel:id,name',
-        'school:id,name',
-        'courseModel:id,name',
-        'latestValidation' => function ($q) {
-            // qualify columns to avoid ambiguity
-            $q->select('validations.id', 'validations.cmsp_id', 'validations.document_status');
-        },
-    ])
-    ->withExists('validations')  // adds boolean attribute: validations_exists
-    ->where('tracking_no', $normalized)
-    ->first();
+        $app = CmspApplication::query()
+            ->with([
+                'ethnicity:id,label',
+                'religion:id,label',
+                'location:id,province,municipality',
+                'districtModel:id,name',
+                'school:id,name',
+                'courseModel:id,name',
+                'ayDeadline:id,academic_year,deadline,is_enabled',
+                'latestValidation' => function ($q) {
+                    // qualify columns to avoid ambiguity
+                    $q->select('validations.id', 'validations.cmsp_id', 'validations.document_status');
+                },
+            ])
+            ->withExists('validations')  // adds boolean attribute: validations_exists
+            ->where('tracking_no', $normalized)
+            ->first();
 
         if (!$app) {
             return response()->json(['message' => 'Not found'], 404);
