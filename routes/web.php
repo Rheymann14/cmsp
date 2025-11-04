@@ -22,6 +22,11 @@ use App\Http\Controllers\ValidationController;
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
+Route::get('/run', function () {
+    Artisan::call('storage:link');
+    return 'Symlink created!';
+});
+
 Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
 Route::get('/api/schools', [SchoolController::class, 'index']);
