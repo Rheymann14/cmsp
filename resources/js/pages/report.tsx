@@ -326,6 +326,30 @@ export default function ReportPage() {
             return '';
         }
 
+        try {
+            const cookieToken = document.cookie
+                .split(';')
+                .map((cookie) => cookie.trim())
+                .filter(Boolean)
+                .map((cookie) => {
+                    const separatorIndex = cookie.indexOf('=');
+                    if (separatorIndex === -1) {
+                        return null;
+                    }
+
+                    const name = cookie.slice(0, separatorIndex);
+                    const value = cookie.slice(separatorIndex + 1);
+                    return { name, value } as const;
+                })
+                .find((cookie) => cookie && cookie.name === 'XSRF-TOKEN');
+
+            if (cookieToken?.value) {
+                return decodeURIComponent(cookieToken.value);
+            }
+        } catch {
+            /* ignore */
+        }
+
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
     }, []);
 
@@ -376,7 +400,9 @@ export default function ReportPage() {
                         'Content-Type': 'application/json',
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
-                        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                        ...(csrfToken
+                            ? { 'X-CSRF-TOKEN': csrfToken, 'X-XSRF-TOKEN': csrfToken }
+                            : {}),
                     },
                     credentials: 'same-origin',
                     body: JSON.stringify({ new_slots: formattedNewSlots }),
