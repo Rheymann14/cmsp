@@ -79,6 +79,8 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::put('/ay-deadlines/{ayDeadline}', [AyDeadlineController::class, 'update'])->name('ay-deadlines.update');
     Route::patch('/ay-deadlines/{ayDeadline}/status', [AyDeadlineController::class, 'updateStatus'])
         ->name('ay-deadlines.updateStatus');
+    Route::patch('/ay-deadlines/{ayDeadline}/slots', [AyDeadlineController::class, 'updateSlots'])
+        ->name('ay-deadlines.updateSlots');
 
 
     Route::get('/cmsp-applications/json', [CmspApplicationController::class, 'indexJson'])
