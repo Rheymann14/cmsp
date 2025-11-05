@@ -16,6 +16,7 @@ class AyDeadlineController extends Controller
                 'deadline' => optional($deadline->deadline)->toDateString(),
                 'deadline_formatted' => $deadline->deadline_formatted,
                 'is_enabled' => (bool) $deadline->is_enabled,
+                'new_slots' => (int) $deadline->new_slots,
             ];
         });
 
@@ -33,6 +34,7 @@ class AyDeadlineController extends Controller
             'academic_year' => $validated['academic_year'],
             'deadline' => $validated['deadline'],
             'is_enabled' => false,
+            'new_slots' => 0,
         ]);
 
         return redirect()->back()->with('success', 'Academic year deadline created!');
@@ -59,5 +61,26 @@ class AyDeadlineController extends Controller
         $ayDeadline->update(['is_enabled' => $validated['is_enabled']]);
 
         return redirect()->back()->with('success', 'Academic year deadline status updated!');
+    }
+
+    public function updateSlots(Request $request, AyDeadline $ayDeadline)
+    {
+        $validated = $request->validate([
+            'new_slots' => ['required', 'integer', 'min:0', 'max:1000000'],
+        ]);
+
+        $ayDeadline->update(['new_slots' => $validated['new_slots']]);
+
+        return response()->json([
+            'message' => 'New slots saved successfully.',
+            'deadline' => [
+                'id' => $ayDeadline->id,
+                'academic_year' => $ayDeadline->academic_year,
+                'deadline' => optional($ayDeadline->deadline)->toDateString(),
+                'deadline_formatted' => $ayDeadline->deadline_formatted,
+                'is_enabled' => (bool) $ayDeadline->is_enabled,
+                'new_slots' => (int) $ayDeadline->new_slots,
+            ],
+        ]);
     }
 }

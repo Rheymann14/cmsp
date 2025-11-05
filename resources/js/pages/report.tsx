@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { type BreadcrumbItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CalendarRange, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Toaster, toast } from 'sonner';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Report', href: '/reports' },
@@ -42,6 +43,7 @@ interface DeadlineOption {
     deadline: string;
     deadline_formatted: string;
     is_enabled: boolean;
+    new_slots: number;
 }
 
 interface SummaryResponse {
@@ -110,6 +112,16 @@ const parseAyDeadlines = (input: unknown): DeadlineOption[] => {
             deadline: toStringOrEmpty(raw.deadline),
             deadline_formatted: toStringOrEmpty(raw.deadline_formatted),
             is_enabled: Boolean(raw.is_enabled),
+            new_slots:
+                typeof raw.new_slots === 'number'
+                    ? Math.max(0, Math.trunc(raw.new_slots))
+                    : (() => {
+                          const parsedSlots = Number.parseInt(
+                              typeof raw.new_slots === 'string' ? raw.new_slots : String(raw.new_slots ?? ''),
+                              10,
+                          );
+                          return Number.isFinite(parsedSlots) ? Math.max(0, parsedSlots) : 0;
+                      })(),
         });
 
         return acc;
@@ -129,6 +141,7 @@ export default function ReportPage() {
     const [summaryError, setSummaryError] = useState<string | null>(null);
 
     const [newSlots, setNewSlots] = useState<string>('');
+    const [savingNewSlots, setSavingNewSlots] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -199,6 +212,26 @@ export default function ReportPage() {
     );
 
     const selectedAcademicYear = selectedDeadline?.academic_year ?? '';
+
+    useEffect(() => {
+        if (!selectedDeadline) {
+            setNewSlots('');
+            return;
+        }
+
+        const normalized = selectedDeadline.new_slots > 0 ? String(selectedDeadline.new_slots) : '';
+        setNewSlots((current) => {
+            const trimmed = current.trim();
+            if (trimmed === '') {
+                return normalized;
+            }
+
+            const parsedCurrent = Number.parseInt(trimmed.replace(/[^0-9]/g, ''), 10);
+            const normalizedCurrent = Number.isFinite(parsedCurrent) ? String(parsedCurrent) : '';
+
+            return normalizedCurrent === normalized ? current : normalized;
+        });
+    }, [selectedDeadline?.id, selectedDeadline?.new_slots]);
 
     const buildSummaryUrl = useCallback((academicYear: string, deadline: string) => {
         const basePath = toPath(resolveRoute('reports.summary', undefined, '/reports/summary'));
@@ -283,9 +316,164 @@ export default function ReportPage() {
         return Number.isFinite(parsed) ? parsed : 0;
     }, [newSlots]);
 
+    const slotMatchesSaved = useMemo(
+        () => (!selectedDeadline ? formattedNewSlots === 0 : formattedNewSlots === selectedDeadline.new_slots),
+        [formattedNewSlots, selectedDeadline],
+    );
+
+    const getCsrfToken = useCallback(() => {
+        if (typeof document === 'undefined') {
+            return '';
+        }
+
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    }, []);
+
+    const handleNewSlotsSubmit = useCallback(
+        async (event?: FormEvent<HTMLFormElement>) => {
+            event?.preventDefault();
+
+            if (!selectedDeadline) {
+                toast.error('Select an academic year before adding new slots.');
+                return;
+            }
+
+            if (slotMatchesSaved) {
+                toast.info('No changes to save for the selected academic year.');
+                return;
+            }
+
+            if (formattedNewSlots < 0) {
+                toast.error('Enter a valid number of new slots.');
+                return;
+            }
+
+            if (savingNewSlots) {
+                return;
+            }
+
+            const deadlineId = selectedDeadline.id;
+            const academicYearLabel = selectedDeadline.academic_year
+                ? `AY ${selectedDeadline.academic_year}`
+                : 'the selected year';
+
+            const csrfToken = getCsrfToken();
+
+            try {
+                setSavingNewSlots(true);
+
+                const url = toPath(
+                    resolveRoute(
+                        'ay-deadlines.updateSlots',
+                        { ayDeadline: deadlineId },
+                        `/ay-deadlines/${deadlineId}/slots`,
+                    ),
+                );
+
+                const response = await fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ new_slots: formattedNewSlots }),
+                });
+
+                const responseText = await response.text();
+                let responseJson: unknown = null;
+                if (responseText.trim() !== '') {
+                    try {
+                        responseJson = JSON.parse(responseText);
+                    } catch {
+                        responseJson = null;
+                    }
+                }
+
+                if (!response.ok) {
+                    let message = 'Failed to save the new slots.';
+
+                    if (responseJson && typeof responseJson === 'object') {
+                        const json = responseJson as {
+                            message?: string;
+                            errors?: Record<string, unknown>;
+                        };
+
+                        if (typeof json.message === 'string') {
+                            message = json.message;
+                        } else if (json.errors && typeof json.errors === 'object') {
+                            for (const value of Object.values(json.errors)) {
+                                if (Array.isArray(value)) {
+                                    const firstString = value.find((item) => typeof item === 'string');
+                                    if (typeof firstString === 'string') {
+                                        message = firstString;
+                                        break;
+                                    }
+                                } else if (typeof value === 'string') {
+                                    message = value;
+                                    break;
+                                }
+                            }
+                        }
+                    } else if (responseText.trim() !== '') {
+                        message = responseText.slice(0, 200);
+                    }
+
+                    throw new Error(message);
+                }
+
+                const jsonPayload =
+                    responseJson && typeof responseJson === 'object'
+                        ? (responseJson as { deadline?: { new_slots?: unknown }; message?: unknown })
+                        : null;
+
+                const updatedSlotsRaw = jsonPayload?.deadline?.new_slots;
+                const updatedSlots =
+                    typeof updatedSlotsRaw === 'number'
+                        ? Math.max(0, Math.trunc(updatedSlotsRaw))
+                        : formattedNewSlots;
+
+                const successMessage =
+                    typeof jsonPayload?.message === 'string'
+                        ? jsonPayload.message
+                        : `Added ${updatedSlots.toLocaleString()} new slot${updatedSlots === 1 ? '' : 's'} for ${academicYearLabel}.`;
+
+                toast.success(successMessage);
+
+                setDeadlines((current) =>
+                    current.map((deadline) =>
+                        deadline.id === deadlineId ? { ...deadline, new_slots: updatedSlots } : deadline,
+                    ),
+                );
+
+                setNewSlots(updatedSlots > 0 ? String(updatedSlots) : '');
+            } catch (error) {
+                console.error(error);
+                const message =
+                    error instanceof Error ? error.message : 'Unable to save the new slots. Please try again.';
+                toast.error(message);
+            } finally {
+                setSavingNewSlots(false);
+            }
+        },
+        [
+            formattedNewSlots,
+            getCsrfToken,
+            savingNewSlots,
+            selectedDeadline,
+            setDeadlines,
+            setNewSlots,
+            slotMatchesSaved,
+        ],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Reports" />
+
+            <Toaster richColors position="top-right" closeButton duration={4000} />
 
             <div className="flex h-full flex-1 flex-col gap-6 rounded-xl p-4 sm:p-6 lg:p-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -411,26 +599,57 @@ export default function ReportPage() {
 
                     <Card className="rounded-md border border-sidebar-border/70 shadow-none">
                         <CardContent className="p-2.5">
-                            <div className="flex items-center justify-between gap-2 leading-none">
-                                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                                    New slots
-                                </span>
-                                <div className="relative w-[7.5rem]">
-                                    <Input
-                                        value={newSlots}
-                                        onChange={(e) => setNewSlots(e.target.value.replace(/[^0-9]/g, ''))}
-                                        inputMode="numeric"
-                                        placeholder="0"
-                                        className="h-8 pr-10 rounded-sm text-sm"
-                                    />
-                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
-                                        slots
+                            <form className="space-y-2" onSubmit={handleNewSlotsSubmit}>
+                                <div className="flex items-center justify-between gap-2 leading-none">
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                        New slots
                                     </span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative w-[7.5rem]">
+                                            <Input
+                                                value={newSlots}
+                                                onChange={(e) => setNewSlots(e.target.value.replace(/[^0-9]/g, ''))}
+                                                inputMode="numeric"
+                                                placeholder="0"
+                                                className="h-8 pr-10 rounded-sm text-sm"
+                                                disabled={savingNewSlots || !selectedDeadline}
+                                            />
+                                            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
+                                                slots
+                                            </span>
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            disabled={savingNewSlots || !selectedDeadline || slotMatchesSaved}
+                                            className="h-8 px-3"
+                                        >
+                                            {savingNewSlots ? (
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                                'Save'
+                                            )}
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
-                            {formattedNewSlots > 0 && (
-                                <p className="mt-1 text-[11px] text-muted-foreground">{formattedNewSlots.toLocaleString()} entered</p>
-                            )}
+                                {selectedDeadline ? (
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {slotMatchesSaved
+                                            ? selectedDeadline.new_slots > 0
+                                                ? `Currently allocated: ${selectedDeadline.new_slots.toLocaleString()} slot${
+                                                      selectedDeadline.new_slots === 1 ? '' : 's'
+                                                  }.`
+                                                : 'No new slots recorded yet for this academic year.'
+                                            : `${formattedNewSlots.toLocaleString()} new slot${
+                                                  formattedNewSlots === 1 ? '' : 's'
+                                              } ready to save.`}
+                                    </p>
+                                ) : (
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Select an academic year to add new slots.
+                                    </p>
+                                )}
+                            </form>
                         </CardContent>
                     </Card>
                 </section>

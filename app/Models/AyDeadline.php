@@ -17,12 +17,14 @@ class AyDeadline extends Model
         'academic_year',
         'deadline',
         'is_enabled',
+        'new_slots',
     ];
 
     // Cast deadline to date instance
     protected $casts = [
         'deadline' => 'date',
         'is_enabled' => 'boolean',
+        'new_slots' => 'integer',
     ];
 
     protected $appends = [
