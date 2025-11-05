@@ -18,6 +18,7 @@ use App\Http\Controllers\ReligionController;
 use App\Http\Controllers\TrackApplicationController;
 use App\Http\Controllers\AyDeadlineController;
 use App\Http\Controllers\ValidationController;
+use App\Http\Controllers\ReportController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -83,12 +84,14 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::get('/cmsp-applications/json', [CmspApplicationController::class, 'indexJson'])
         ->name('cmsp-applications.index.json');
 
- Route::get('/cmsp-applications/export', [CmspApplicationController::class, 'exportXlsx'])
+    Route::get('/cmsp-applications/export', [CmspApplicationController::class, 'exportXlsx'])
     ->name('cmsp-applications.export');
 
     Route::post('/validations', [ValidationController::class, 'store'])->name('validations.store');
     Route::delete('/validations/{validation}', [ValidationController::class, 'destroy'])->name('validations.destroy');
 
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
 
 
 
