@@ -20,7 +20,7 @@ import { Loader2, CalendarRange, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Home', href: '/dashboard' },
+    { title: 'Report', href: '/reports' },
 
 ];
 
