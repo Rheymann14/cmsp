@@ -11,6 +11,17 @@ use Inertia\Inertia;
 
 class ReportController extends Controller
 {
+    private const SPECIAL_GROUP_LABELS = [
+        'Person With Disability (PWD)',
+        'Solo Parent',
+        'Dependent Solo Parent',
+        'Underprivileged and Homeless Citizens',
+        'Magna Carta for the Poor',
+        'First Generation Students (first in the family to attend college or university)',
+        'Student Senior Citizen',
+        'Indigenous People (IP)',
+    ];
+
     public function index()
     {
         return Inertia::render('report');
@@ -164,10 +175,12 @@ class ReportController extends Controller
             $specialGroups = $this->extractGroups($application->special_groups);
 
             foreach ($specialGroups as $group) {
-                $label = trim((string) $group);
+                $label = $this->normalizeGroupLabel((string) $group);
                 if ($label === '' || strcasecmp($label, 'N/A') === 0) {
                     continue;
                 }
+
+                $label = $this->canonicalizeGroupLabel($label);
 
                 $summary[$label] ??= ['name' => $label, 'count' => 0, 'ranks' => []];
                 $summary[$label]['count']++;
@@ -175,16 +188,34 @@ class ReportController extends Controller
             }
         }
 
-        return collect($summary)
+        $normalizedSummary = collect($summary)
             ->map(function ($item) {
                 $r = $item['ranks'];
                 sort($r, SORT_NUMERIC);
                 $item['ranks'] = array_values(array_unique($r));
                 return $item;
+            });
+
+        $ordered = collect(self::SPECIAL_GROUP_LABELS)
+            ->map(function (string $label) use ($normalizedSummary) {
+                $entry = $normalizedSummary->get($label);
+
+                if ($entry === null) {
+                    return ['name' => $label, 'count' => 0, 'ranks' => []];
+                }
+
+                return $entry;
             })
+            ->values()
+            ->all();
+
+        $remaining = $normalizedSummary
+            ->filter(fn ($_, $label) => !in_array($label, self::SPECIAL_GROUP_LABELS, true))
             ->sortBy('name')
             ->values()
             ->all();
+
+        return array_merge($ordered, $remaining);
     }
 
     /**
@@ -200,5 +231,26 @@ class ReportController extends Controller
             return array_values(array_filter(array_map('trim', preg_split('/\s*,\s*/', $value) ?: []), fn ($v) => $v !== ''));
         }
         return []; // null/others
+    }
+
+    private function normalizeGroupLabel(string $label): string
+    {
+        $normalized = preg_replace('/\s+/u', ' ', trim($label));
+
+        return $normalized === null ? '' : $normalized;
+    }
+
+    private function canonicalizeGroupLabel(string $label): string
+    {
+        $normalized = $this->normalizeGroupLabel($label);
+        $lowercase  = mb_strtolower($normalized);
+
+        foreach (self::SPECIAL_GROUP_LABELS as $option) {
+            if (mb_strtolower($option) === $lowercase) {
+                return $option;
+            }
+        }
+
+        return $normalized;
     }
 }
