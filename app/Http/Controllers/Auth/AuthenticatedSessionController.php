@@ -60,7 +60,9 @@ class AuthenticatedSessionController extends Controller
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
-    /**
+
+
+        /**
      * Destroy an authenticated session.
      */
     public function destroy(Request $request)
@@ -70,7 +72,7 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-       return Inertia::location('/');
+        return Inertia::location('/');
     }
 
 

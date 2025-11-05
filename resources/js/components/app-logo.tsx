@@ -29,7 +29,7 @@ export function AppLogoWide() {
             CHEDRO XII
           </span>
           <span className="hidden lg:block text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
-            CHED Metit Scholarhip Program (CMSP)
+            CHED Merit Scholarhip Program (CMSP)
           </span>
           <span className="lg:hidden sm:block text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
             CMSP

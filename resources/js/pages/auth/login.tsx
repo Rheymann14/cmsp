@@ -35,12 +35,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
         if (pageErrors?.email) {
             toast.error(pageErrors.email); 
         }
-    }, [pageErrors]);
+    }, [pageErrors]);   
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         post(route('login'), {
             onFinish: () => reset('password'),
+            replace: true,
         });
     };
 

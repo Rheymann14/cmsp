@@ -356,24 +356,24 @@ export default function ReportPage() {
                         </DialogContent>
                     </Dialog>
 
-              
 
-                             <div className="w-full flex flex-col   gap-1">
-                            <div className="inline-flex  gap-2">
-                                <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
-                                    {selectedAcademicYear ? `AY ${selectedAcademicYear}` : loadingDeadlines ? 'Loading…' : 'No academic year selected'}
-                                </span>
 
-                            </div>
+                    <div className="w-full flex flex-col   gap-1">
+                        <div className="inline-flex  gap-2">
+                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : loadingDeadlines ? 'Loading…' : 'No academic year selected'}
+                            </span>
 
-                            <span className="text-xs text-muted-foreground">
-                                {selectedDeadline?.deadline_formatted
+                        </div>
+
+                        <span className="text-xs text-muted-foreground">
+                            {selectedDeadline?.deadline_formatted
                                 ? `Deadline: ${selectedDeadline.deadline_formatted}`
                                 : selectedDeadline?.deadline
                                     ? `Deadline: ${selectedDeadline.deadline}`
                                     : 'No deadline date selected'}
-                            </span>
-                        </div>
+                        </span>
+                    </div>
                 </div>
 
                 {(deadlinesError || summaryError) && (
@@ -382,59 +382,59 @@ export default function ReportPage() {
                     </div>
                 )}
 
-                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <Card className="rounded-xl border border-sidebar-border/70 shadow-sm dark:border-sidebar-border">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-                                Total number of applicants
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between">
-                                <span className="text-3xl font-semibold text-[#1e3c73]">
-                                    {summaryLoading ? <Loader2 className="h-7 w-7 animate-spin" /> : summary.totals.applicants.toLocaleString()}
+                <section className="grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-min">
+                    <Card className="rounded-md border border-sidebar-border/70 shadow-none">
+                        <CardContent className="p-2.5">
+                            <div className="flex items-center justify-between gap-2 leading-none">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
+                                    Total number of applicants
+                                </span>
+                                <span className="text-2xl font-bold text-[#1e3c73]">
+                                    {summaryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : summary.totals.applicants.toLocaleString()}
                                 </span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="rounded-xl border border-sidebar-border/70 shadow-sm dark:border-sidebar-border">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-                                Total number of qualified applicants
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between">
-                                <span className="text-3xl font-semibold text-[#1e3c73]">
-                                    {summaryLoading ? <Loader2 className="h-7 w-7 animate-spin" /> : summary.totals.qualified_applicants.toLocaleString()}
+                    <Card className="rounded-md border border-sidebar-border/70 shadow-none">
+                        <CardContent className="p-2.5">
+                            <div className="flex items-center justify-between gap-2 leading-none">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
+                                    Total number of qualified applicants
+                                </span>
+                                <span className="text-2xl font-bold text-[#1e3c73]">
+                                    {summaryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : summary.totals.qualified_applicants.toLocaleString()}
                                 </span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="rounded-xl border border-sidebar-border/70 shadow-sm dark:border-sidebar-border">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-                                New slots
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <Input
-                                value={newSlots}
-                                onChange={(event) => setNewSlots(event.target.value.replace(/[^0-9]/g, ''))}
-                                inputMode="numeric"
-                                placeholder="Enter slots"
-                                className="h-12 rounded-lg"
-                            />
+                    <Card className="rounded-md border border-sidebar-border/70 shadow-none">
+                        <CardContent className="p-2.5">
+                            <div className="flex items-center justify-between gap-2 leading-none">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                    New slots
+                                </span>
+                                <div className="relative w-[7.5rem]">
+                                    <Input
+                                        value={newSlots}
+                                        onChange={(e) => setNewSlots(e.target.value.replace(/[^0-9]/g, ''))}
+                                        inputMode="numeric"
+                                        placeholder="0"
+                                        className="h-8 pr-10 rounded-sm text-sm"
+                                    />
+                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
+                                        slots
+                                    </span>
+                                </div>
+                            </div>
                             {formattedNewSlots > 0 && (
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    {formattedNewSlots.toLocaleString()} slots entered
-                                </p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">{formattedNewSlots.toLocaleString()} entered</p>
                             )}
                         </CardContent>
                     </Card>
                 </section>
+
 
                 <section className="space-y-4">
                     <Card className="rounded-xl border border-sidebar-border/70 shadow-sm dark:border-sidebar-border">
@@ -453,7 +453,7 @@ export default function ReportPage() {
                                         <TableHead className="w-[40%] text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                             Special Group
                                         </TableHead>
-                                        <TableHead className="w-[20%] text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                        <TableHead className="w-[20%] text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                             No. of Applicants
                                         </TableHead>
                                         <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -474,7 +474,7 @@ export default function ReportPage() {
                                                 <TableCell className="font-medium text-[#1e3c73] dark:text-zinc-100">
                                                     {group.name}
                                                 </TableCell>
-                                                <TableCell className="text-right font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                                <TableCell className="text-center font-semibold text-[#1e3c73] dark:text-zinc-100">
                                                     {group.count.toLocaleString()}
                                                 </TableCell>
                                                 <TableCell className="text-[#1e3c73] dark:text-zinc-100">
