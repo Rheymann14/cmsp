@@ -329,23 +329,6 @@ export default function ReportPage() {
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
     }, []);
 
-    const getXsrfToken = useCallback(() => {
-        if (typeof document === 'undefined') {
-            return '';
-        }
-
-        const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-        if (!match) {
-            return '';
-        }
-
-        try {
-            return decodeURIComponent(match[1]);
-        } catch {
-            return match[1];
-        }
-    }, []);
-
     const handleNewSlotsSubmit = useCallback(
         async (event?: FormEvent<HTMLFormElement>) => {
             event?.preventDefault();
@@ -375,7 +358,6 @@ export default function ReportPage() {
                 : 'the selected year';
 
             const csrfToken = getCsrfToken();
-            const xsrfToken = getXsrfToken();
 
             try {
                 setSavingNewSlots(true);
@@ -395,7 +377,6 @@ export default function ReportPage() {
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                         ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-                        ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
                     },
                     credentials: 'same-origin',
                     body: JSON.stringify({ new_slots: formattedNewSlots }),
@@ -480,7 +461,6 @@ export default function ReportPage() {
         [
             formattedNewSlots,
             getCsrfToken,
-            getXsrfToken,
             savingNewSlots,
             selectedDeadline,
             setDeadlines,
