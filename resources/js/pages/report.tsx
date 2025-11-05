@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
-    { title: 'Reports', href: '/reports' },
+
 ];
 
 interface DeadlineOption {
