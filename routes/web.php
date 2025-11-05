@@ -23,10 +23,7 @@ use App\Http\Controllers\ReportController;
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
-Route::get('/run', function () {
-    Artisan::call('storage:link');
-    return 'Symlink created!';
-});
+
 
 Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
@@ -48,6 +45,10 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+     Route::get('report', function () {
+        return Inertia::render('report');
+    })->name('report');
 
     Route::get('/role_management', [RoleController::class, 'index'])->middleware(RoleMiddleware::class.':Admin')
         ->name('role_management');
@@ -79,19 +80,18 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::patch('/ay-deadlines/{ayDeadline}/status', [AyDeadlineController::class, 'updateStatus'])
         ->name('ay-deadlines.updateStatus');
 
-    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-    Route::get('/reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
-
 
     Route::get('/cmsp-applications/json', [CmspApplicationController::class, 'indexJson'])
         ->name('cmsp-applications.index.json');
 
- Route::get('/cmsp-applications/export', [CmspApplicationController::class, 'exportXlsx'])
+    Route::get('/cmsp-applications/export', [CmspApplicationController::class, 'exportXlsx'])
     ->name('cmsp-applications.export');
 
     Route::post('/validations', [ValidationController::class, 'store'])->name('validations.store');
     Route::delete('/validations/{validation}', [ValidationController::class, 'destroy'])->name('validations.destroy');
 
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
 
 
 

@@ -232,7 +232,8 @@ export default function ReportPage() {
                 });
 
                 if (!res.ok) {
-                    throw new Error('Failed to load report summary.');
+                    const txt = await res.text().catch(() => '');
+                    throw new Error(`Failed to load report summary (HTTP ${res.status}). ${txt.slice(0, 300)}`);
                 }
 
                 const json = (await res.json()) as SummaryResponse;
@@ -242,10 +243,13 @@ export default function ReportPage() {
             } catch (error) {
                 if (!cancelled) {
                     console.error(error);
-                    setSummaryError('Unable to load report summary for the selected period.');
+                    setSummaryError(
+                        error instanceof Error ? error.message : 'Unable to load report summary for the selected period.',
+                    );
                     setSummary(EMPTY_SUMMARY);
                 }
-            } finally {
+            }
+            finally {
                 if (!cancelled) {
                     setSummaryLoading(false);
                 }
@@ -352,20 +356,24 @@ export default function ReportPage() {
                         </DialogContent>
                     </Dialog>
 
-                    <div className="w-full space-y-1">
-                        <div className="inline-flex items-center gap-2">
-                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
-                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : loadingDeadlines ? 'Loading…' : 'No academic year selected'}
-                            </span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                            {selectedDeadline?.deadline_formatted
+              
+
+                             <div className="w-full flex flex-col   gap-1">
+                            <div className="inline-flex  gap-2">
+                                <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                    {selectedAcademicYear ? `AY ${selectedAcademicYear}` : loadingDeadlines ? 'Loading…' : 'No academic year selected'}
+                                </span>
+
+                            </div>
+
+                            <span className="text-xs text-muted-foreground">
+                                {selectedDeadline?.deadline_formatted
                                 ? `Deadline: ${selectedDeadline.deadline_formatted}`
                                 : selectedDeadline?.deadline
                                     ? `Deadline: ${selectedDeadline.deadline}`
                                     : 'No deadline date selected'}
-                        </span>
-                    </div>
+                            </span>
+                        </div>
                 </div>
 
                 {(deadlinesError || summaryError) && (
