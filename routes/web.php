@@ -22,10 +22,7 @@ use App\Http\Controllers\ValidationController;
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
-Route::get('/run', function () {
-    Artisan::call('storage:link');
-    return 'Symlink created!';
-});
+
 
 Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
@@ -47,6 +44,10 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+     Route::get('report', function () {
+        return Inertia::render('report');
+    })->name('report');
 
     Route::get('/role_management', [RoleController::class, 'index'])->middleware(RoleMiddleware::class.':Admin')
         ->name('role_management');

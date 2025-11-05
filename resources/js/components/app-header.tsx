@@ -11,7 +11,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, LayoutGrid, Menu, Search, UserRoundCog, NotebookText,House } from 'lucide-react';
+import { BookOpen, LayoutGrid, Menu, Search, UserRoundCog, NotebookText, House, ChartNoAxesCombined } from 'lucide-react';
 import { AppLogo, AppLogoWide } from './app-logo';
 
 
@@ -30,14 +30,19 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     (auth.user as any).profile_photo_url ||
     (auth.user.profile_photo_path ? `/storage/${auth.user.profile_photo_path}` : undefined);
 
-    const isAdmin = Array.isArray((auth.user as any)?.roles) 
-  && (auth.user as any).roles.some((role: any) => role.role === 'Admin');
+  const isAdmin = Array.isArray((auth.user as any)?.roles)
+    && (auth.user as any).roles.some((role: any) => role.role === 'Admin');
 
-     const mainNavItems: NavItem[] = [
+  const mainNavItems: NavItem[] = [
     {
       title: 'Home',
       href: '/dashboard',
       icon: House,
+    },
+    {
+      title: 'Report',
+      href: '/report',
+      icon: ChartNoAxesCombined,
     },
   ];
 
@@ -45,12 +50,12 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
   const rightNavItems: NavItem[] = [
     ...(isAdmin
       ? [
-          {
-            title: 'Role Management',
-            href: '/role_management',
-            icon: UserRoundCog,
-          },
-        ]
+        {
+          title: 'Role Management',
+          href: '/role_management',
+          icon: UserRoundCog,
+        },
+      ]
       : []),
     // {
     //   title: 'User Manual',
