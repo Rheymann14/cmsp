@@ -18,6 +18,7 @@ use App\Http\Controllers\ReligionController;
 use App\Http\Controllers\TrackApplicationController;
 use App\Http\Controllers\AyDeadlineController;
 use App\Http\Controllers\ValidationController;
+use App\Http\Controllers\ReportController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -77,6 +78,9 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::put('/ay-deadlines/{ayDeadline}', [AyDeadlineController::class, 'update'])->name('ay-deadlines.update');
     Route::patch('/ay-deadlines/{ayDeadline}/status', [AyDeadlineController::class, 'updateStatus'])
         ->name('ay-deadlines.updateStatus');
+
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
 
 
     Route::get('/cmsp-applications/json', [CmspApplicationController::class, 'indexJson'])

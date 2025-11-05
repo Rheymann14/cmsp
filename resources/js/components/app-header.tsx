@@ -11,7 +11,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, LayoutGrid, Menu, Search, UserRoundCog, NotebookText,House } from 'lucide-react';
+import { BookOpen, LayoutGrid, Menu, Search, UserRoundCog, NotebookText, House, FileSpreadsheet } from 'lucide-react';
 import { AppLogo, AppLogoWide } from './app-logo';
 
 
@@ -38,6 +38,11 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
       title: 'Home',
       href: '/dashboard',
       icon: House,
+    },
+    {
+      title: 'Reports',
+      href: '/reports',
+      icon: FileSpreadsheet,
     },
   ];
 
