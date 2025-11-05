@@ -3,18 +3,15 @@ import { Head } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type BreadcrumbItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { CalendarRange, Loader2, Check, AlertCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: '/dashboard' },
-    { title: 'Reports', href: '/reports' },
+
 ];
 
 interface DeadlineOption {
@@ -98,8 +95,8 @@ export default function ReportPage() {
     const [loadingDeadlines, setLoadingDeadlines] = useState(false);
     const [deadlinesError, setDeadlinesError] = useState<string | null>(null);
 
-    const [selectedDeadlineId, setSelectedDeadlineId] = useState<number | null>(null);
-    const [deadlineDialogOpen, setDeadlineDialogOpen] = useState(false);
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
+    const [selectedDeadline, setSelectedDeadline] = useState<string>('');
 
     const [summary, setSummary] = useState<SummaryResponse>(EMPTY_SUMMARY);
     const [summaryLoading, setSummaryLoading] = useState(false);
@@ -149,25 +146,28 @@ export default function ReportPage() {
 
     useEffect(() => {
         if (!deadlines.length) {
-            setSelectedDeadlineId(null);
+            setSelectedAcademicYear('');
+            setSelectedDeadline('');
             return;
         }
 
-        if (selectedDeadlineId === null) {
-            setSelectedDeadlineId(deadlines[0]?.id ?? null);
+        const availableYears = Array.from(new Set(deadlines.map((d) => d.academic_year))).filter((year) => year);
+        if (!availableYears.includes(selectedAcademicYear)) {
+            const nextYear = availableYears[0] ?? '';
+            setSelectedAcademicYear(nextYear);
+            const firstDeadline = deadlines.find((d) => d.academic_year === nextYear);
+            setSelectedDeadline(firstDeadline?.deadline ?? '');
             return;
         }
 
-        const exists = deadlines.some((deadline) => deadline.id === selectedDeadlineId);
-        if (!exists) {
-            setSelectedDeadlineId(deadlines[0]?.id ?? null);
+        const matchingDeadline = deadlines.find(
+            (d) => d.academic_year === selectedAcademicYear && d.deadline === selectedDeadline,
+        );
+        if (!matchingDeadline) {
+            const firstDeadline = deadlines.find((d) => d.academic_year === selectedAcademicYear);
+            setSelectedDeadline(firstDeadline?.deadline ?? '');
         }
-    }, [deadlines, selectedDeadlineId]);
-
-    const selectedDeadline = useMemo(
-        () => deadlines.find((deadline) => deadline.id === selectedDeadlineId) ?? null,
-        [deadlines, selectedDeadlineId],
-    );
+    }, [deadlines, selectedAcademicYear, selectedDeadline]);
 
     const buildSummaryUrl = useCallback((academicYear: string, deadline: string) => {
         const basePath = toPath(resolveRoute('reports.summary', undefined, '/reports/summary'));
@@ -182,7 +182,7 @@ export default function ReportPage() {
     }, []);
 
     useEffect(() => {
-        if (!selectedDeadline) {
+        if (!selectedAcademicYear || !selectedDeadline) {
             setSummary(EMPTY_SUMMARY);
             return;
         }
@@ -193,17 +193,13 @@ export default function ReportPage() {
             setSummaryLoading(true);
             setSummaryError(null);
             try {
-                const res = await fetch(
-                    buildSummaryUrl(selectedDeadline.academic_year, selectedDeadline.deadline),
-                    {
-                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                        credentials: 'same-origin',
-                    },
-                );
+                const res = await fetch(buildSummaryUrl(selectedAcademicYear, selectedDeadline), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
 
                 if (!res.ok) {
-                    const error = await res.text();
-                    throw new Error(`Failed to load report summary. ${res.status} ${res.statusText}: ${error}`);
+                    throw new Error('Failed to load report summary.');
                 }
 
                 const json = (await res.json()) as SummaryResponse;
@@ -227,7 +223,19 @@ export default function ReportPage() {
         return () => {
             cancelled = true;
         };
-    }, [buildSummaryUrl, selectedDeadline]);
+    }, [buildSummaryUrl, selectedAcademicYear, selectedDeadline]);
+
+    const academicYearOptions = useMemo(() => {
+        return Array.from(new Set(deadlines.map((d) => d.academic_year)))
+            .filter((year) => year)
+            .map((year) => ({ value: year, label: year }));
+    }, [deadlines]);
+
+    const deadlineOptions = useMemo(() => {
+        return deadlines
+            .filter((d) => d.academic_year === selectedAcademicYear)
+            .map((d) => ({ value: d.deadline, label: d.deadline_formatted || d.deadline || '—' }));
+    }, [deadlines, selectedAcademicYear]);
 
     const rankColumns = useMemo(() => {
         if (!summary.rank_counts.length) {
@@ -252,239 +260,194 @@ export default function ReportPage() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="CMSP Report" />
+            <Head title="Reports" />
 
-            <div className="flex h-full flex-1 flex-col gap-6 rounded-xl p-4 sm:p-6 lg:p-8">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-1">
-                        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#1e3c73]">
-                            CMSP Report
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {selectedDeadline
-                                ? `CHED Merit Scholarship Program AY ${selectedDeadline.academic_year}`
-                                : 'Select an academic year deadline to view the report.'}
-                        </p>
-                    </div>
-                    <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button
-                                variant="outline"
-                                className={cn(
-                                    'gap-2 self-start sm:self-auto',
-                                    selectedDeadline
-                                        ? 'border-blue-300 text-blue-700 hover:bg-blue-50'
-                                        : 'border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10',
-                                )}
-                                disabled={loadingDeadlines}
-                            >
-                                <CalendarRange className="h-4 w-4" />
-                                {selectedDeadline ? 'Change academic year' : 'Select academic year'}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[720px]">
-                            <DialogHeader>
-                                <DialogTitle>Select academic year</DialogTitle>
-                                <DialogDescription>
-                                    Choose an academic year deadline to filter the CMSP report data.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <Command>
-                                <CommandInput placeholder="Search academic year..." />
-                                <CommandList>
-                                    <CommandEmpty>
-                                        {loadingDeadlines ? 'Loading deadlines…' : 'No academic year deadlines found.'}
-                                    </CommandEmpty>
-                                    {deadlines.length > 0 ? (
-                                        <CommandGroup heading="Academic year deadlines">
-                                            {deadlines.map((deadline) => (
-                                                <CommandItem
-                                                    key={deadline.id}
-                                                    value={`AY ${deadline.academic_year}`}
-                                                    onSelect={() => {
-                                                        setSelectedDeadlineId(deadline.id);
-                                                        setDeadlineDialogOpen(false);
-                                                    }}
-                                                >
-                                                    <div className="flex flex-1 flex-col gap-1">
-                                                        <span className="font-medium">
-                                                            AY {deadline.academic_year}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {deadline.deadline_formatted
-                                                                ? `Deadline: ${deadline.deadline_formatted}`
-                                                                : 'No deadline date'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {deadline.is_enabled ? (
-                                                            <Badge variant="secondary" className="whitespace-nowrap">
-                                                                Enabled
-                                                            </Badge>
-                                                        ) : null}
-                                                        {selectedDeadlineId === deadline.id ? (
-                                                            <Check className="h-4 w-4 text-[#1e3c73]" />
-                                                        ) : null}
-                                                    </div>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    ) : null}
-                                </CommandList>
-                            </Command>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-
-                {(deadlinesError || summaryError) && (
-                    <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>{deadlinesError ?? summaryError}</span>
-                    </div>
-                )}
-
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
-                                Total applicants
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-semibold text-[#1e3c73]">
+            <div className="space-y-8">
+                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="rounded-2xl border border-[#1e3c73]/40 bg-[#1e3c73] text-white shadow-lg">
+                        <div className="px-6 py-5 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em]">Total number of applicants</p>
+                            <div className="mt-3 text-4xl font-bold">
                                 {summaryLoading ? (
-                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                    <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                                 ) : (
                                     summary.totals.applicants.toLocaleString()
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
-                                Qualified applicants
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-semibold text-[#1e3c73]">
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#1e3c73]/40 bg-[#1e3c73] text-white shadow-lg">
+                        <div className="px-6 py-5 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em]">
+                                Total number of qualified applicants
+                            </p>
+                            <div className="mt-3 text-4xl font-bold">
                                 {summaryLoading ? (
-                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                    <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                                 ) : (
                                     summary.totals.qualified_applicants.toLocaleString()
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">New slots</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#1e3c73]/40 bg-[#1e3c73] text-white shadow-lg">
+                        <div className="px-6 py-5 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em]">New slots</p>
                             <Input
                                 value={newSlots}
                                 onChange={(event) => setNewSlots(event.target.value.replace(/[^0-9]/g, ''))}
                                 inputMode="numeric"
                                 placeholder="Enter slots"
+                                className="mt-3 h-14 rounded-xl border-none bg-white/90 text-center text-3xl font-semibold text-[#1e3c73] focus-visible:ring-2 focus-visible:ring-white"
                             />
-                            {formattedNewSlots > 0 ? (
-                                <p className="text-xs text-muted-foreground">
+                            {formattedNewSlots > 0 && (
+                                <p className="mt-2 text-xs font-medium uppercase tracking-[0.2em] text-white/80">
                                     {formattedNewSlots.toLocaleString()} slots entered
                                 </p>
-                            ) : null}
-                        </CardContent>
-                    </Card>
-                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-[#1e3c73]">
-                            Special group distribution
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Applicants per special group with their corresponding ranks.
-                        </p>
-                    </CardHeader>
-                    <CardContent className="px-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Special group</TableHead>
-                                    <TableHead className="text-right">Applicants</TableHead>
-                                    <TableHead>Ranks</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {summary.special_groups.length === 0 ? (
+                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-[#1e3c73]">Academic Year</Label>
+                        <Select
+                            value={selectedAcademicYear}
+                            onValueChange={(value) => setSelectedAcademicYear(value)}
+                            disabled={loadingDeadlines || !academicYearOptions.length}
+                        >
+                            <SelectTrigger className="h-11 rounded-xl border border-[#1e3c73]/40">
+                                <SelectValue placeholder={loadingDeadlines ? 'Loading...' : 'Select academic year'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {academicYearOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-[#1e3c73]">Deadline</Label>
+                        <Select
+                            value={selectedDeadline}
+                            onValueChange={(value) => setSelectedDeadline(value)}
+                            disabled={loadingDeadlines || !deadlineOptions.length}
+                        >
+                            <SelectTrigger className="h-11 rounded-xl border border-[#1e3c73]/40">
+                                <SelectValue placeholder={loadingDeadlines ? 'Loading...' : 'Select deadline'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {deadlineOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </section>
+
+                {(deadlinesError || summaryError) && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {deadlinesError ?? summaryError}
+                    </div>
+                )}
+
+                <section className="space-y-4">
+                    <Card className="border-[#1e3c73]/30 shadow-lg">
+                        <CardHeader className="border-b border-[#1e3c73]/20 pb-4">
+                            <CardTitle className="text-xl font-semibold tracking-wide text-[#1e3c73]">
+                                CHED Merit Scholarship Program {selectedAcademicYear || '—'}
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Special group distribution with corresponding rank placements.
+                            </p>
+                        </CardHeader>
+                        <CardContent className="px-0">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={3} className="py-6 text-center text-sm text-muted-foreground">
-                                            {summaryLoading
-                                                ? 'Loading special group data…'
-                                                : 'No special group data found for the selected deadline.'}
-                                        </TableCell>
+                                        <TableHead className="w-[40%] text-[#1e3c73]">Special Group</TableHead>
+                                        <TableHead className="w-[20%] text-right text-[#1e3c73]">No. of Applicants</TableHead>
+                                        <TableHead className="text-[#1e3c73]">Ranks</TableHead>
                                     </TableRow>
-                                ) : (
-                                    summary.special_groups.map((group) => (
-                                        <TableRow key={group.name}>
-                                            <TableCell className="font-medium">{group.name}</TableCell>
-                                            <TableCell className="text-right">{group.count.toLocaleString()}</TableCell>
-                                            <TableCell>
-                                                {group.ranks.length > 0
-                                                    ? group.ranks.map((rank) => `#${rank}`).join(', ')
-                                                    : '—'}
+                                </TableHeader>
+                                <TableBody>
+                                    {summary.special_groups.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                                                {summaryLoading ? 'Loading special groups…' : 'No special group data found for the selected period.'}
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                    ) : (
+                                        summary.special_groups.map((group) => (
+                                            <TableRow key={group.name}>
+                                                <TableCell className="font-medium">{group.name}</TableCell>
+                                                <TableCell className="text-right font-semibold">
+                                                    {group.count.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {group.ranks.length
+                                                        ? group.ranks.map((rank) => `#${rank}`).join(', ')
+                                                        : '—'}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-[#1e3c73]">Rank distribution</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Number of applicants per computed rank. Applicants with the same points share the same rank.
-                        </p>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {summary.rank_counts.length === 0 ? (
-                            <div className="py-6 text-center text-sm text-muted-foreground">
-                                {summaryLoading
-                                    ? 'Loading rank distribution…'
-                                    : 'No ranking data found for the selected deadline.'}
-                            </div>
-                        ) : (
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                {rankColumns.map((column, columnIndex) => (
-                                    <div key={columnIndex} className="space-y-2 rounded-lg border border-slate-200 p-4">
-                                        <div className="flex items-center justify-between text-xs font-medium uppercase text-muted-foreground">
-                                            <span>Rank</span>
-                                            <span>Applicants</span>
+                    <Card className="border-[#1e3c73]/30 shadow-lg">
+                        <CardHeader className="border-b border-[#1e3c73]/20 pb-4">
+                            <CardTitle className="text-xl font-semibold tracking-wide text-[#1e3c73]">
+                                Rank distribution ({selectedAcademicYear || '—'})
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Number of applicants per rank based on computed points. Ties share the same rank.
+                            </p>
+                        </CardHeader>
+                        <CardContent>
+                            {summary.rank_counts.length === 0 ? (
+                                <div className="py-8 text-center text-sm text-muted-foreground">
+                                    {summaryLoading ? 'Loading rank distribution…' : 'No ranking data found for the selected period.'}
+                                </div>
+                            ) : (
+                                <div className="grid gap-6 lg:grid-cols-3">
+                                    {rankColumns.map((column, columnIndex) => (
+                                        <div key={columnIndex} className="rounded-xl border border-[#1e3c73]/20 bg-slate-50 p-4">
+                                            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-[#1e3c73]">
+                                                <span>Rank</span>
+                                                <span>No. of Applicants</span>
+                                            </div>
+                                            <div className="mt-3 space-y-2">
+                                                {column.map((item) => (
+                                                    <div
+                                                        key={item.rank}
+                                                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm font-medium text-[#1e3c73] shadow-sm"
+                                                    >
+                                                        <span className="font-semibold">{item.rank.toLocaleString()}</span>
+                                                        <span>{item.count.toLocaleString()}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            {column.map((item) => (
-                                                <div
-                                                    key={item.rank}
-                                                    className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm"
-                                                >
-                                                    <span className="font-medium text-[#1e3c73]">
-                                                        {item.rank.toLocaleString()}
-                                                    </span>
-                                                    <span>{item.count.toLocaleString()}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+                            )}
+                            <div className="mt-6 rounded-xl border border-[#1e3c73]/30 bg-[#1e3c73]/10 px-4 py-3 text-sm font-semibold text-[#1e3c73]">
+                                Total applicants in distribution: {totalRankedApplicants.toLocaleString()}
                             </div>
-                        )}
-                        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                            Total applicants in distribution: {totalRankedApplicants.toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </section>
             </div>
         </AppLayout>
     );
