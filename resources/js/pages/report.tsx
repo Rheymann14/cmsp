@@ -780,6 +780,7 @@ export default function ReportPage() {
               </div>
             </CardContent>
           </Card>
+          
         </section>
       </div>
     </AppLayout>
