@@ -18,25 +18,34 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
     const { auth } = usePage<SharedData>().props;
+    const user = auth?.user ?? null;
+
+    useEffect(() => {
+        if (!user) {
+            router.visit(route('login'), { replace: true });
+        }
+    }, [user]);
 
     const [currentPhotoPath, setCurrentPhotoPath] = useState<string | null>(
-        auth.user.profile_photo_path as string | null,
+        user?.profile_photo_path ?? null,
     );
     // keep in sync with any prop updates (uploads/removals)
     useEffect(() => {
-        setCurrentPhotoPath(auth.user.profile_photo_path as string | null);
-    }, [auth.user.profile_photo_path]);
+        if (user) {
+            setCurrentPhotoPath(user.profile_photo_path as string | null);
+        }
+    }, [user?.profile_photo_path, user]);
 
     // Get initials: first letter of first and last word
-    const nameParts = auth.user.name.trim().split(/\s+/);
+    const nameParts = (user?.name ?? '').trim().split(/\s+/).filter(Boolean);
     const initials = nameParts.length > 1
         ? (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase()
-        : nameParts[0].charAt(0).toUpperCase();
+        : (nameParts[0]?.charAt(0) ?? '').toUpperCase();
 
     // Form for name/email
     const infoForm = useForm<{ name: string; email: string }>({
-        name: auth.user.name,
-        email: auth.user.email,
+        name: user?.name ?? '',
+        email: user?.email ?? '',
     });
 
     // Form for photo
@@ -96,6 +105,10 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
             },
         });
     };
+
+    if (!user) {
+        return null;
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -218,7 +231,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                             />
                             <InputError message={infoForm.errors.email} className="mt-2" />
                         </div>
-                        {mustVerifyEmail && auth.user.email_verified_at === null && (
+                        {mustVerifyEmail && user && user.email_verified_at === null && (
                             <div>
                                 <p className="-mt-4 text-sm text-muted-foreground">
                                     Your email address is unverified.{' '}

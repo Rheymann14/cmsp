@@ -10,11 +10,16 @@ import { AppLogo } from './app-logo';
 export function AppSidebar() {
     const { props } = usePage<SharedData>();
     const auth = props.auth;
+    const user = auth?.user ?? null;
+
+    if (!user) {
+        return null;
+    }
 
     // ✅ Check if user has Admin role safely
     const isAdmin =
-        Array.isArray((auth.user as any)?.roles) &&
-        (auth.user as any).roles.some((role: any) => role.role === 'Admin');
+        Array.isArray((user as any)?.roles) &&
+        (user as any).roles.some((role: any) => role.role === 'Admin');
 
     const mainNavItems: NavItem[] = [
         {

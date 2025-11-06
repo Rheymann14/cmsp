@@ -26,12 +26,17 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
   const page = usePage<SharedData>();
   const { auth } = page.props;
   const getInitials = useInitials();
-  const avatarSrc =
-    (auth.user as any).profile_photo_url ||
-    (auth.user.profile_photo_path ? `/storage/${auth.user.profile_photo_path}` : undefined);
+  const user = auth?.user ?? null;
 
-  const isAdmin = Array.isArray((auth.user as any)?.roles)
-    && (auth.user as any).roles.some((role: any) => role.role === 'Admin');
+  if (!user) {
+    return null;
+  }
+  const avatarSrc =
+    (user as any).profile_photo_url ||
+    (user.profile_photo_path ? `/storage/${user.profile_photo_path}` : undefined);
+
+  const isAdmin = Array.isArray((user as any)?.roles)
+    && (user as any).roles.some((role: any) => role.role === 'Admin');
 
   const mainNavItems: NavItem[] = [
     {
@@ -151,17 +156,17 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                 <Button variant="ghost" className="size-10 rounded-full p-1">
                   <Avatar className="size-8 overflow-hidden rounded-full">
                     {avatarSrc ? (
-                      <AvatarImage src={avatarSrc} alt={auth.user.name} />
+                      <AvatarImage src={avatarSrc} alt={user.name} />
                     ) : (
                       <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
-                        {getInitials(auth.user.name)}
+                        {getInitials(user.name)}
                       </AvatarFallback>
                     )}
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
-                <UserMenuContent user={auth.user} />
+                <UserMenuContent user={user} />
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
