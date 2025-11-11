@@ -17,7 +17,7 @@ import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Badge } from "@/components/ui/badge";
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Home', href: '/dashboard' },
+    { title: 'Raw List', href: '/raw_list' },
 ];
 
 type SpecialGroupCounts = {
@@ -177,7 +177,7 @@ const toPath = (href: string) => {
     }
 };
 
-export default function Dashboard() {
+export default function RawList() {
     const [specialCounts, setSpecialCounts] = useState<SpecialGroupCounts>({ ...EMPTY_SPECIAL_COUNTS });
     const [ayDeadlines, setAyDeadlines] = useState<AyDeadlineOption[]>([]);
     const [selectedDeadlineId, setSelectedDeadlineId] = useState<number | null>(null);
@@ -251,7 +251,7 @@ export default function Dashboard() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Home" />
+            <Head title="Raw List" />
             <Toaster
                 richColors
                 position="top-right"
@@ -286,7 +286,7 @@ export default function Dashboard() {
                             <DialogHeader>
                                 <DialogTitle>Select academic year</DialogTitle>
                                 <DialogDescription>
-                                    Choose an academic year deadline to filter the dashboard data.
+                                    Choose an academic year deadline to filter the raw list data.
                                 </DialogDescription>
                             </DialogHeader>
                             <Command>

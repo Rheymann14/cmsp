@@ -19,12 +19,12 @@ export function AppSidebar() {
     const mainNavItems: NavItem[] = [
         {
             title: 'Home',
-            href: '/dashboard',
+            href: '/reports',
             icon: House,
         },
         {
-            title: 'Reports',
-            href: '/reports',
+            title: 'Raw List',
+            href: '/raw_list',
             icon: FileSpreadsheet,
         },
     ];
@@ -53,7 +53,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href="/dashboard" prefetch>
+                            <Link href="/reports" prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

@@ -57,7 +57,7 @@ class AuthenticatedSessionController extends Controller
                 ]);
             }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('raw_list', absolute: false));
     }
 
 
