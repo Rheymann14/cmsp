@@ -5,7 +5,7 @@ import type { Page } from '@inertiajs/core';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy } from 'lucide-react';
+import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy, CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ import { Calendar } from "@/components/ui/calendar"
 
 
 import BackToTopButton from '@/components/BackToTopButton';
-import { format, parseISO } from "date-fns";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
 
 type AyDeadline = {
     id: number;
@@ -253,6 +253,41 @@ export default function Welcome() {
             day: "numeric",
         })
         : "";
+
+    const deadlineDate = useMemo(() => {
+        if (!ayDeadline?.deadline) return null;
+        try {
+            return parseISO(ayDeadline.deadline);
+        } catch {
+            return null;
+        }
+    }, [ayDeadline?.deadline]);
+
+    const daysRemaining = useMemo(() => {
+        if (!deadlineDate) return null;
+        return differenceInCalendarDays(deadlineDate, new Date());
+    }, [deadlineDate]);
+
+    const isDeadlinePast = typeof daysRemaining === "number" && daysRemaining < 0;
+    const isDeadlineToday = daysRemaining === 0;
+    const friendlyDeadline = deadlineDate ? format(deadlineDate, "MMMM d, yyyy") : formattedDeadline;
+
+    const deadlineStatusLabel = useMemo(() => {
+        if (daysRemaining == null) return null;
+        if (isDeadlinePast) {
+            const daysAgo = Math.abs(daysRemaining);
+            return daysAgo === 0
+                ? "Deadline just passed"
+                : `Closed ${daysAgo} day${daysAgo === 1 ? "" : "s"} ago`;
+        }
+        if (isDeadlineToday) {
+            return "Deadline is today";
+        }
+        if (daysRemaining === 1) {
+            return "1 day left to apply";
+        }
+        return `${daysRemaining} days left to apply`;
+    }, [daysRemaining, isDeadlinePast, isDeadlineToday]);
     const closedWindowLabel = ayDeadline?.academic_year
         ? `Academic Year ${ayDeadline.academic_year}`
         : formattedDeadline
@@ -1396,6 +1431,66 @@ export default function Welcome() {
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
             <Toaster richColors position="top-right" closeButton duration={4000} />
+
+            <AnimatePresence>
+                {deadlineDate && (
+                    <motion.aside
+                        key="deadline-banner"
+                        initial={{ opacity: 0, y: -12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -12 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        className="fixed left-3 right-3 top-[86px] z-[120] sm:left-6 sm:right-auto sm:max-w-xs md:max-w-sm"
+                    >
+                        <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-red-500 via-red-500/95 to-red-600 p-4 shadow-2xl backdrop-blur">
+                            <div className="absolute -left-12 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-white/15 blur-2xl" aria-hidden />
+                            <div className="absolute -right-16 -top-10 h-28 w-28 rounded-full bg-white/10 blur-3xl" aria-hidden />
+
+                            <div className="relative flex items-start gap-3">
+                                <div className="relative mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-white shadow-inner shadow-red-400/30 ring-2 ring-white/20">
+                                    <CalendarDays className="h-6 w-6" />
+                                    <span className="absolute -top-1 -right-1 inline-flex h-3 w-3 animate-ping rounded-full bg-white/80" aria-hidden />
+                                    <span className="absolute -top-1 -right-1 inline-flex h-3 w-3 rounded-full bg-white" aria-hidden />
+                                </div>
+
+                                <div className="flex-1 space-y-1 text-white">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">Deadline</p>
+                                    <p className="text-base font-semibold leading-tight sm:text-lg">
+                                        {friendlyDeadline || formattedDeadline}
+                                    </p>
+                                    {deadlineStatusLabel && (
+                                        <p className="text-xs font-medium text-white/90 sm:text-sm">
+                                            {deadlineStatusLabel}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {!isDeadlinePast && daysRemaining != null && (
+                                <div className="relative mt-4 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-white/75">
+                                    <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-white/25">
+                                        <div
+                                            className="h-full rounded-full bg-white"
+                                            style={{
+                                                width: `${Math.max(8, Math.min(100, 100 - daysRemaining * 6))}%`,
+                                            }}
+                                        />
+                                    </div>
+                                    <span className="whitespace-nowrap text-[10px] sm:text-xs">
+                                        {isDeadlineToday ? "Due today" : `${daysRemaining}d left`}
+                                    </span>
+                                </div>
+                            )}
+
+                            {isDeadlinePast && (
+                                <div className="relative mt-4 rounded-2xl border border-white/20 bg-white/10 p-2 text-[11px] font-medium uppercase tracking-[0.2em] text-white/80">
+                                    Applications are now closed
+                                </div>
+                            )}
+                        </div>
+                    </motion.aside>
+                )}
+            </AnimatePresence>
 
             {/* Offset for fixed navbar */}
             <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 pt-16 lg:pt-20 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
