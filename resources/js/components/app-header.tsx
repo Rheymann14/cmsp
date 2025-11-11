@@ -36,14 +36,15 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
   const mainNavItems: NavItem[] = [
     {
       title: 'Home',
-      href: '/dashboard',
-      icon: House,
-    },
-    {
-      title: 'Reports',
       href: '/reports',
       icon: FileSpreadsheet,
     },
+    {
+      title: 'Raw Lists',
+      href: '/dashboard',
+      icon: House,
+    },
+
   ];
 
   // ✅ Conditionally include Role Management only if Admin
