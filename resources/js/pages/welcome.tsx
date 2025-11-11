@@ -1042,6 +1042,8 @@ export default function Welcome() {
 
     const [schools, setSchools] = useState<{ id: number; label: string }[]>([]);
     const [loadingSchools, setLoadingSchools] = useState(true);
+    const [showDeadlineBanner, setShowDeadlineBanner] = useState(true);
+
 
     useEffect(() => {
         fetch("/api/schools", {
@@ -1399,10 +1401,10 @@ export default function Welcome() {
                 const pageProps = page.props as unknown as WelcomePageProps | undefined;
                 const flashData = pageProps?.flash as
                     | {
-                          trackingNo?: string | null;
-                          tracking_no?: string | null;
-                          success?: string;
-                      }
+                        trackingNo?: string | null;
+                        tracking_no?: string | null;
+                        success?: string;
+                    }
                     | undefined;
                 const trackingNo = flashData?.trackingNo ?? flashData?.tracking_no ?? null;
                 setGeneratedTrackingNo(trackingNo);
@@ -1433,42 +1435,49 @@ export default function Welcome() {
             <Toaster richColors position="top-right" closeButton duration={4000} />
 
             <AnimatePresence>
-                {deadlineDate && (
+                {deadlineDate && showDeadlineBanner && (
                     <motion.aside
                         key="deadline-banner"
-                        initial={{ opacity: 0, y: -12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -12 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="fixed left-3 right-3 top-[86px] z-[120] sm:left-6 sm:right-auto sm:max-w-xs md:max-w-sm"
+                        initial={{ opacity: 0, x: -40 }}   // slide in from left
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -40 }}
+                        transition={{ duration: 0.35, ease: "easeOut" }}
+                        className="fixed left-3 right-3 top-[72px] z-[120] sm:left-6 sm:right-auto sm:max-w-sm md:max-w-md" // wider on desktop
                     >
-                        <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-red-500 via-red-500/95 to-red-600 p-4 shadow-2xl backdrop-blur">
-                            <div className="absolute -left-12 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-white/15 blur-2xl" aria-hidden />
-                            <div className="absolute -right-16 -top-10 h-28 w-28 rounded-full bg-white/10 blur-3xl" aria-hidden />
+                        {/* Container color switches: amber when open, red when closed */}
+                        <div
+                            className={`relative rounded-lg border p-2.5 backdrop-blur-sm shadow-md text-white
+          ${isDeadlinePast ? 'border-red-500/30 bg-red-600/90' : 'border-amber-500/30 bg-amber-600/90'}`}
+                        >
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowDeadlineBanner(false)}
+                                className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded hover:bg-white/20 transition"
+                            >
+                                <span className="text-xs font-bold leading-none">×</span>
+                            </button>
 
-                            <div className="relative flex items-start gap-3">
-                                <div className="relative mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-white shadow-inner shadow-red-400/30 ring-2 ring-white/20">
-                                    <CalendarDays className="h-6 w-6" />
-                                    <span className="absolute -top-1 -right-1 inline-flex h-3 w-3 animate-ping rounded-full bg-white/80" aria-hidden />
-                                    <span className="absolute -top-1 -right-1 inline-flex h-3 w-3 rounded-full bg-white" aria-hidden />
+                            <div className="flex items-start gap-2 pr-4">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white/15">
+                                    <CalendarDays className="h-4 w-4" />
                                 </div>
 
-                                <div className="flex-1 space-y-1 text-white">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">Deadline</p>
-                                    <p className="text-base font-semibold leading-tight sm:text-lg">
+                                <div className="flex-1 leading-tight">
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/80">
+                                        Deadline
+                                    </p>
+                                    <p className="text-sm font-semibold">
                                         {friendlyDeadline || formattedDeadline}
                                     </p>
                                     {deadlineStatusLabel && (
-                                        <p className="text-xs font-medium text-white/90 sm:text-sm">
-                                            {deadlineStatusLabel}
-                                        </p>
+                                        <p className="text-[11px] text-white/90">{deadlineStatusLabel}</p>
                                     )}
                                 </div>
                             </div>
 
                             {!isDeadlinePast && daysRemaining != null && (
-                                <div className="relative mt-4 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-white/75">
-                                    <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-white/25">
+                                <div className="mt-2 flex items-center gap-2">
+                                    <div className="h-1 w-full overflow-hidden rounded-full bg-white/25">
                                         <div
                                             className="h-full rounded-full bg-white"
                                             style={{
@@ -1476,21 +1485,25 @@ export default function Welcome() {
                                             }}
                                         />
                                     </div>
-                                    <span className="whitespace-nowrap text-[10px] sm:text-xs">
-                                        {isDeadlineToday ? "Due today" : `${daysRemaining}d left`}
+                                    <span className="text-[10px] whitespace-nowrap">
+                                        {isDeadlineToday ? "Today" : `${daysRemaining} d`}
                                     </span>
                                 </div>
                             )}
 
                             {isDeadlinePast && (
-                                <div className="relative mt-4 rounded-2xl border border-white/20 bg-white/10 p-2 text-[11px] font-medium uppercase tracking-[0.2em] text-white/80">
-                                    Applications are now closed
+                                <div className="mt-2 rounded-md border border-white/20 bg-white/10 p-1.5 text-center text-[10px] uppercase tracking-wider">
+                                    Closed
                                 </div>
                             )}
                         </div>
                     </motion.aside>
                 )}
             </AnimatePresence>
+
+
+
+
 
             {/* Offset for fixed navbar */}
             <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 pt-16 lg:pt-20 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
@@ -1733,7 +1746,7 @@ export default function Welcome() {
                                     )}
                                 </div>
 
-                            <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800" />
+                                <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800" />
 
                                 <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <Button
