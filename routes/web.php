@@ -42,9 +42,9 @@ Route::get('/cmsp/track/{trackingNo}', [TrackApplicationController::class, 'show
 
 Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function () {
     
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('raw_list', function () {
+        return Inertia::render('raw_list');
+    })->name('raw_list');
 
      Route::get('report', function () {
         return Inertia::render('report');

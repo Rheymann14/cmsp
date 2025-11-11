@@ -37,12 +37,12 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     {
       title: 'Home',
       href: '/reports',
-      icon: FileSpreadsheet,
+      icon: House,
     },
     {
-      title: 'Raw Lists',
-      href: '/dashboard',
-      icon: House,
+      title: 'Raw List',
+      href: '/raw_list',
+      icon: FileSpreadsheet,
     },
 
   ];
@@ -116,7 +116,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
           </div>
 
           {/* Logo */}
-          <Link href="/dashboard" prefetch className="flex items-center space-x-2">
+          <Link href="/reports" prefetch className="flex items-center space-x-2">
             <AppLogoWide />
           </Link>
 
