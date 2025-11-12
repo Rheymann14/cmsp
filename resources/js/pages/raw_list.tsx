@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, CalendarRange, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, CalendarRange, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check, Copy, ChevronsUpDown } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
@@ -674,6 +674,7 @@ function CmspsTable({
     const [clearingValidation, setClearingValidation] = useState(false);
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
+    const [actionSort, setActionSort] = useState<'validated' | 'pending' | null>(null);
 
     useEffect(() => {
         setPage(1);
@@ -751,6 +752,95 @@ function CmspsTable({
             setLoading(false);
         }
     }, [buildUrl, onSpecialCounts]);
+
+    const toggleActionSort = useCallback(() => {
+        setActionSort((prev) => {
+            if (prev === 'validated') {
+                return 'pending';
+            }
+            if (prev === 'pending') {
+                return null;
+            }
+            return 'validated';
+        });
+    }, []);
+
+    const handleCopyTracking = useCallback(async (trackingNo: string) => {
+        const value = (trackingNo ?? '').trim();
+
+        if (!value) {
+            toast.error('Tracking number unavailable for copying.');
+            return;
+        }
+
+        const notifySuccess = () => {
+            toast.success('Tracking number copied to clipboard.');
+        };
+
+        const notifyFailure = () => {
+            toast.error('Unable to copy tracking number.');
+        };
+
+        try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(value);
+                notifySuccess();
+                return;
+            }
+        } catch (err) {
+            // Fallback below
+        }
+
+        try {
+            if (typeof document !== 'undefined') {
+                const textarea = document.createElement('textarea');
+                textarea.value = value;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'fixed';
+                textarea.style.top = '0';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.select();
+                const copied = document.execCommand('copy');
+                document.body.removeChild(textarea);
+
+                if (copied) {
+                    notifySuccess();
+                    return;
+                }
+            }
+        } catch (err) {
+            // Ignore and fall through to failure toast
+        }
+
+        notifyFailure();
+    }, []);
+
+    const displayRows = useMemo(() => {
+        if (!actionSort) {
+            return rows;
+        }
+
+        const sorted = [...rows];
+        sorted.sort((a, b) => {
+            const aValidated = Boolean(a.latest_validation);
+            const bValidated = Boolean(b.latest_validation);
+
+            if (aValidated === bValidated) {
+                return 0;
+            }
+
+            return actionSort === 'validated'
+                ? aValidated
+                    ? -1
+                    : 1
+                : aValidated
+                    ? 1
+                    : -1;
+        });
+
+        return sorted;
+    }, [actionSort, rows]);
 
     const commitSearch = (value: string) => {
         const trimmed = value.trim();
@@ -1231,7 +1321,28 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
                                 <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
                                 <th className="px-3 py-2 font-semibold sticky right-0 z-20 bg-zinc-50 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800">
-                                    Action
+                                    <button
+                                        type="button"
+                                        onClick={toggleActionSort}
+                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        aria-pressed={actionSort !== null}
+                                        title={
+                                            actionSort === 'validated'
+                                                ? 'Sorting by validation status (validated first). Click to show pending first.'
+                                                : actionSort === 'pending'
+                                                    ? 'Sorting by validation status (pending first). Click to reset ordering.'
+                                                    : 'Sort by validation status. Click to show validated applications first.'
+                                        }
+                                    >
+                                        <span>Action</span>
+                                        {actionSort === 'validated' ? (
+                                            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                                        ) : actionSort === 'pending' ? (
+                                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
                                 </th>
                             </tr>
                         </thead>
@@ -1247,7 +1358,7 @@ function CmspsTable({
                                         ))}
                                     </tr>
                                 ))
-                            ) : rows.length === 0 ? (
+                            ) : displayRows.length === 0 ? (
                                 <tr className="border-t border-zinc-100 dark:border-zinc-800">
                                     <td className="px-3 py-6 text-left text-zinc-600 dark:text-zinc-300" colSpan={COLS}>
                                         <div className="flex flex-col items-start gap-3">
@@ -1262,7 +1373,7 @@ function CmspsTable({
                                     </td>
                                 </tr>
                             ) : (
-                                rows.map((r, idx) => (
+                                displayRows.map((r, idx) => (
                                     <tr
                                         key={r.id}
                                         tabIndex={0}
@@ -1293,15 +1404,34 @@ function CmspsTable({
                                         </td>
 
                                         <td className="px-3 py-2">
-                                            <span className={cn(
-                                                'inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 ',
-                                                r.latest_validation
-                                                    ? 'bg-emerald-100 text-emerald-700  dark:bg-emerald-900/40 dark:text-emerald-300'
-                                                    : 'text-amber-600'
-                                            )}>
-
-                                                {r.tracking_no}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className={cn(
+                                                        'inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 ',
+                                                        r.latest_validation
+                                                            ? 'bg-emerald-100 text-emerald-700  dark:bg-emerald-900/40 dark:text-emerald-300'
+                                                            : 'text-amber-600'
+                                                    )}
+                                                >
+                                                    {r.tracking_no}
+                                                </span>
+                                                {r.tracking_no ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-amber-700 transition-colors hover:text-amber-900 hover:bg-amber-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 dark:text-amber-200 dark:hover:text-amber-100 dark:hover:bg-amber-900/40"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            void handleCopyTracking(r.tracking_no);
+                                                        }}
+                                                        aria-label={`Copy tracking number ${r.tracking_no}`}
+                                                        title="Copy tracking number"
+                                                    >
+                                                        <Copy className="h-4 w-4" aria-hidden="true" />
+                                                    </Button>
+                                                ) : null}
+                                            </div>
                                         </td>
 
                                         <td className="px-3 py-2">{r.lrn}</td>
