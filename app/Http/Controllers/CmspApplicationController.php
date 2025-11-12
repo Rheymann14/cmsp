@@ -113,15 +113,15 @@ class CmspApplicationController extends Controller
         'mother_na'        => ['nullable','boolean'],
         'mother_deceased'  => ['nullable','boolean'],
 
-        'father_name'                  => ['exclude_if:father_na,1', 'exclude_if:father_deceased,1', 'required', 'string', 'max:150'],
-        'father_occupation'            => ['exclude_if:father_na,1', 'exclude_if:father_deceased,1', 'required', 'string', 'max:150'],
-        'father_income_monthly'        => ['exclude_if:father_na,1', 'exclude_if:father_deceased,1', 'required', 'integer', 'min:0'],
-        'father_income_yearly_bracket' => ['exclude_if:father_na,1', 'exclude_if:father_deceased,1', 'required', 'integer', 'min:0'],
+        'father_name'                  => ['exclude_if:father_na,1', 'required', 'string', 'max:150'],
+        'father_occupation'            => ['exclude_if:father_na,1', 'required', 'string', 'max:150'],
+        'father_income_monthly'        => ['exclude_if:father_na,1', 'required', 'integer', 'min:0'],
+        'father_income_yearly_bracket' => ['exclude_if:father_na,1', 'required', 'integer', 'min:0'],
 
-        'mother_name'                  => ['exclude_if:mother_na,1', 'exclude_if:mother_deceased,1', 'required', 'string', 'max:150'],
-        'mother_occupation'            => ['exclude_if:mother_na,1', 'exclude_if:mother_deceased,1', 'required', 'string', 'max:150'],
-        'mother_income_monthly'        => ['exclude_if:mother_na,1', 'exclude_if:mother_deceased,1', 'required', 'integer', 'min:0'],
-        'mother_income_yearly_bracket' => ['exclude_if:mother_na,1', 'exclude_if:mother_deceased,1', 'required', 'integer', 'min:0'],
+        'mother_name'                  => ['exclude_if:mother_na,1', 'required', 'string', 'max:150'],
+        'mother_occupation'            => ['exclude_if:mother_na,1', 'required', 'string', 'max:150'],
+        'mother_income_monthly'        => ['exclude_if:mother_na,1', 'required', 'integer', 'min:0'],
+        'mother_income_yearly_bracket' => ['exclude_if:mother_na,1', 'required', 'integer', 'min:0'],
 
         'guardian_name' => [
             Rule::requiredIf(fn() =>

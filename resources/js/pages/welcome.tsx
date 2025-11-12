@@ -458,9 +458,11 @@ export default function Welcome() {
     const [motherNA, setMotherNA] = useState(false);
     const [motherDeceased, setMotherDeceased] = useState(false);
 
-    const fatherDisabled = fatherNA || fatherDeceased;
-    const motherDisabled = motherNA || motherDeceased;
-    const showGuardian = fatherDisabled && motherDisabled;
+    const fatherFieldsDisabled = fatherNA;
+    const motherFieldsDisabled = motherNA;
+    const fatherUnavailable = fatherNA || fatherDeceased;
+    const motherUnavailable = motherNA || motherDeceased;
+    const showGuardian = fatherUnavailable && motherUnavailable;
 
     // refs to clear uncontrolled inputs
     const fatherNameRef = useRef<HTMLInputElement>(null);
@@ -690,11 +692,11 @@ export default function Welcome() {
             "barmm_zip_code",
         ] as const;
 
-        const fatherDisabled =
-            (fd.get("father_na") === "1") || (fd.get("father_deceased") === "1");
-        const motherDisabled =
-            (fd.get("mother_na") === "1") || (fd.get("mother_deceased") === "1");
-        const showGuardian = fatherDisabled && motherDisabled;
+        const fatherFieldsDisabled = fd.get("father_na") === "1";
+        const motherFieldsDisabled = fd.get("mother_na") === "1";
+        const fatherUnavailable = fatherFieldsDisabled || (fd.get("father_deceased") === "1");
+        const motherUnavailable = motherFieldsDisabled || (fd.get("mother_deceased") === "1");
+        const showGuardian = fatherUnavailable && motherUnavailable;
 
         const FATHER_REQUIRED = [
             "father_name",
@@ -720,8 +722,8 @@ export default function Welcome() {
             ...BASE_REQUIRED,
             ...(region === "Region XII" ? REGION_XII_REQUIRED : []),
             ...(region === "BARMM" ? BARMM_REQUIRED : []),
-            ...(!fatherDisabled ? FATHER_REQUIRED : []),
-            ...(!motherDisabled ? MOTHER_REQUIRED : []),
+            ...(!fatherFieldsDisabled ? FATHER_REQUIRED : []),
+            ...(!motherFieldsDisabled ? MOTHER_REQUIRED : []),
             ...(showGuardian ? GUARDIAN_REQUIRED : []),
         ] as const;
 
@@ -3257,10 +3259,10 @@ export default function Welcome() {
                                                                     name="father_name"
                                                                     placeholder="Your answer"
                                                                     className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
-                                                                    disabled={fatherDisabled}
-                                                                    aria-disabled={fatherDisabled}
-                                                                    title={fatherDisabled ? (fatherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
-                                                                    required={!fatherDisabled}
+                                                                    disabled={fatherFieldsDisabled}
+                                                                    aria-disabled={fatherFieldsDisabled}
+                                                                    title={fatherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    required={!fatherFieldsDisabled}
                                                                 />
                                                             </div>
 
@@ -3274,10 +3276,10 @@ export default function Welcome() {
                                                                     name="father_occupation"
                                                                     placeholder="Your answer"
                                                                     className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
-                                                                    disabled={fatherDisabled}
-                                                                    aria-disabled={fatherDisabled}
-                                                                    title={fatherDisabled ? (fatherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
-                                                                    required={!fatherDisabled}
+                                                                    disabled={fatherFieldsDisabled}
+                                                                    aria-disabled={fatherFieldsDisabled}
+                                                                    title={fatherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    required={!fatherFieldsDisabled}
                                                                 />
                                                             </div>
 
@@ -3297,10 +3299,10 @@ export default function Welcome() {
                                                                         t.value = t.value.replace(/\D/g, "");
                                                                         setFatherMonthly(t.value);
                                                                     }}
-                                                                    disabled={fatherDisabled}
-                                                                    aria-disabled={fatherDisabled}
-                                                                    title={fatherDisabled ? (fatherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
-                                                                    required={!fatherDisabled}
+                                                                    disabled={fatherFieldsDisabled}
+                                                                    aria-disabled={fatherFieldsDisabled}
+                                                                    title={fatherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    required={!fatherFieldsDisabled}
                                                                 />
                                                             </div>
 
@@ -3371,10 +3373,10 @@ export default function Welcome() {
                                                                     name="mother_name"
                                                                     placeholder="Your answer"
                                                                     className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
-                                                                    disabled={motherDisabled}
-                                                                    aria-disabled={motherDisabled}
-                                                                    title={motherDisabled ? (motherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
-                                                                    required={!motherDisabled}
+                                                                    disabled={motherFieldsDisabled}
+                                                                    aria-disabled={motherFieldsDisabled}
+                                                                    title={motherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    required={!motherFieldsDisabled}
                                                                 />
                                                             </div>
 
@@ -3388,10 +3390,10 @@ export default function Welcome() {
                                                                     name="mother_occupation"
                                                                     placeholder="Your answer"
                                                                     className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
-                                                                    disabled={motherDisabled}
-                                                                    aria-disabled={motherDisabled}
-                                                                    title={motherDisabled ? (motherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
-                                                                    required={!motherDisabled}
+                                                                    disabled={motherFieldsDisabled}
+                                                                    aria-disabled={motherFieldsDisabled}
+                                                                    title={motherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    required={!motherFieldsDisabled}
                                                                 />
                                                             </div>
 
@@ -3411,10 +3413,10 @@ export default function Welcome() {
                                                                         t.value = t.value.replace(/\D/g, "");
                                                                         setMotherMonthly(t.value);
                                                                     }}
-                                                                    disabled={motherDisabled}
-                                                                    aria-disabled={motherDisabled}
-                                                                    title={motherDisabled ? (motherNA ? "Disabled by N/A" : "Disabled by Deceased") : ""}
-                                                                    required={!motherDisabled}
+                                                                    disabled={motherFieldsDisabled}
+                                                                    aria-disabled={motherFieldsDisabled}
+                                                                    title={motherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    required={!motherFieldsDisabled}
                                                                 />
                                                             </div>
 
