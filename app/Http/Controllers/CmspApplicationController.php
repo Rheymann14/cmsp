@@ -19,6 +19,7 @@ use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class CmspApplicationController extends Controller
 {
@@ -338,300 +339,61 @@ public function exportXlsx(Request $request)
 
         $computed = $this->buildComputedEntries($applications);
 
+        foreach ($computed as $index => &$entry) {
+            $entry['rank'] = $index + 1;
+        }
+        unset($entry);
+
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('CMSP RANKING');
         $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
 
-        $sheet->mergeCells('A1:C1');
-        $sheet->setCellValue('A1', 'Annex C - Official Ranklist');
-        $sheet->getStyle('A1:C1')->getFont()->setItalic(true)->setSize(10);
-        $sheet->getStyle('A1:C1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $sheet->mergeCells('A2:B2');
-        $sheet->setCellValue('A2', '2025 version');
-        $sheet->getStyle('A2:B2')->getFont()->setItalic(true)->setSize(10);
-         $sheet->getStyle('A2:B2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $sheet->mergeCells('A3:AK3');
-        $sheet->setCellValue('A3', 'COMMISSION ON HIGHER EDUCATION');
-        $sheet->mergeCells('A4:AK4');
-        $sheet->setCellValue('A4', 'REGIONAL OFFICE XII');
-        $sheet->getStyle('A3:AK4')->getFont()->setBold(true)->setSize(12);
-        $sheet->getStyle('A3:AK4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $sheet->mergeCells('A6:AK6');
-        $sheet->setCellValue('A6', 'CMSP RANKLIST');
-        $sheet->mergeCells('A7:AK7');
         $ay = AyDeadline::query()->orderByDesc('deadline')->orderByDesc('id')->first();
         $ayLabel = $ay?->academic_year ?? ($applications->first()->academic_year ?? '');
-        $sheet->setCellValue('A7', $ayLabel ? 'AY ' . $ayLabel : 'AY');
-        $sheet->getStyle('A6:AK7')->getFont()->setBold(true)->setSize(16);
-        $sheet->getStyle('A6:AK7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->mergeCells('A9:A11');
-        $sheet->setCellValue('A9', 'SEQ');
+        $this->populateRanklistSheet(
+            $spreadsheet->getActiveSheet(),
+            $computed,
+            $ayLabel,
+            'CMSP RANKING'
+        );
 
-        $sheet->mergeCells('B9:E10');
-        $sheet->setCellValue('B9', 'NAME');
-        $sheet->setCellValue('B11', 'LAST NAME');
-        $sheet->setCellValue('C11', 'FIRST NAME');
-        $sheet->setCellValue('D11', 'M.I.');
-        $sheet->setCellValue('E11', 'EXTENSION NAME');
-
-        $sheet->mergeCells('F9:F11');
-        $sheet->setCellValue('F9', 'SEX');
-
-        $sheet->mergeCells('G9:G11');
-        $birthdateHeader = new RichText();
-        $birthdateHeader->createTextRun('BIRTHDATE');
-        $formatRun = $birthdateHeader->createTextRun(PHP_EOL . 'MM/DD/YYYY');
-        $formatRun->getFont()->setSize(8);
-        $sheet->setCellValue('G9', $birthdateHeader);
-
-        $sheet->mergeCells('H9:H11');
-        $sheet->setCellValue('H9', 'LRN');
-
-        $sheet->mergeCells('I9:I11');
-        $sheet->setCellValue('I9', 'CONTACT NUMBER');
-
-        $sheet->mergeCells('J9:J11');
-        $sheet->setCellValue('J9', 'EMAIL ADDRESS');
-
-        $sheet->mergeCells('K9:K11');
-        $sheet->setCellValue('K9', 'SHS SCHOOL NAME');
-
-        $sheet->mergeCells('L9:L11');
-        $sheet->setCellValue('L9', 'SHS TYPE OF SCHOOL');
-
-        $sheet->mergeCells('M9:O10');
-        $sheet->setCellValue('M9', 'PERMANENT HOME ADDRESS');
-        $sheet->setCellValue('M11', 'BRGY/STREET');
-        $sheet->setCellValue('N11', 'TOWN/CITY');
-        $sheet->setCellValue('O11', 'PROVINCE');
-
-        $sheet->mergeCells('P9:P11');
-        $sheet->setCellValue('P9', 'ZIP CODE');
-
-        $sheet->mergeCells('Q9:Q11');
-        $sheet->setCellValue('Q9', 'DISTRICT');
-
-        $sheet->mergeCells('R9:R11');
-        $sheet->setCellValue('R9', 'HEI');
-
-        $sheet->mergeCells('S9:S11');
-        $sheet->setCellValue('S9', 'TYPE OF SCHOOL');
-
-        $sheet->mergeCells('T9:T11');
-        $sheet->setCellValue('T9', 'PROGRAM NAME');
-
-        $sheet->mergeCells('U9:U11');
-        $sheet->setCellValue('U9', 'CURRENT YEAR LEVEL');
-
-        $sheet->mergeCells('V9:W9');
-        $sheet->setCellValue('V9', 'GIVEN DATA');
-        $sheet->mergeCells('V10:V11');
-        $sheet->setCellValue('V10', 'GRADE 12 GWA');
-        $sheet->mergeCells('W10:W11');
-        $sheet->setCellValue('W10', 'INCOME');
-
-        $sheet->mergeCells('X9:Y9');
-        $sheet->setCellValue('X9', 'EQUIVALENT POINTS');
-        $sheet->mergeCells('X10:X11');
-        $sheet->setCellValue('X10', 'GRADE');
-        $sheet->mergeCells('Y10:Y11');
-        $sheet->setCellValue('Y10', 'INCOME');
-
-        $sheet->mergeCells('Z9:AA9');
-        $sheet->setCellValue('Z9', 'PERCENTAGE CRITERIA');
-        $sheet->setCellValue('Z10', 'GRADE');
-        $sheet->setCellValue('AA10', 'INCOME');
-        $sheet->setCellValue('Z11', '70%');
-        $sheet->setCellValue('AA11', '30%');
-
-        $sheet->mergeCells('AB9:AB11');
-        $sheet->setCellValue('AB9', 'TOTAL POINTS');
-
-        $sheet->mergeCells('AC9:AD11');
-        $sheet->setCellValue('AC9', 'TYPE OF SPECIAL GROUP');
-
-        $sheet->mergeCells('AE9:AE11');
-        $sheet->setCellValue('AE9', 'PLUS FIVE (5) POINTS (IF APPLICABLE)');
-
-        $sheet->mergeCells('AF9:AF11');
-        $sheet->setCellValue('AF9', 'FINAL TOTAL POINTS');
-
-        $sheet->mergeCells('AG9:AG11');
-        $sheet->setCellValue('AG9', 'RANK');
-
-        $sheet->mergeCells('AH9:AH11');
-        $sheet->setCellValue('AH9', 'STATUS OF DOCUMENTARY REQUIREMENTS');
-
-        $sheet->mergeCells('AI9:AI11');
-        $sheet->setCellValue('AI9', 'REMARKS');
-
-        $sheet->mergeCells('AJ9:AJ11');
-        $sheet->setCellValue('AJ9', 'NO. OF SIBLINGS');
-
-        $sheet->mergeCells('AK9:AK11');
-        $sheet->setCellValue('AK9', 'INITIAL RANK');
-
-        $sheet->getStyle('A9:AK11')->getFont()->setBold(true);
-        $sheet->getStyle('A9:AK11')->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER)
-            ->setWrapText(true);
-
-        $columnWidths = [
-            'A' => 6,
-            'B' => 18,
-            'C' => 18,
-            'D' => 8,
-            'E' => 12,
-            'F' => 8,
-            'G' => 14,
-            'H' => 16,
-            'I' => 16,
-            'J' => 28,
-            'K' => 30,
-            'L' => 18,
-            'M' => 22,
-            'N' => 20,
-            'O' => 24,
-            'P' => 12,
-            'Q' => 14,
-            'R' => 30,
-            'S' => 18,
-            'T' => 30,
-            'U' => 16,
-            'V' => 14,
-            'W' => 16,
-            'X' => 12,
-            'Y' => 12,
-            'Z' => 14,
-            'AA' => 14,
-            'AB' => 16,
-            'AC' => 28,
-            'AD' => 28,
-            'AE' => 18,
-            'AF' => 18,
-            'AG' => 10,
-            'AH' => 26,
-            'AI' => 20,
-            'AJ' => 16,
-            'AK' => 14,
-        ];
-
-        foreach ($columnWidths as $column => $width) {
-            $sheet->getColumnDimension($column)->setWidth($width);
-        }
-
-        $sheet->freezePane('A12');
-
-        $startRow = 12;
-        foreach ($computed as $index => $entry) {
+        $regionXiiEntries = array_values(array_filter($computed, static function (array $entry): bool {
             /** @var CmspApplication $app */
             $app = $entry['model'];
-            $row = $startRow + $index;
 
-            $middleInitial = $app->middle_name ? mb_substr($app->middle_name, 0, 1) . '.' : '';
-            $barangay = $app->barangay ?: $app->barmm_barangay;
-            $street = $app->purok_street ?: $app->barmm_purok_street;
-            $addressLine = trim(collect([$barangay, $street])->filter()->implode(', '));
-            $municipality = $app->municipality_name ?: $app->barmm_municipality;
-            $province = $app->province_name ?: $app->barmm_province;
-            $provinceDisplay = $app->province_municipality_name;
-            if (!$provinceDisplay && ($province || $municipality)) {
-                $provinceDisplay = collect([$municipality, $province])->filter()->implode(', ');
-            }
+            return filled($app->province_municipality)
+                && filled($app->barangay)
+                && filled($app->purok_street);
+        }));
 
-            $hei = $app->intended_school_name ?: ($app->other_school ?: '');
-            $specialGroups = $app->special_groups ?? [];
-            if (is_string($specialGroups)) {
-                $decoded = json_decode($specialGroups, true);
-                $specialGroups = is_array($decoded) ? $decoded : [$specialGroups];
-            }
-            $specialGroupText = collect($specialGroups)
-                ->filter(fn($v) => (string) $v !== '')
-                ->implode(', ');
+        $regionSheet = $spreadsheet->createSheet();
+        $this->populateRanklistSheet(
+            $regionSheet,
+            $regionXiiEntries,
+            $ayLabel,
+            'REGION XII',
+            'REGION XII'
+        );
 
-            $yearLevel = $app->year_level;
-            $currentYear = $app->incoming ? '1' : $yearLevel;
-            if (!$app->incoming && is_string($yearLevel)) {
-                if (preg_match('/\d+/', $yearLevel, $matches)) {
-                    $currentYear = $matches[0];
-                }
-            }
+        $barmmEntries = array_values(array_filter($computed, static function (array $entry): bool {
+            /** @var CmspApplication $app */
+            $app = $entry['model'];
 
-            $sheet->setCellValue("A{$row}", $index + 1);
-            $sheet->setCellValue("B{$row}", strtoupper($app->last_name));
-            $sheet->setCellValue("C{$row}", strtoupper($app->first_name));
-            $sheet->setCellValue("D{$row}", strtoupper($middleInitial));
-            $sheet->setCellValue("E{$row}", strtoupper((string) ($app->name_extension ?? '')));
-            $sheet->setCellValue("F{$row}", strtoupper((string) $app->sex));
+            return filled($app->barmm_province)
+                && filled($app->barmm_barangay)
+                && filled($app->barmm_purok_street);
+        }));
 
-            if ($app->birthdate) {
-                $sheet->setCellValue("G{$row}", ExcelDate::PHPToExcel($app->birthdate));
-                $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode('mm/dd/yyyy');
-            } else {
-                $sheet->setCellValue("G{$row}", '');
-            }
+        $barmmSheet = $spreadsheet->createSheet();
+        $this->populateRanklistSheet(
+            $barmmSheet,
+            $barmmEntries,
+            $ayLabel,
+            'BARMM',
+            'BARMM'
+        );
 
-            $sheet->setCellValueExplicit("H{$row}", $app->lrn, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $sheet->setCellValueExplicit("I{$row}", $app->contact_number, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $sheet->setCellValue("J{$row}", strtolower($app->email));
-            $sheet->setCellValue("K{$row}", $app->shs_name);
-            $sheet->setCellValue("L{$row}", $app->shs_school_type ?? '');
-            $sheet->setCellValue("M{$row}", $addressLine);
-            $sheet->setCellValue("N{$row}", $municipality);
-            $sheet->setCellValue("O{$row}", $provinceDisplay);
-            $zip = $app->zip_code ?: $app->barmm_zip_code;
-            if ($zip !== null && $zip !== '') {
-                $sheet->setCellValueExplicit("P{$row}", (string) $zip, DataType::TYPE_STRING);
-            } else {
-                $sheet->setCellValue("P{$row}", '');
-            }
-            $sheet->setCellValue("Q{$row}", $app->district_name ?: '');
-            $sheet->setCellValue("R{$row}", $hei);
-            $sheet->setCellValue("S{$row}", $app->school_type);
-            $sheet->setCellValue("T{$row}", $app->course_name ?: $app->course);
-            $sheet->setCellValue("U{$row}", $currentYear);
-            $sheet->setCellValue("V{$row}", $entry['gwa']);
-            $sheet->setCellValue("W{$row}", $entry['income_total']);
-            $sheet->setCellValue("X{$row}", $entry['grade_points']);
-            $sheet->setCellValue("Y{$row}", $entry['income_points']);
-            $sheet->setCellValue("Z{$row}", $entry['grade_weighted']);
-            $sheet->setCellValue("AA{$row}", $entry['income_weighted']);
-            $sheet->setCellValue("AB{$row}", $entry['total_points']);
-            $sheet->mergeCells("AC{$row}:AD{$row}");
-            $sheet->setCellValue("AC{$row}", $specialGroupText);
-            // $sheet->setCellValue("AD{$row}", '');
-            $sheet->setCellValue("AE{$row}", $entry['plus_five']);
-            $sheet->setCellValue("AF{$row}", $entry['final_points']);
-            $sheet->setCellValue("AG{$row}", $index + 1);
-            $sheet->setCellValue("AH{$row}", $app->validation_document_status ?? '');
-            $sheet->setCellValue("AI{$row}", $app->validation_remarks ?? '');
-            $sheet->setCellValue("AJ{$row}", $app->validation_no_siblings ?? '');
-            $sheet->setCellValue("AK{$row}", $app->validation_initial_rank ?? '');
-        }
-
-        $lastRow = $startRow + count($computed) - 1;
-        if ($lastRow < 11) {
-            $lastRow = 11;
-        }
-
-        $sheet->getStyle("A9:AK{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-
-        if ($lastRow >= $startRow) {
-            $sheet->getStyle("V{$startRow}:AF{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
-            $sheet->getStyle("W{$startRow}:W{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-            $sheet->getStyle("AE{$startRow}:AE{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
-            $sheet->getStyle("AG{$startRow}:AG{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
-        }
-
-        if ($lastRow >= $startRow) {
-            $sheet->getStyle("B{$startRow}:AD{$lastRow}")->getAlignment()->setWrapText(true);
-        }
+        $spreadsheet->setActiveSheetIndex(0);
 
         $filename = 'cmspranklist-' . now()->format('Ymd-His') . '.xlsx';
         $writer = new Xlsx($spreadsheet);
@@ -891,6 +653,306 @@ public function indexJson(\Illuminate\Http\Request $request)
         });
 
         return $computed;
+    }
+
+    /**
+     * @param array<int, array{model: CmspApplication, rank: int} & array<string, mixed>> $entries
+     */
+    private function populateRanklistSheet(Worksheet $sheet, array $entries, string $ayLabel, string $sheetTitle, ?string $headingSuffix = null): void
+    {
+        $sheet->setTitle($sheetTitle);
+
+        $sheet->mergeCells('A1:C1');
+        $sheet->setCellValue('A1', 'Annex C - Official Ranklist');
+        $sheet->getStyle('A1:C1')->getFont()->setItalic(true)->setSize(10);
+        $sheet->getStyle('A1:C1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A2:B2');
+        $sheet->setCellValue('A2', '2025 version');
+        $sheet->getStyle('A2:B2')->getFont()->setItalic(true)->setSize(10);
+        $sheet->getStyle('A2:B2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A3:AK3');
+        $sheet->setCellValue('A3', 'COMMISSION ON HIGHER EDUCATION');
+        $sheet->mergeCells('A4:AK4');
+        $sheet->setCellValue('A4', 'REGIONAL OFFICE XII');
+        $sheet->getStyle('A3:AK4')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A3:AK4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A6:AK6');
+        $heading = 'CMSP RANKLIST';
+        if ($headingSuffix) {
+            $heading .= ' - ' . $headingSuffix;
+        }
+        $sheet->setCellValue('A6', $heading);
+        $sheet->mergeCells('A7:AK7');
+        $sheet->setCellValue('A7', $ayLabel ? 'AY ' . $ayLabel : 'AY');
+        $sheet->getStyle('A6:AK7')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A6:AK7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A9:A11');
+        $sheet->setCellValue('A9', 'SEQ');
+
+        $sheet->mergeCells('B9:E10');
+        $sheet->setCellValue('B9', 'NAME');
+        $sheet->setCellValue('B11', 'LAST NAME');
+        $sheet->setCellValue('C11', 'FIRST NAME');
+        $sheet->setCellValue('D11', 'M.I.');
+        $sheet->setCellValue('E11', 'EXTENSION NAME');
+
+        $sheet->mergeCells('F9:F11');
+        $sheet->setCellValue('F9', 'SEX');
+
+        $sheet->mergeCells('G9:G11');
+        $birthdateHeader = new RichText();
+        $birthdateHeader->createTextRun('BIRTHDATE');
+        $formatRun = $birthdateHeader->createTextRun(PHP_EOL . 'MM/DD/YYYY');
+        $formatRun->getFont()->setSize(8);
+        $sheet->setCellValue('G9', $birthdateHeader);
+
+        $sheet->mergeCells('H9:H11');
+        $sheet->setCellValue('H9', 'LRN');
+
+        $sheet->mergeCells('I9:I11');
+        $sheet->setCellValue('I9', 'CONTACT NUMBER');
+
+        $sheet->mergeCells('J9:J11');
+        $sheet->setCellValue('J9', 'EMAIL ADDRESS');
+
+        $sheet->mergeCells('K9:K11');
+        $sheet->setCellValue('K9', 'SHS SCHOOL NAME');
+
+        $sheet->mergeCells('L9:L11');
+        $sheet->setCellValue('L9', 'SHS TYPE OF SCHOOL');
+
+        $sheet->mergeCells('M9:O10');
+        $sheet->setCellValue('M9', 'PERMANENT HOME ADDRESS');
+        $sheet->setCellValue('M11', 'BRGY/STREET');
+        $sheet->setCellValue('N11', 'TOWN/CITY');
+        $sheet->setCellValue('O11', 'PROVINCE');
+
+        $sheet->mergeCells('P9:P11');
+        $sheet->setCellValue('P9', 'ZIP CODE');
+
+        $sheet->mergeCells('Q9:Q11');
+        $sheet->setCellValue('Q9', 'DISTRICT');
+
+        $sheet->mergeCells('R9:R11');
+        $sheet->setCellValue('R9', 'HEI');
+
+        $sheet->mergeCells('S9:S11');
+        $sheet->setCellValue('S9', 'TYPE OF SCHOOL');
+
+        $sheet->mergeCells('T9:T11');
+        $sheet->setCellValue('T9', 'PROGRAM NAME');
+
+        $sheet->mergeCells('U9:U11');
+        $sheet->setCellValue('U9', 'CURRENT YEAR LEVEL');
+
+        $sheet->mergeCells('V9:W9');
+        $sheet->setCellValue('V9', 'GIVEN DATA');
+        $sheet->mergeCells('V10:V11');
+        $sheet->setCellValue('V10', 'GRADE 12 GWA');
+        $sheet->mergeCells('W10:W11');
+        $sheet->setCellValue('W10', 'INCOME');
+
+        $sheet->mergeCells('X9:Y9');
+        $sheet->setCellValue('X9', 'EQUIVALENT POINTS');
+        $sheet->mergeCells('X10:X11');
+        $sheet->setCellValue('X10', 'GRADE');
+        $sheet->mergeCells('Y10:Y11');
+        $sheet->setCellValue('Y10', 'INCOME');
+
+        $sheet->mergeCells('Z9:AA9');
+        $sheet->setCellValue('Z9', 'PERCENTAGE CRITERIA');
+        $sheet->setCellValue('Z10', 'GRADE');
+        $sheet->setCellValue('AA10', 'INCOME');
+        $sheet->setCellValue('Z11', '70%');
+        $sheet->setCellValue('AA11', '30%');
+
+        $sheet->mergeCells('AB9:AB11');
+        $sheet->setCellValue('AB9', 'TOTAL POINTS');
+
+        $sheet->mergeCells('AC9:AD11');
+        $sheet->setCellValue('AC9', 'TYPE OF SPECIAL GROUP');
+
+        $sheet->mergeCells('AE9:AE11');
+        $sheet->setCellValue('AE9', 'PLUS FIVE (5) POINTS (IF APPLICABLE)');
+
+        $sheet->mergeCells('AF9:AF11');
+        $sheet->setCellValue('AF9', 'FINAL TOTAL POINTS');
+
+        $sheet->mergeCells('AG9:AG11');
+        $sheet->setCellValue('AG9', 'RANK');
+
+        $sheet->mergeCells('AH9:AH11');
+        $sheet->setCellValue('AH9', 'STATUS OF DOCUMENTARY REQUIREMENTS');
+
+        $sheet->mergeCells('AI9:AI11');
+        $sheet->setCellValue('AI9', 'REMARKS');
+
+        $sheet->mergeCells('AJ9:AJ11');
+        $sheet->setCellValue('AJ9', 'NO. OF SIBLINGS');
+
+        $sheet->mergeCells('AK9:AK11');
+        $sheet->setCellValue('AK9', 'INITIAL RANK');
+
+        $sheet->getStyle('A9:AK11')->getFont()->setBold(true);
+        $sheet->getStyle('A9:AK11')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+
+        $columnWidths = [
+            'A' => 6,
+            'B' => 18,
+            'C' => 18,
+            'D' => 8,
+            'E' => 12,
+            'F' => 8,
+            'G' => 14,
+            'H' => 16,
+            'I' => 16,
+            'J' => 28,
+            'K' => 30,
+            'L' => 18,
+            'M' => 22,
+            'N' => 20,
+            'O' => 24,
+            'P' => 12,
+            'Q' => 14,
+            'R' => 30,
+            'S' => 18,
+            'T' => 30,
+            'U' => 16,
+            'V' => 14,
+            'W' => 16,
+            'X' => 12,
+            'Y' => 12,
+            'Z' => 14,
+            'AA' => 14,
+            'AB' => 16,
+            'AC' => 28,
+            'AD' => 28,
+            'AE' => 18,
+            'AF' => 18,
+            'AG' => 10,
+            'AH' => 26,
+            'AI' => 20,
+            'AJ' => 16,
+            'AK' => 14,
+        ];
+
+        foreach ($columnWidths as $column => $width) {
+            $sheet->getColumnDimension($column)->setWidth($width);
+        }
+
+        $sheet->freezePane('A12');
+
+        $startRow = 12;
+        foreach ($entries as $index => $entry) {
+            /** @var CmspApplication $app */
+            $app = $entry['model'];
+            $row = $startRow + $index;
+
+            $middleInitial = $app->middle_name ? mb_substr($app->middle_name, 0, 1) . '.' : '';
+            $barangay = $app->barangay ?: $app->barmm_barangay;
+            $street = $app->purok_street ?: $app->barmm_purok_street;
+            $addressLine = trim(collect([$barangay, $street])->filter()->implode(', '));
+            $municipality = $app->municipality_name ?: $app->barmm_municipality;
+            $province = $app->province_name ?: $app->barmm_province;
+            $provinceDisplay = $app->province_municipality_name;
+            if (!$provinceDisplay && ($province || $municipality)) {
+                $provinceDisplay = collect([$municipality, $province])->filter()->implode(', ');
+            }
+
+            $hei = $app->intended_school_name ?: ($app->other_school ?: '');
+            $specialGroups = $app->special_groups ?? [];
+            if (is_string($specialGroups)) {
+                $decoded = json_decode($specialGroups, true);
+                $specialGroups = is_array($decoded) ? $decoded : [$specialGroups];
+            }
+            $specialGroupText = collect($specialGroups)
+                ->filter(fn($v) => (string) $v !== '')
+                ->implode(', ');
+
+            $yearLevel = $app->year_level;
+            $currentYear = $app->incoming ? '1' : $yearLevel;
+            if (!$app->incoming && is_string($yearLevel)) {
+                if (preg_match('/\d+/', $yearLevel, $matches)) {
+                    $currentYear = $matches[0];
+                }
+            }
+
+            $seq = $index + 1;
+            $sheet->setCellValue("A{$row}", $seq);
+            $sheet->setCellValue("B{$row}", strtoupper($app->last_name));
+            $sheet->setCellValue("C{$row}", strtoupper($app->first_name));
+            $sheet->setCellValue("D{$row}", strtoupper($middleInitial));
+            $sheet->setCellValue("E{$row}", strtoupper((string) ($app->name_extension ?? '')));
+            $sheet->setCellValue("F{$row}", strtoupper((string) $app->sex));
+
+            if ($app->birthdate) {
+                $sheet->setCellValue("G{$row}", ExcelDate::PHPToExcel($app->birthdate));
+                $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode('mm/dd/yyyy');
+            } else {
+                $sheet->setCellValue("G{$row}", '');
+            }
+
+            $sheet->setCellValueExplicit("H{$row}", $app->lrn, DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("I{$row}", $app->contact_number, DataType::TYPE_STRING);
+            $sheet->setCellValue("J{$row}", strtolower($app->email));
+            $sheet->setCellValue("K{$row}", $app->shs_name);
+            $sheet->setCellValue("L{$row}", $app->shs_school_type ?? '');
+            $sheet->setCellValue("M{$row}", $addressLine);
+            $sheet->setCellValue("N{$row}", $municipality);
+            $sheet->setCellValue("O{$row}", $provinceDisplay);
+            $zip = $app->zip_code ?: $app->barmm_zip_code;
+            if ($zip !== null && $zip !== '') {
+                $sheet->setCellValueExplicit("P{$row}", (string) $zip, DataType::TYPE_STRING);
+            } else {
+                $sheet->setCellValue("P{$row}", '');
+            }
+            $sheet->setCellValue("Q{$row}", $app->district_name ?: '');
+            $sheet->setCellValue("R{$row}", $hei);
+            $sheet->setCellValue("S{$row}", $app->school_type);
+            $sheet->setCellValue("T{$row}", $app->course_name ?: $app->course);
+            $sheet->setCellValue("U{$row}", $currentYear);
+            $sheet->setCellValue("V{$row}", $entry['gwa']);
+            $sheet->setCellValue("W{$row}", $entry['income_total']);
+            $sheet->setCellValue("X{$row}", $entry['grade_points']);
+            $sheet->setCellValue("Y{$row}", $entry['income_points']);
+            $sheet->setCellValue("Z{$row}", $entry['grade_weighted']);
+            $sheet->setCellValue("AA{$row}", $entry['income_weighted']);
+            $sheet->setCellValue("AB{$row}", $entry['total_points']);
+            $sheet->mergeCells("AC{$row}:AD{$row}");
+            $sheet->setCellValue("AC{$row}", $specialGroupText);
+            $sheet->setCellValue("AE{$row}", $entry['plus_five']);
+            $sheet->setCellValue("AF{$row}", $entry['final_points']);
+            $sheet->setCellValue("AG{$row}", $entry['rank'] ?? $seq);
+            $sheet->setCellValue("AH{$row}", $app->validation_document_status ?? '');
+            $sheet->setCellValue("AI{$row}", $app->validation_remarks ?? '');
+            $sheet->setCellValue("AJ{$row}", $app->validation_no_siblings ?? '');
+            $sheet->setCellValue("AK{$row}", $app->validation_initial_rank ?? '');
+        }
+
+        $lastRow = $startRow + count($entries) - 1;
+        if ($lastRow < 11) {
+            $lastRow = 11;
+        }
+
+        $sheet->getStyle("A9:AK{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        if ($lastRow >= $startRow) {
+            $sheet->getStyle("V{$startRow}:AF{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
+            $sheet->getStyle("W{$startRow}:W{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+            $sheet->getStyle("AE{$startRow}:AE{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
+            $sheet->getStyle("AG{$startRow}:AG{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
+        }
+
+        if ($lastRow >= $startRow) {
+            $sheet->getStyle("B{$startRow}:AD{$lastRow}")->getAlignment()->setWrapText(true);
+        }
     }
 
 
