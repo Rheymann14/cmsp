@@ -245,19 +245,6 @@ export default function RawList() {
     const selectedAcademicYear = selectedDeadline?.academic_year ?? null;
     const selectedDeadlineDate = selectedDeadline?.deadline ?? null;
 
-    const isDeadlinePast = useMemo(() => {
-        if (!selectedDeadlineDate) {
-            return false;
-        }
-
-        const deadline = new Date(`${selectedDeadlineDate}T23:59:59`);
-        if (Number.isNaN(deadline.getTime())) {
-            return false;
-        }
-
-        return Date.now() > deadline.getTime();
-    }, [selectedDeadlineDate]);
-
     const handleSpecialCounts = useCallback((counts: SpecialGroupCounts) => {
         setSpecialCounts({ ...counts });
     }, []);
@@ -581,7 +568,6 @@ function CmspsTable({
         academic_year: string;
         deadline: string; // ISO date
         created_at: string; // ISO datetime
-
         total_points?: number | null;
         final_total_points?: number | null;
         rank?: number | null;
@@ -604,7 +590,7 @@ function CmspsTable({
         } | null;
     };
 
-    const BASE_COLS = 48; // keep this in sync with the static header columns
+    const COLS = 50; // keep this in sync with the header
 
     const ATTACHMENTS = [
         { key: 'application_form_path', label: 'application form' },
@@ -807,9 +793,6 @@ function CmspsTable({
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
     const [actionSort, setActionSort] = useState<'validated' | 'pending' | null>(null);
-
-    const showComputedRanking = isDeadlinePast;
-    const totalColumns = BASE_COLS + (showComputedRanking ? 2 : 0);
 
     useEffect(() => {
         setPage(1);
@@ -1458,12 +1441,8 @@ function CmspsTable({
 
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
-                                {showComputedRanking ? (
-                                    <React.Fragment>
-                                        <th className="px-3 py-2 font-semibold text-right">Final Total Points</th>
-                                        <th className="px-3 py-2 font-semibold">Rank</th>
-                                    </React.Fragment>
-                                ) : null}
+                                <th className="px-3 py-2 font-semibold text-right">Final Total Points</th>
+                                <th className="px-3 py-2 font-semibold">Rank</th>
                                 <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
                                 <th className="px-3 py-2 font-semibold sticky right-0 z-20 bg-zinc-50 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800">
                                     <button
@@ -1496,7 +1475,7 @@ function CmspsTable({
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
-                                        {Array.from({ length: totalColumns }).map((__, j) => (
+                                        {Array.from({ length: COLS }).map((__, j) => (
                                             <td key={j} className="px-3 py-2">
                                                 <div className="h-4 w-full max-w-[220px] animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
                                             </td>
@@ -1505,7 +1484,7 @@ function CmspsTable({
                                 ))
                             ) : displayRows.length === 0 ? (
                                 <tr className="border-t border-zinc-100 dark:border-zinc-800">
-                                    <td className="px-3 py-6 text-left text-zinc-600 dark:text-zinc-300" colSpan={totalColumns}>
+                                    <td className="px-3 py-6 text-left text-zinc-600 dark:text-zinc-300" colSpan={COLS}>
                                         <div className="flex flex-col items-start gap-3">
                                             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
                                                 <UserX className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" />
@@ -1723,23 +1702,19 @@ function CmspsTable({
                                                 {new Date(r.deadline).toLocaleDateString()}
                                             </span>
                                         </td>
-                                        {showComputedRanking ? (
-                                            <React.Fragment>
-                                                <td className="px-3 py-2 text-right">
-                                                    {typeof r.final_total_points === 'number'
-                                                        ? r.final_total_points.toLocaleString(undefined, {
-                                                            minimumFractionDigits: 2,
-                                                            maximumFractionDigits: 2,
-                                                        })
-                                                        : '—'}
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                    {typeof r.rank === 'number'
-                                                        ? r.rank.toLocaleString()
-                                                        : '—'}
-                                                </td>
-                                            </React.Fragment>
-                                        ) : null}
+                                        <td className="px-3 py-2 text-right">
+                                            {typeof r.final_total_points === 'number'
+                                                ? r.final_total_points.toLocaleString(undefined, {
+                                                      minimumFractionDigits: 2,
+                                                      maximumFractionDigits: 2,
+                                                  })
+                                                : '—'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {typeof r.rank === 'number'
+                                                ? r.rank.toLocaleString()
+                                                : '—'}
+                                        </td>
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                         <td
                                             className={cn(
