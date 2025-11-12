@@ -1,7 +1,6 @@
 // resources/js/Pages/welcome.tsx
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
-import type { Page } from '@inertiajs/core';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppearance } from '@/hooks/use-appearance';
@@ -99,6 +98,22 @@ type TrackData = {
         district?: string | null;
     };
     files: Record<string, boolean>;
+};
+
+const resolveTrackingFromFlash = (flash: SharedData['flash'] | undefined): string | null => {
+    if (!flash) return null;
+
+    if (typeof flash.trackingNo === 'string' && flash.trackingNo.trim()) {
+        return flash.trackingNo;
+    }
+
+    const legacyTracking = (flash as Record<string, unknown>).tracking_no;
+
+    if (typeof legacyTracking === 'string' && legacyTracking.trim()) {
+        return legacyTracking;
+    }
+
+    return null;
 };
 
 type ApplicationInfoCardProps = {
@@ -299,14 +314,12 @@ export default function Welcome() {
     const appFormRef = useRef<HTMLInputElement | null>(null);
     const [hasAppForm, setHasAppForm] = useState(false);
 
+    const initialTracking = resolveTrackingFromFlash(flash);
+
     const [successOpen, setSuccessOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"form" | "req">("form");
-    const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(
-        flash?.trackingNo ?? flash?.tracking_no ?? null,
-    );
-    const lastHandledTrackingRef = useRef<string | null>(
-        flash?.trackingNo ?? flash?.tracking_no ?? null,
-    );
+    const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(initialTracking);
+    const lastHandledTrackingRef = useRef<string | null>(initialTracking);
 
     const [trackOpen, setTrackOpen] = useState(false);
     const [trackingCode, setTrackingCode] = useState("");
@@ -379,6 +392,7 @@ export default function Welcome() {
         if (!open) {
             setGeneratedTrackingNo(null);
             setActiveTab("req");
+            lastHandledTrackingRef.current = null;
         }
     };
 
@@ -404,20 +418,22 @@ export default function Welcome() {
         return () => clearTimeout(t);
     }, [trackOpen]);
 
-    useEffect(() => {
-        const tracking = flash?.trackingNo ?? flash?.tracking_no ?? null;
+    const flashTrackingNo = useMemo(() => resolveTrackingFromFlash(flash), [flash]);
 
-        if (tracking && tracking !== lastHandledTrackingRef.current) {
-            lastHandledTrackingRef.current = tracking;
-            setGeneratedTrackingNo(tracking);
+    useEffect(() => {
+        if (flashTrackingNo && flashTrackingNo !== lastHandledTrackingRef.current) {
+            lastHandledTrackingRef.current = flashTrackingNo;
+            setGeneratedTrackingNo(flashTrackingNo);
             setSuccessOpen(true);
             const successMessage =
                 typeof flash?.success === 'string'
-                    ? flash?.success
+                    ? flash.success
                     : 'Application submitted successfully!';
             toast.success(successMessage, { id: 'cmsp-submit' });
+        } else if (!flashTrackingNo) {
+            lastHandledTrackingRef.current = null;
         }
-    }, [flash?.trackingNo, flash?.tracking_no, flash?.success]);
+    }, [flashTrackingNo, flash?.success]);
 
 
     // confetti viewport size
@@ -1301,6 +1317,27 @@ export default function Welcome() {
     const [date, setDate] = useState<Date | undefined>(undefined)
     const [birthdate, setBirthdate] = useState<string>(date ? format(date, "yyyy-MM-dd") : "");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isSubmittingRef = useRef(false);
+
+    useEffect(() => {
+        isSubmittingRef.current = isSubmitting;
+    }, [isSubmitting]);
+
+    useEffect(() => {
+        const unsubscribe = router.on('exception', (event) => {
+            if (!isSubmittingRef.current) {
+                return;
+            }
+
+            console.error(event.detail.exception);
+            toast.error('Something went wrong. Please try again.', { id: 'cmsp-submit' });
+            setIsSubmitting(false);
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -1379,7 +1416,7 @@ export default function Welcome() {
 
         router.post(route('cmsps.apply'), fd, {
             forceFormData: true,
-            onSuccess: (page: Page<Record<string, unknown>>) => {
+            onSuccess: () => {
                 toast.success('Application submitted successfully!', { id: 'cmsp-submit' });
                 (document.getElementById('cmspForm') as HTMLFormElement)?.reset();
                 form.reset();
@@ -1400,17 +1437,6 @@ export default function Welcome() {
                 setBirthdate('');
                 setSex('');
 
-                const pageProps = page.props as unknown as WelcomePageProps | undefined;
-                const flashData = pageProps?.flash as
-                    | {
-                        trackingNo?: string | null;
-                        tracking_no?: string | null;
-                        success?: string;
-                    }
-                    | undefined;
-                const trackingNo = flashData?.trackingNo ?? flashData?.tracking_no ?? null;
-                setGeneratedTrackingNo(trackingNo);
-                setSuccessOpen(true);
             },
             onError: (errors) => {
                 highlightInvalidFields(errors as Record<string, string>);
@@ -1418,10 +1444,16 @@ export default function Welcome() {
                 const first = Object.values(errors)[0] as string | undefined;
                 toast.error(first ?? 'Please review the highlighted fields.', { id: 'cmsp-submit' });
                 console.log(errors);
+            },
+            onCancel: () => {
+                toast.dismiss('cmsp-submit');
                 setIsSubmitting(false);
             },
-            onFinish: () => {
+            onFinish: (visit) => {
                 setIsSubmitting(false);
+                if (!visit.completed) {
+                    toast.dismiss('cmsp-submit');
+                }
             },
         });
     };
