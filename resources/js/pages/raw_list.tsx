@@ -769,6 +769,8 @@ function CmspsTable({
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
     const [actionSort, setActionSort] = useState<'validated' | 'pending' | null>(null);
+    const [rankSort, setRankSort] = useState<'asc' | 'desc' | null>(null);
+    const [submittedSort, setSubmittedSort] = useState<'asc' | 'desc' | null>(null);
 
     useEffect(() => {
         setPage(1);
@@ -827,7 +829,7 @@ function CmspsTable({
             });
             if (!res.ok) throw new Error('Failed to load');
             const json = await res.json();
-            const rawData = Array.isArray(json.data) ? json.data : [];
+            const rawData: unknown[] = Array.isArray(json.data) ? json.data : [];
             const normalized = rawData
                 .map((item) => normalizeRow(item))
                 .filter((item): item is ApplicationRow => item !== null);
@@ -853,15 +855,46 @@ function CmspsTable({
 
     const toggleActionSort = useCallback(() => {
         setActionSort((prev) => {
-            if (prev === 'validated') {
-                return 'pending';
+            const next = prev === 'validated'
+                ? 'pending'
+                : prev === 'pending'
+                    ? null
+                    : 'validated';
+
+            if (next !== null) {
+                setRankSort(null);
+                setSubmittedSort(null);
             }
-            if (prev === 'pending') {
-                return null;
-            }
-            return 'validated';
+
+            return next;
         });
-    }, []);
+    }, [setActionSort, setRankSort, setSubmittedSort]);
+
+    const toggleRankSort = useCallback(() => {
+        setRankSort((prev) => {
+            const next = prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc';
+
+            if (next !== null) {
+                setActionSort(null);
+                setSubmittedSort(null);
+            }
+
+            return next;
+        });
+    }, [setActionSort, setRankSort, setSubmittedSort]);
+
+    const toggleSubmittedSort = useCallback(() => {
+        setSubmittedSort((prev) => {
+            const next = prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc';
+
+            if (next !== null) {
+                setActionSort(null);
+                setRankSort(null);
+            }
+
+            return next;
+        });
+    }, [setActionSort, setRankSort, setSubmittedSort]);
 
     const handleCopyTracking = useCallback(async (trackingNo: string) => {
         const value = (trackingNo ?? '').trim();
@@ -915,30 +948,76 @@ function CmspsTable({
     }, []);
 
     const displayRows = useMemo(() => {
-        if (!actionSort) {
+        if (!actionSort && !rankSort && !submittedSort) {
             return rows;
         }
 
-        const sorted = [...rows];
-        sorted.sort((a, b) => {
-            const aValidated = Boolean(a.latest_validation);
-            const bValidated = Boolean(b.latest_validation);
+        const getComparableRank = (value: ApplicationRow['rank']) =>
+            typeof value === 'number' && Number.isFinite(value) ? value : null;
 
-            if (aValidated === bValidated) {
-                return 0;
+        const getComparableDate = (value: ApplicationRow['created_at']) => {
+            if (!value) {
+                return null;
             }
 
-            return actionSort === 'validated'
-                ? aValidated
-                    ? -1
-                    : 1
-                : aValidated
-                    ? 1
-                    : -1;
+            const timestamp = new Date(value).getTime();
+            return Number.isFinite(timestamp) ? timestamp : null;
+        };
+
+        const sorted = [...rows];
+        sorted.sort((a, b) => {
+            if (actionSort) {
+                const aValidated = Boolean(a.latest_validation);
+                const bValidated = Boolean(b.latest_validation);
+
+                if (aValidated !== bValidated) {
+                    if (actionSort === 'validated') {
+                        return aValidated ? -1 : 1;
+                    }
+
+                    return aValidated ? 1 : -1;
+                }
+            }
+
+            if (rankSort) {
+                const aRank = getComparableRank(a.rank);
+                const bRank = getComparableRank(b.rank);
+
+                if (aRank !== null && bRank !== null && aRank !== bRank) {
+                    return rankSort === 'asc' ? aRank - bRank : bRank - aRank;
+                }
+
+                if (aRank === null && bRank !== null) {
+                    return 1;
+                }
+
+                if (aRank !== null && bRank === null) {
+                    return -1;
+                }
+            }
+
+            if (submittedSort) {
+                const aSubmitted = getComparableDate(a.created_at);
+                const bSubmitted = getComparableDate(b.created_at);
+
+                if (aSubmitted !== null && bSubmitted !== null && aSubmitted !== bSubmitted) {
+                    return submittedSort === 'asc' ? aSubmitted - bSubmitted : bSubmitted - aSubmitted;
+                }
+
+                if (aSubmitted === null && bSubmitted !== null) {
+                    return 1;
+                }
+
+                if (aSubmitted !== null && bSubmitted === null) {
+                    return -1;
+                }
+            }
+
+            return 0;
         });
 
         return sorted;
-    }, [actionSort, rows]);
+    }, [actionSort, rankSort, rows, submittedSort]);
 
     const commitSearch = (value: string) => {
         const trimmed = value.trim();
@@ -1418,8 +1497,54 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
                                 <th className="px-3 py-2 font-semibold">Final Total Points</th>
-                                <th className="px-3 py-2 font-semibold">Rank</th>
-                                <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
+                                <th className="px-3 py-2 font-semibold">
+                                    <button
+                                        type="button"
+                                        onClick={toggleRankSort}
+                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        aria-pressed={rankSort !== null}
+                                        title={
+                                            rankSort === 'asc'
+                                                ? 'Sorting by rank (lowest number first). Click to show highest rank first.'
+                                                : rankSort === 'desc'
+                                                    ? 'Sorting by rank (highest number first). Click to reset ordering.'
+                                                    : 'Sort by rank. Click to show lowest rank first.'
+                                        }
+                                    >
+                                        <span>Rank</span>
+                                        {rankSort === 'asc' ? (
+                                            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                                        ) : rankSort === 'desc' ? (
+                                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                </th>
+                                <th className="px-3 py-2 font-semibold min-w-[190px]">
+                                    <button
+                                        type="button"
+                                        onClick={toggleSubmittedSort}
+                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        aria-pressed={submittedSort !== null}
+                                        title={
+                                            submittedSort === 'asc'
+                                                ? 'Sorting by submission date (oldest first). Click to show newest first.'
+                                                : submittedSort === 'desc'
+                                                    ? 'Sorting by submission date (newest first). Click to reset ordering.'
+                                                    : 'Sort by submission date. Click to show oldest submissions first.'
+                                        }
+                                    >
+                                        <span>Submitted</span>
+                                        {submittedSort === 'asc' ? (
+                                            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                                        ) : submittedSort === 'desc' ? (
+                                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                </th>
                                 <th className="px-3 py-2 font-semibold sticky right-0 z-20 bg-zinc-50 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800">
                                     <button
                                         type="button"
