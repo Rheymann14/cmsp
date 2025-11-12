@@ -653,6 +653,76 @@ function CmspsTable({
         );
     };
 
+    const normalizeRow = useCallback((input: unknown): ApplicationRow | null => {
+        if (!input || typeof input !== 'object') {
+            return null;
+        }
+
+        const raw = input as Record<string, unknown> & {
+            ethnicity?: { label?: unknown } | null;
+            religion?: { label?: unknown } | null;
+            district_model?: { name?: unknown } | null;
+            school?: { name?: unknown } | null;
+            course_model?: { name?: unknown } | null;
+            location?: { municipality?: unknown; province?: unknown } | null;
+        };
+
+        const base = { ...raw } as ApplicationRow & Record<string, unknown>;
+
+        const ethnicityLabel = raw.ethnicity && typeof raw.ethnicity === 'object' && typeof raw.ethnicity.label === 'string'
+            ? raw.ethnicity.label.trim()
+            : '';
+        if (ethnicityLabel) {
+            base.ethnicity_name = ethnicityLabel;
+        }
+
+        const religionLabel = raw.religion && typeof raw.religion === 'object' && typeof raw.religion.label === 'string'
+            ? raw.religion.label.trim()
+            : '';
+        if (religionLabel) {
+            base.religion_name = religionLabel;
+        }
+
+        const districtName = raw.district_model && typeof raw.district_model === 'object' && typeof raw.district_model.name === 'string'
+            ? raw.district_model.name.trim()
+            : '';
+        if (districtName) {
+            base.district_name = districtName;
+        }
+
+        const schoolName = raw.school && typeof raw.school === 'object' && typeof raw.school.name === 'string'
+            ? raw.school.name.trim()
+            : '';
+        if (schoolName) {
+            base.intended_school_name = schoolName;
+        }
+
+        const courseName = raw.course_model && typeof raw.course_model === 'object' && typeof raw.course_model.name === 'string'
+            ? raw.course_model.name.trim()
+            : '';
+        if (courseName) {
+            base.course_name = courseName;
+        }
+
+        if (raw.location && typeof raw.location === 'object') {
+            const municipality = typeof raw.location.municipality === 'string' ? raw.location.municipality.trim() : '';
+            const province = typeof raw.location.province === 'string' ? raw.location.province.trim() : '';
+            const combined = [municipality, province].filter((part) => part !== '').join(', ');
+            if (combined) {
+                base.province_municipality_name = combined;
+            }
+        }
+
+        delete base.ethnicity;
+        delete base.religion;
+        delete base.district_model;
+        delete base.school;
+        delete base.course_model;
+        delete base.location;
+
+        return base;
+    }, []);
+
     const [rows, setRows] = useState<ApplicationRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(false);
@@ -733,7 +803,11 @@ function CmspsTable({
             });
             if (!res.ok) throw new Error('Failed to load');
             const json = await res.json();
-            setRows(json.data ?? []);
+            const rawData = Array.isArray(json.data) ? json.data : [];
+            const normalized = rawData
+                .map((item) => normalizeRow(item))
+                .filter((item): item is ApplicationRow => item !== null);
+            setRows(normalized);
             setTotal(json.meta?.total ?? 0);
             setLastPage(json.meta?.last_page ?? 1);
             setPage(json.meta?.current_page ?? p);
@@ -751,7 +825,7 @@ function CmspsTable({
         } finally {
             setLoading(false);
         }
-    }, [buildUrl, onSpecialCounts]);
+    }, [buildUrl, normalizeRow, onSpecialCounts]);
 
     const toggleActionSort = useCallback(() => {
         setActionSort((prev) => {
