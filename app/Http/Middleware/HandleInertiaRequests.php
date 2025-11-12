@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         $shared = parent::share($request);
+        $baseFlash = $shared['flash'] ?? [];
 
         return [
             ...$shared,
@@ -63,10 +64,25 @@ class HandleInertiaRequests extends Middleware
                 'location' => $request->url(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'flash' => [
-                ...(is_array($shared['flash'] ?? null) ? $shared['flash'] : []),
-                'trackingNo' => fn () => $request->session()->get('tracking_no'),
-            ],
+            'flash' => function () use ($baseFlash, $request) {
+                $resolved = $baseFlash;
+
+                if ($resolved instanceof \Closure) {
+                    $resolved = $resolved();
+                }
+
+                if (! is_array($resolved)) {
+                    $resolved = [];
+                }
+
+                $tracking = $request->session()->get('tracking_no');
+
+                return [
+                    ...$resolved,
+                    'tracking_no' => $tracking,
+                    'trackingNo' => $tracking,
+                ];
+            },
         ];
     }
 }
