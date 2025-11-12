@@ -1449,6 +1449,11 @@ export default function Welcome() {
                 toast.dismiss('cmsp-submit');
                 setIsSubmitting(false);
             },
+            onException: (error) => {
+                console.error(error);
+                toast.error('Something went wrong. Please try again.', { id: 'cmsp-submit' });
+                setIsSubmitting(false);
+            },
             onFinish: (visit) => {
                 setIsSubmitting(false);
                 if (!visit.completed) {
