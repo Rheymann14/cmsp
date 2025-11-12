@@ -1174,7 +1174,7 @@ function CmspsTable({
                         <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                         <input
                             type="text"
-                            placeholder="Search by name or course…"
+                            placeholder="Search by name, tracking no, LRN, or email…"
                             className="h-9 w-72 rounded-md border border-zinc-300 bg-white pl-8 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
