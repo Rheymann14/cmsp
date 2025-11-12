@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AyDeadline;
 use App\Models\CmspApplication;
+use App\Services\CmspRankingService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\UploadedFile;
@@ -683,7 +685,7 @@ public function exportXlsx(Request $request)
         ]);
     }
 
-public function indexJson(\Illuminate\Http\Request $request)
+public function indexJson(\Illuminate\Http\Request $request, CmspRankingService $rankingService)
 {
     $term    = trim((string) $request->get('search', ''));
     $perPage = (int) $request->integer('per_page', 10);
@@ -693,6 +695,18 @@ public function indexJson(\Illuminate\Http\Request $request)
     if ($deadlineInput !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadlineInput) === 1) {
         $deadlineDate = $deadlineInput;
     }
+
+    $deadlineCarbon = null;
+    if ($deadlineDate !== null) {
+        try {
+            $deadlineCarbon = CarbonImmutable::createFromFormat('Y-m-d', $deadlineDate);
+        } catch (\Exception $e) {
+            $deadlineCarbon = null;
+        }
+    }
+
+    $shouldComputeRanking = $deadlineCarbon !== null
+        && now()->greaterThan($deadlineCarbon->endOfDay());
 
     $q = CmspApplication::query()
         ->with([
@@ -761,10 +775,47 @@ public function indexJson(\Illuminate\Http\Request $request)
         'indigenous_people' => $makeCountsQuery()->whereJsonContains('special_groups', 'Indigenous People (IP)')->count(),
     ];
 
+    $rankingMap = [];
+    $rankingQuery = $shouldComputeRanking ? clone $q : null;
+
     $apps = $q->paginate($perPage)->appends($request->all());
 
+    if ($rankingQuery !== null) {
+        $allApplications = $rankingQuery->get();
+
+        if ($allApplications->isNotEmpty()) {
+            $rankingMap = $rankingService
+                ->compute($allApplications)
+                ->mapWithKeys(static function (array $entry) {
+                    /** @var \App\Models\CmspApplication $application */
+                    $application = $entry['application'];
+
+                    return [
+                        $application->id => [
+                            'total_points' => $entry['total_points'],
+                            'final_total_points' => $entry['final_points'],
+                            'rank' => $entry['rank'],
+                        ],
+                    ];
+                })
+                ->all();
+        }
+    }
+
+    $data = collect($apps->items())->map(static function (CmspApplication $application) use ($rankingMap, $shouldComputeRanking) {
+        $payload = $application->toArray();
+
+        if ($shouldComputeRanking) {
+            $payload['total_points'] = $rankingMap[$application->id]['total_points'] ?? null;
+            $payload['final_total_points'] = $rankingMap[$application->id]['final_total_points'] ?? null;
+            $payload['rank'] = $rankingMap[$application->id]['rank'] ?? null;
+        }
+
+        return $payload;
+    })->all();
+
     return response()->json([
-        'data' => $apps->items(),
+        'data' => $data,
         'meta' => [
             'current_page'    => $apps->currentPage(),
             'per_page'        => $apps->perPage(),
