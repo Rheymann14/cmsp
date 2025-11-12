@@ -336,47 +336,7 @@ public function exportXlsx(Request $request)
 
         $applications = $query->get();
 
-        $computed = [];
-        foreach ($applications as $application) {
-            $gwa = (float) ($application->gwa_g12_s2 ?? 0);
-            $gradePoints = $this->mapGradePoints($gwa);
-            $incomeTotal = $this->resolveHouseholdIncome($application);
-            $incomePoints = $this->mapIncomePoints($incomeTotal);
-            $gradeWeighted = round($gradePoints * 0.70, 2);
-            $incomeWeighted = round($incomePoints * 0.30, 2);
-            $totalPoints = round($gradeWeighted + $incomeWeighted, 2);
-            $plusFive = $application->proof_of_special_group_path ? 5 : 0;
-            $finalPoints = round($totalPoints + $plusFive, 2);
-
-            $computed[] = [
-                'model' => $application,
-                'gwa' => $gwa,
-                'income_total' => $incomeTotal,
-                'grade_points' => $gradePoints,
-                'income_points' => $incomePoints,
-                'grade_weighted' => $gradeWeighted,
-                'income_weighted' => $incomeWeighted,
-                'total_points' => $totalPoints,
-                'plus_five' => $plusFive,
-                'final_points' => $finalPoints,
-            ];
-        }
-
-        usort($computed, function (array $a, array $b) {
-            if ($a['final_points'] === $b['final_points']) {
-                if ($a['total_points'] === $b['total_points']) {
-                    if ($a['grade_points'] === $b['grade_points']) {
-                        return $a['model']->id <=> $b['model']->id;
-                    }
-
-                    return $b['grade_points'] <=> $a['grade_points'];
-                }
-
-                return $b['total_points'] <=> $a['total_points'];
-            }
-
-            return $b['final_points'] <=> $a['final_points'];
-        });
+        $computed = $this->buildComputedEntries($applications);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -761,7 +721,24 @@ public function indexJson(\Illuminate\Http\Request $request)
         'indigenous_people' => $makeCountsQuery()->whereJsonContains('special_groups', 'Indigenous People (IP)')->count(),
     ];
 
+    $rankingEntries = $this->buildComputedEntries((clone $q)->get());
+    $rankingsById = [];
+    foreach ($rankingEntries as $index => $entry) {
+        $rankingsById[$entry['model']->id] = [
+            'final_points' => $entry['final_points'],
+            'rank' => $index + 1,
+        ];
+    }
+
     $apps = $q->paginate($perPage)->appends($request->all());
+
+    $apps->getCollection()->transform(function (CmspApplication $application) use ($rankingsById) {
+        $ranking = $rankingsById[$application->id] ?? null;
+        $application->setAttribute('final_total_points', $ranking['final_points'] ?? null);
+        $application->setAttribute('rank', $ranking['rank'] ?? null);
+
+        return $application;
+    });
 
     return response()->json([
         'data' => $apps->items(),
@@ -834,6 +811,86 @@ public function indexJson(\Illuminate\Http\Request $request)
         }
 
         return 0;
+    }
+
+    /**
+     * @return array{
+     *     gwa: float,
+     *     income_total: float,
+     *     grade_points: int,
+     *     income_points: int,
+     *     grade_weighted: float,
+     *     income_weighted: float,
+     *     total_points: float,
+     *     plus_five: int,
+     *     final_points: float,
+     * }
+     */
+    private function calculateApplicationScores(CmspApplication $application): array
+    {
+        $gwa = (float) ($application->gwa_g12_s2 ?? 0);
+        $gradePoints = $this->mapGradePoints($gwa);
+        $incomeTotal = $this->resolveHouseholdIncome($application);
+        $incomePoints = $this->mapIncomePoints($incomeTotal);
+        $gradeWeighted = round($gradePoints * 0.70, 2);
+        $incomeWeighted = round($incomePoints * 0.30, 2);
+        $totalPoints = round($gradeWeighted + $incomeWeighted, 2);
+        $plusFive = $application->proof_of_special_group_path ? 5 : 0;
+        $finalPoints = round($totalPoints + $plusFive, 2);
+
+        return [
+            'gwa' => $gwa,
+            'income_total' => $incomeTotal,
+            'grade_points' => $gradePoints,
+            'income_points' => $incomePoints,
+            'grade_weighted' => $gradeWeighted,
+            'income_weighted' => $incomeWeighted,
+            'total_points' => $totalPoints,
+            'plus_five' => $plusFive,
+            'final_points' => $finalPoints,
+        ];
+    }
+
+    /**
+     * @param iterable<CmspApplication> $applications
+     * @return array<int, array{model: CmspApplication} & array{
+     *     gwa: float,
+     *     income_total: float,
+     *     grade_points: int,
+     *     income_points: int,
+     *     grade_weighted: float,
+     *     income_weighted: float,
+     *     total_points: float,
+     *     plus_five: int,
+     *     final_points: float,
+     * }>
+     */
+    private function buildComputedEntries(iterable $applications): array
+    {
+        $computed = [];
+
+        foreach ($applications as $application) {
+            $scores = $this->calculateApplicationScores($application);
+            $computed[] = array_merge(['model' => $application], $scores);
+        }
+
+        usort($computed, function (array $a, array $b) {
+            if ($a['final_points'] === $b['final_points']) {
+                if ($a['total_points'] === $b['total_points']) {
+                    if ($a['grade_points'] === $b['grade_points']) {
+                        return $a['model']->id <=> $b['model']->id;
+                    }
+
+                    return $b['grade_points'] <=> $a['grade_points'];
+                }
+
+                return $b['total_points'] <=> $a['total_points'];
+            }
+
+            return $b['final_points'] <=> $a['final_points'];
+        });
+
+        return $computed;
     }
 
 

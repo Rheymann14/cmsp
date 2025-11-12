@@ -569,6 +569,9 @@ function CmspsTable({
         deadline: string; // ISO date
         created_at: string; // ISO datetime
 
+        final_total_points?: number | null;
+        rank?: number | null;
+
         latest_validation?: {
             id: number;
             cmsp_id: number;
@@ -587,7 +590,7 @@ function CmspsTable({
         } | null;
     };
 
-    const COLS = 48; // keep this in sync with the header
+    const COLS = 50; // keep this in sync with the header
 
     const ATTACHMENTS = [
         { key: 'application_form_path', label: 'application form' },
@@ -712,6 +715,27 @@ function CmspsTable({
                 base.province_municipality_name = combined;
             }
         }
+
+        const toNumberOrNull = (value: unknown): number | null => {
+            if (typeof value === 'number') {
+                return Number.isFinite(value) ? value : null;
+            }
+
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (trimmed === '') {
+                    return null;
+                }
+
+                const parsed = Number(trimmed);
+                return Number.isFinite(parsed) ? parsed : null;
+            }
+
+            return null;
+        };
+
+        base.final_total_points = toNumberOrNull(raw.final_total_points);
+        base.rank = toNumberOrNull(raw.rank);
 
         delete base.ethnicity;
         delete base.religion;
@@ -1393,6 +1417,8 @@ function CmspsTable({
 
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
+                                <th className="px-3 py-2 font-semibold">Final Total Points</th>
+                                <th className="px-3 py-2 font-semibold">Rank</th>
                                 <th className="px-3 py-2 font-semibold min-w-[190px]">Submitted</th>
                                 <th className="px-3 py-2 font-semibold sticky right-0 z-20 bg-zinc-50 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800">
                                     <button
@@ -1651,6 +1677,14 @@ function CmspsTable({
                                             <span className="inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
                                                 {new Date(r.deadline).toLocaleDateString()}
                                             </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                            {typeof r.final_total_points === 'number'
+                                                ? r.final_total_points.toFixed(2)
+                                                : '—'}
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                            {typeof r.rank === 'number' ? r.rank : '—'}
                                         </td>
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                         <td
