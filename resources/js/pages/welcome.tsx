@@ -1317,6 +1317,27 @@ export default function Welcome() {
     const [date, setDate] = useState<Date | undefined>(undefined)
     const [birthdate, setBirthdate] = useState<string>(date ? format(date, "yyyy-MM-dd") : "");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isSubmittingRef = useRef(false);
+
+    useEffect(() => {
+        isSubmittingRef.current = isSubmitting;
+    }, [isSubmitting]);
+
+    useEffect(() => {
+        const unsubscribe = router.on('exception', (event) => {
+            if (!isSubmittingRef.current) {
+                return;
+            }
+
+            console.error(event.detail.exception);
+            toast.error('Something went wrong. Please try again.', { id: 'cmsp-submit' });
+            setIsSubmitting(false);
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
