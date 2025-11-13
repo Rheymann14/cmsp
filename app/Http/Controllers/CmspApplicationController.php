@@ -411,19 +411,24 @@ public function indexJson(\Illuminate\Http\Request $request)
         $deadlineDate = $deadlineInput;
     }
 
+    $rankSort = $request->get('sort_rank');
+    if (!in_array($rankSort, ['asc', 'desc'], true)) {
+        $rankSort = null;
+    }
+
     $q = CmspApplication::query()
         ->with([
             'latestValidation.checker:id,name',
         ])
-      ->with([
-    'ethnicity:id,label',
-    'religion:id,label',
-    'districtModel:id,name',
-    'school:id,name',        // correct relation for intended_school
-    'courseModel:id,name',   // correct relation for course
-    'location:id,province,municipality',
-    'latestValidation.checker:id,name',
-])
+        ->with([
+            'ethnicity:id,label',
+            'religion:id,label',
+            'districtModel:id,name',
+            'school:id,name',        // correct relation for intended_school
+            'courseModel:id,name',   // correct relation for course
+            'location:id,province,municipality',
+            'latestValidation.checker:id,name',
+        ])
         ->latest();
 
     if ($academicYear !== '') {
@@ -479,6 +484,19 @@ public function indexJson(\Illuminate\Http\Request $request)
     ];
 
     $rankingEntries = $this->applyDenseRank($this->buildComputedEntries((clone $q)->get()));
+
+    if ($rankSort !== null) {
+        $orderedIds = array_map(static fn(array $entry): int => (int) $entry['model']->id, $rankingEntries);
+
+        if ($rankSort === 'desc') {
+            $orderedIds = array_reverse($orderedIds);
+        }
+
+        if (!empty($orderedIds)) {
+            $idList = implode(',', $orderedIds);
+            $q->reorder(DB::raw('FIELD(cmsp_applications.id, ' . $idList . ')'));
+        }
+    }
     $rankingsById = [];
     foreach ($rankingEntries as $entry) {
         $rankingsById[$entry['model']->id] = [

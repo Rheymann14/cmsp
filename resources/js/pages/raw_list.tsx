@@ -777,24 +777,33 @@ function CmspsTable({
     }, [academicYear, deadline]);
 
     // AFTER
-    const buildUrl = useCallback((p: number, s: string, pp: number) => {
-        const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
-        const u = new URL(basePath, window.location.origin);
-        u.searchParams.set('page', String(p));
-        u.searchParams.set('per_page', String(pp));
-        u.searchParams.set('full', '1');
-        const trimmedSearch = s.trim();
-        if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
-        const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
-        if (trimmedAcademicYear) {
-            u.searchParams.set('academic_year', trimmedAcademicYear);
-        }
-        const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
-        if (trimmedDeadline) {
-            u.searchParams.set('deadline', trimmedDeadline);
-        }
-        // return a same-origin path
-        return u.pathname + u.search + u.hash;
+    const buildUrl = useCallback(
+        (
+            p: number,
+            s: string,
+            pp: number,
+            options?: { rankSort?: 'asc' | 'desc' | null }
+        ) => {
+            const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
+            const u = new URL(basePath, window.location.origin);
+            u.searchParams.set('page', String(p));
+            u.searchParams.set('per_page', String(pp));
+            u.searchParams.set('full', '1');
+            const trimmedSearch = s.trim();
+            if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
+            const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
+            if (trimmedAcademicYear) {
+                u.searchParams.set('academic_year', trimmedAcademicYear);
+            }
+            const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
+            if (trimmedDeadline) {
+                u.searchParams.set('deadline', trimmedDeadline);
+            }
+            if (options?.rankSort) {
+                u.searchParams.set('sort_rank', options.rankSort);
+            }
+            // return a same-origin path
+            return u.pathname + u.search + u.hash;
     }, [academicYear, deadline]);
 
     const buildExportUrl = useCallback((s: string) => {
@@ -823,7 +832,7 @@ function CmspsTable({
     const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
         setLoading(true);
         try {
-            const res = await fetch(buildUrl(p, s, pp), {
+            const res = await fetch(buildUrl(p, s, pp, { rankSort }), {
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
             });
@@ -851,7 +860,7 @@ function CmspsTable({
         } finally {
             setLoading(false);
         }
-    }, [buildUrl, normalizeRow, onSpecialCounts]);
+    }, [buildUrl, normalizeRow, onSpecialCounts, page, perPage, rankSort, search]);
 
     const toggleActionSort = useCallback(() => {
         setActionSort((prev) => {
