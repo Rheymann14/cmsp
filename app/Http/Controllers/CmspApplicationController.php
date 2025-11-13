@@ -337,12 +337,7 @@ public function exportXlsx(Request $request)
 
         $applications = $query->get();
 
-        $computed = $this->buildComputedEntries($applications);
-
-        foreach ($computed as $index => &$entry) {
-            $entry['rank'] = $index + 1;
-        }
-        unset($entry);
+        $computed = $this->applyDenseRank($this->buildComputedEntries($applications));
 
         $spreadsheet = new Spreadsheet();
         $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
@@ -483,12 +478,12 @@ public function indexJson(\Illuminate\Http\Request $request)
         'indigenous_people' => $makeCountsQuery()->whereJsonContains('special_groups', 'Indigenous People (IP)')->count(),
     ];
 
-    $rankingEntries = $this->buildComputedEntries((clone $q)->get());
+    $rankingEntries = $this->applyDenseRank($this->buildComputedEntries((clone $q)->get()));
     $rankingsById = [];
-    foreach ($rankingEntries as $index => $entry) {
+    foreach ($rankingEntries as $entry) {
         $rankingsById[$entry['model']->id] = [
             'final_points' => $entry['final_points'],
-            'rank' => $index + 1,
+            'rank' => $entry['rank'],
         ];
     }
 
@@ -654,6 +649,43 @@ public function indexJson(\Illuminate\Http\Request $request)
 
         return $computed;
     }
+
+      /**
+     * @param array<int, array<string, mixed>> $entries
+     * @return array<int, array<string, mixed>>
+     */
+    private function applyDenseRank(array $entries, string $pointsKey = 'final_points'): array
+    {
+        $currentRank = 0;
+        $lastScore = null;
+
+        foreach ($entries as &$entry) {
+            $score = $entry[$pointsKey] ?? null;
+
+            if ($score === null) {
+                $currentRank++;
+                $entry['rank'] = $currentRank;
+                $lastScore = null;
+                continue;
+            }
+
+            $formattedScore = sprintf('%.2f', (float) $score);
+
+            if ($lastScore !== null && $formattedScore === $lastScore) {
+                $entry['rank'] = $currentRank;
+                continue;
+            }
+
+            $currentRank++;
+            $entry['rank'] = $currentRank;
+            $lastScore = $formattedScore;
+        }
+
+        unset($entry);
+
+        return $entries;
+    }
+
 
     /**
      * @param array<int, array{model: CmspApplication, rank: int} & array<string, mixed>> $entries
