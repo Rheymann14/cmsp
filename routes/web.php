@@ -94,6 +94,8 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
+    Route::get('/reports/special-group-details', [ReportController::class, 'specialGroupDetails'])
+        ->name('reports.special-group-details');
 
 
 
