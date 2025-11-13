@@ -770,6 +770,8 @@ function CmspsTable({
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
     const [actionSort, setActionSort] = useState<'validated' | 'pending' | null>(null);
     const [rankSort, setRankSort] = useState<'asc' | 'desc' | null>(null);
+    const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
+    const [pointsSort, setPointsSort] = useState<'asc' | 'desc' | null>(null);
     const [submittedSort, setSubmittedSort] = useState<'asc' | 'desc' | null>(null);
 
     useEffect(() => {
@@ -863,12 +865,14 @@ function CmspsTable({
 
             if (next !== null) {
                 setRankSort(null);
+                setNameSort(null);
+                setPointsSort(null);
                 setSubmittedSort(null);
             }
 
             return next;
         });
-    }, [setActionSort, setRankSort, setSubmittedSort]);
+    }, [setActionSort, setNameSort, setPointsSort, setRankSort, setSubmittedSort]);
 
     const toggleRankSort = useCallback(() => {
         setRankSort((prev) => {
@@ -876,12 +880,44 @@ function CmspsTable({
 
             if (next !== null) {
                 setActionSort(null);
+                setNameSort(null);
+                setPointsSort(null);
                 setSubmittedSort(null);
             }
 
             return next;
         });
-    }, [setActionSort, setRankSort, setSubmittedSort]);
+    }, [setActionSort, setNameSort, setPointsSort, setRankSort, setSubmittedSort]);
+
+    const toggleNameSort = useCallback(() => {
+        setNameSort((prev) => {
+            const next = prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc';
+
+            if (next !== null) {
+                setActionSort(null);
+                setRankSort(null);
+                setPointsSort(null);
+                setSubmittedSort(null);
+            }
+
+            return next;
+        });
+    }, [setActionSort, setNameSort, setPointsSort, setRankSort, setSubmittedSort]);
+
+    const togglePointsSort = useCallback(() => {
+        setPointsSort((prev) => {
+            const next = prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc';
+
+            if (next !== null) {
+                setActionSort(null);
+                setRankSort(null);
+                setNameSort(null);
+                setSubmittedSort(null);
+            }
+
+            return next;
+        });
+    }, [setActionSort, setNameSort, setPointsSort, setRankSort, setSubmittedSort]);
 
     const toggleSubmittedSort = useCallback(() => {
         setSubmittedSort((prev) => {
@@ -889,12 +925,14 @@ function CmspsTable({
 
             if (next !== null) {
                 setActionSort(null);
+                setNameSort(null);
+                setPointsSort(null);
                 setRankSort(null);
             }
 
             return next;
         });
-    }, [setActionSort, setRankSort, setSubmittedSort]);
+    }, [setActionSort, setNameSort, setPointsSort, setRankSort, setSubmittedSort]);
 
     const handleCopyTracking = useCallback(async (trackingNo: string) => {
         const value = (trackingNo ?? '').trim();
@@ -948,11 +986,22 @@ function CmspsTable({
     }, []);
 
     const displayRows = useMemo(() => {
-        if (!actionSort && !rankSort && !submittedSort) {
+        if (!actionSort && !rankSort && !nameSort && !pointsSort && !submittedSort) {
             return rows;
         }
 
         const getComparableRank = (value: ApplicationRow['rank']) =>
+            typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+        const getComparableName = (row: ApplicationRow) => {
+            const last = toStringOrEmpty(row.last_name).trim().toLowerCase();
+            const first = toStringOrEmpty(row.first_name).trim().toLowerCase();
+            const middle = toStringOrEmpty(row.middle_name).trim().toLowerCase();
+            const combined = [last, first, middle].filter((part) => part !== '').join('\u0000');
+            return combined.length > 0 ? combined : null;
+        };
+
+        const getComparablePoints = (value: ApplicationRow['final_total_points']) =>
             typeof value === 'number' && Number.isFinite(value) ? value : null;
 
         const getComparableDate = (value: ApplicationRow['created_at']) => {
@@ -979,6 +1028,23 @@ function CmspsTable({
                 }
             }
 
+            if (nameSort) {
+                const aName = getComparableName(a);
+                const bName = getComparableName(b);
+
+                if (aName !== null && bName !== null && aName !== bName) {
+                    return nameSort === 'asc' ? aName.localeCompare(bName) : bName.localeCompare(aName);
+                }
+
+                if (aName === null && bName !== null) {
+                    return 1;
+                }
+
+                if (aName !== null && bName === null) {
+                    return -1;
+                }
+            }
+
             if (rankSort) {
                 const aRank = getComparableRank(a.rank);
                 const bRank = getComparableRank(b.rank);
@@ -992,6 +1058,23 @@ function CmspsTable({
                 }
 
                 if (aRank !== null && bRank === null) {
+                    return -1;
+                }
+            }
+
+            if (pointsSort) {
+                const aPoints = getComparablePoints(a.final_total_points);
+                const bPoints = getComparablePoints(b.final_total_points);
+
+                if (aPoints !== null && bPoints !== null && aPoints !== bPoints) {
+                    return pointsSort === 'asc' ? aPoints - bPoints : bPoints - aPoints;
+                }
+
+                if (aPoints === null && bPoints !== null) {
+                    return 1;
+                }
+
+                if (aPoints !== null && bPoints === null) {
                     return -1;
                 }
             }
@@ -1017,7 +1100,7 @@ function CmspsTable({
         });
 
         return sorted;
-    }, [actionSort, rankSort, rows, submittedSort]);
+    }, [actionSort, nameSort, pointsSort, rankSort, rows, submittedSort]);
 
     const commitSearch = (value: string) => {
         const trimmed = value.trim();
@@ -1441,7 +1524,30 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold">LRN</th>
                                 <th className="px-3 py-2 font-semibold min-w-[240px]">Email</th>
                                 <th className="px-3 py-2 font-semibold">Contact #</th>
-                                <th className="px-3 py-2 font-semibold min-w-[160px]">Name</th>
+                                <th className="px-3 py-2 font-semibold min-w-[160px]">
+                                    <button
+                                        type="button"
+                                        onClick={toggleNameSort}
+                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        aria-pressed={nameSort !== null}
+                                        title={
+                                            nameSort === 'asc'
+                                                ? 'Sorting by name (A to Z). Click to show Z to A.'
+                                                : nameSort === 'desc'
+                                                    ? 'Sorting by name (Z to A). Click to reset ordering.'
+                                                    : 'Sort by name. Click to show A to Z.'
+                                        }
+                                    >
+                                        <span>Name</span>
+                                        {nameSort === 'asc' ? (
+                                            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                                        ) : nameSort === 'desc' ? (
+                                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                </th>
                                 <th className="px-3 py-2 font-semibold">Name Ext.</th>
                                 <th className="px-3 py-2 font-semibold">Maiden Name</th>
                                 <th className="px-3 py-2 font-semibold">Sex</th>
@@ -1496,7 +1602,30 @@ function CmspsTable({
 
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
-                                <th className="px-3 py-2 font-semibold">Final Total Points</th>
+                                <th className="px-3 py-2 font-semibold">
+                                    <button
+                                        type="button"
+                                        onClick={togglePointsSort}
+                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        aria-pressed={pointsSort !== null}
+                                        title={
+                                            pointsSort === 'asc'
+                                                ? 'Sorting by final total points (lowest first). Click to show highest first.'
+                                                : pointsSort === 'desc'
+                                                    ? 'Sorting by final total points (highest first). Click to reset ordering.'
+                                                    : 'Sort by final total points. Click to show lowest first.'
+                                        }
+                                    >
+                                        <span>Final Total Points</span>
+                                        {pointsSort === 'asc' ? (
+                                            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                                        ) : pointsSort === 'desc' ? (
+                                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                </th>
                                 <th className="px-3 py-2 font-semibold">
                                     <button
                                         type="button"
