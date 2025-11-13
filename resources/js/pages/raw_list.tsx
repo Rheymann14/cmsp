@@ -769,7 +769,19 @@ function CmspsTable({
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
     const [actionSort, setActionSort] = useState<'validated' | 'pending' | null>(null);
-    const [rankSort, setRankSort] = useState<'asc' | 'desc' | null>(null);
+    const [rankSort, setRankSort] = useState<'asc' | 'desc' | null>(() => {
+        if (typeof window === 'undefined') {
+            return null;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('sort') === 'rank') {
+            const direction = params.get('direction');
+            return direction && direction.toLowerCase() === 'desc' ? 'desc' : 'asc';
+        }
+
+        return null;
+    });
     const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
     const [pointsSort, setPointsSort] = useState<'asc' | 'desc' | null>(null);
     const [submittedSort, setSubmittedSort] = useState<'asc' | 'desc' | null>(null);
@@ -912,6 +924,33 @@ function CmspsTable({
             return next;
         });
     }, [setActionSort, setNameSort, setPage, setPointsSort, setRankSort, setSubmittedSort]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const current = new URL(window.location.href);
+        const params = current.searchParams;
+
+        if (rankSort) {
+            params.set('sort', 'rank');
+            params.set('direction', rankSort);
+        } else {
+            const existingSort = params.get('sort');
+            if (existingSort === 'rank') {
+                params.delete('sort');
+                params.delete('direction');
+            }
+        }
+
+        const nextSearch = params.toString();
+        const nextUrl = `${current.pathname}${nextSearch ? `?${nextSearch}` : ''}${current.hash}`;
+
+        if (nextUrl !== window.location.pathname + window.location.search + window.location.hash) {
+            window.history.replaceState(window.history.state, '', nextUrl);
+        }
+    }, [rankSort]);
 
     const toggleNameSort = useCallback(() => {
         setNameSort((prev) => {
