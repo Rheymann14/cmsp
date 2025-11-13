@@ -1932,12 +1932,12 @@ function CmspsTable({
                                                 {new Date(r.deadline).toLocaleDateString()}
                                             </span>
                                         </td>
-                                        <td className="px-3 py-2 text-right">
+                                        <td className="px-3 py-2 text-center">
                                             {typeof r.final_total_points === 'number'
                                                 ? r.final_total_points.toFixed(2)
                                                 : '—'}
                                         </td>
-                                        <td className="px-3 py-2 text-right">
+                                        <td className="px-3 py-2 text-center">
                                             {typeof r.rank === 'number' ? r.rank : '—'}
                                         </td>
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
