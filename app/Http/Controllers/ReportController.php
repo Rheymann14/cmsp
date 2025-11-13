@@ -34,28 +34,12 @@ class ReportController extends Controller
         $deadlineDate  = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadlineInput)) ? $deadlineInput : null;
 
         try {
-            $applicationsQuery = CmspApplication::query()->with('latestValidation');
+            $data = $this->loadApplicationsAndRanks($academicYear, $deadlineDate, $rankingService);
 
-            if ($academicYear !== '') {
-                $applicationsQuery->where('academic_year', $academicYear);
-            }
-
-            if ($deadlineDate !== null) {
-                // Your schema shows a DATE column named `deadline`
-                $applicationsQuery->whereDate('deadline', '=', $deadlineDate);
-            }
-
-            $applications = $applicationsQuery->get();
-
-            // 1) Compute ranks (rescue to avoid hard 500s)
-         $rawRanked = rescue(
-                fn () => $rankingService->compute($applications),
-                rescue: collect(),
-                report: true
-            );
-
-            // 2) **Normalize** to ['application' => CmspApplication, 'rank' => int]
-            $ranked = $this->normalizeRanked(collect($rawRanked));
+            /** @var Collection<int, CmspApplication> $applications */
+            $applications = $data['applications'];
+            /** @var Collection<int, array{application:CmspApplication,rank:int}> $ranked */
+            $ranked = $data['ranked'];
 
             $totalApplicants     = $applications->count();
             $qualifiedApplicants = $applications
@@ -89,6 +73,110 @@ class ReportController extends Controller
 
             return response()->json([
                 'message' => 'Server error while loading report summary.',
+            ], 500);
+        }
+    }
+
+    public function specialGroupDetails(Request $request, CmspRankingService $rankingService)
+    {
+        $academicYear  = trim((string) $request->get('academic_year', ''));
+        $deadlineInput = trim((string) $request->get('deadline', ''));
+        $deadlineDate  = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadlineInput)) ? $deadlineInput : null;
+
+        $groupInput = $this->normalizeGroupLabel((string) $request->get('group', ''));
+        $rankInput  = $request->get('rank');
+
+        $rank = null;
+        if ($rankInput !== null && $rankInput !== '') {
+            if (!is_numeric($rankInput)) {
+                return response()->json([
+                    'message' => 'A valid rank is required.',
+                ], 422);
+            }
+
+            $rank = (int) $rankInput;
+            if ($rank <= 0) {
+                return response()->json([
+                    'message' => 'A valid rank is required.',
+                ], 422);
+            }
+        }
+
+        if ($groupInput === '') {
+            return response()->json([
+                'message' => 'A valid special group is required.',
+            ], 422);
+        }
+
+        $groupLabel = $this->canonicalizeGroupLabel($groupInput);
+
+        try {
+            $data = $this->loadApplicationsAndRanks($academicYear, $deadlineDate, $rankingService);
+
+            /** @var Collection<int, array{application:CmspApplication,rank:int}> $ranked */
+            $ranked = $data['ranked'];
+
+            $applicants = $ranked
+                ->filter(function (array $entry) use ($groupLabel, $rank) {
+                    /** @var CmspApplication $application */
+                    $application = $entry['application'];
+
+                    if ($rank !== null && (int) $entry['rank'] !== $rank) {
+                        return false;
+                    }
+
+                    $groups = $this->extractGroups($application->special_groups);
+
+                    foreach ($groups as $group) {
+                        $canonical = $this->canonicalizeGroupLabel((string) $group);
+                        if ($canonical !== '' && $canonical === $groupLabel) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                })
+                ->map(function (array $entry) {
+                    /** @var CmspApplication $application */
+                    $application = $entry['application'];
+
+                    return [
+                        'tracking_no' => (string) ($application->tracking_no ?? ''),
+                        'lrn'         => (string) ($application->lrn ?? ''),
+                        'name'        => $this->formatApplicantName($application),
+                        'rank'        => (int) $entry['rank'],
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $ranks = collect($applicants)
+                ->pluck('rank')
+                ->filter(fn ($value) => is_numeric($value) && (int) $value > 0)
+                ->map(fn ($value) => (int) $value)
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            return response()->json([
+                'group'      => $groupLabel,
+                'rank'       => $rank,
+                'ranks'      => $ranks,
+                'applicants' => $applicants,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            if (app()->hasDebugModeEnabled() || app()->environment('local')) {
+                return response()->json([
+                    'message' => 'Server error while loading rank details.',
+                    'error'   => class_basename($e) . ': ' . $e->getMessage(),
+                ], 500);
+            }
+
+            return response()->json([
+                'message' => 'Server error while loading rank details.',
             ], 500);
         }
     }
@@ -137,6 +225,40 @@ class ReportController extends Controller
             // Keep only valid rows
             ->filter(fn ($r) => $r['application'] instanceof CmspApplication && is_int($r['rank']))
             ->values();
+    }
+
+    /**
+     * @return array{
+     *     applications: Collection<int, CmspApplication>,
+     *     ranked: Collection<int, array{application:CmspApplication,rank:int}>
+     * }
+     */
+    private function loadApplicationsAndRanks(string $academicYear, ?string $deadlineDate, CmspRankingService $rankingService): array
+    {
+        $applicationsQuery = CmspApplication::query()->with('latestValidation');
+
+        if ($academicYear !== '') {
+            $applicationsQuery->where('academic_year', $academicYear);
+        }
+
+        if ($deadlineDate !== null) {
+            $applicationsQuery->whereDate('deadline', '=', $deadlineDate);
+        }
+
+        $applications = $applicationsQuery->get();
+
+        $rawRanked = rescue(
+            fn () => $rankingService->compute($applications),
+            rescue: collect(),
+            report: true
+        );
+
+        $ranked = $this->normalizeRanked(collect($rawRanked));
+
+        return [
+            'applications' => $applications,
+            'ranked'       => $ranked,
+        ];
     }
 
     /**
@@ -216,6 +338,51 @@ class ReportController extends Controller
             ->all();
 
         return array_merge($ordered, $remaining);
+    }
+
+    private function normalizeNamePart(?string $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        $normalized = preg_replace('/\s+/u', ' ', trim($value));
+
+        return $normalized === null ? '' : $normalized;
+    }
+
+    private function formatApplicantName(CmspApplication $application): string
+    {
+        $last      = $this->normalizeNamePart($application->last_name ?? null);
+        $extension = $this->normalizeNamePart($application->name_extension ?? null);
+        $first     = $this->normalizeNamePart($application->first_name ?? null);
+        $middle    = $this->normalizeNamePart($application->middle_name ?? null);
+
+        $segments = [];
+
+        if ($last !== '') {
+            $surname = $last;
+            if ($extension !== '') {
+                $surname = trim($surname . ' ' . $extension);
+            }
+            $segments[] = $surname;
+        }
+
+        $givenParts = array_filter([$first, $middle], fn ($part) => $part !== '');
+        if (!empty($givenParts)) {
+            $given = implode(' ', $givenParts);
+            if (!empty($segments)) {
+                $segments[0] .= ', ' . $given;
+            } else {
+                $segments[] = $given;
+            }
+        }
+
+        if (empty($segments)) {
+            return '—';
+        }
+
+        return $segments[0];
     }
 
     /**
