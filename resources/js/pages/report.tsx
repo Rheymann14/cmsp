@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type BreadcrumbItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -111,7 +111,8 @@ interface SpecialGroupDetailApplicant {
 
 interface SpecialGroupDetailsResponse {
   group: string;
-  rank: number;
+  rank?: number | null;
+  ranks?: number[];
   applicants: SpecialGroupDetailApplicant[];
 }
 
@@ -204,9 +205,9 @@ export default function ReportPage() {
   const [savingNewSlots, setSavingNewSlots] = useState(false);
 
   const [groupDetailsDialogOpen, setGroupDetailsDialogOpen] = useState(false);
-  const [selectedGroupDetails, setSelectedGroupDetails] = useState<{ group: string; rank: number } | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [groupDetails, setGroupDetails] = useState<SpecialGroupDetailApplicant[]>([]);
-  const [groupDetailsMeta, setGroupDetailsMeta] = useState<{ group: string; rank: number } | null>(null);
+  const [groupDetailsMeta, setGroupDetailsMeta] = useState<{ group: string; ranks: number[] } | null>(null);
   const [groupDetailsLoading, setGroupDetailsLoading] = useState(false);
   const [groupDetailsError, setGroupDetailsError] = useState<string | null>(null);
   const groupDetailsRequestId = useRef(0);
@@ -327,7 +328,7 @@ export default function ReportPage() {
   }, []);
 
   const buildSpecialGroupDetailsUrl = useCallback(
-    (academicYear: string, deadline: string, group: string, rank: number) => {
+    (academicYear: string, deadline: string, group: string, rank?: number | null) => {
       const basePath = toPath(
         resolveRoute('reports.special-group-details', undefined, '/reports/special-group-details'),
       );
@@ -339,7 +340,9 @@ export default function ReportPage() {
         u.searchParams.set('deadline', deadline.trim());
       }
       u.searchParams.set('group', group.trim());
-      u.searchParams.set('rank', String(rank));
+      if (typeof rank === 'number' && Number.isFinite(rank) && rank > 0) {
+        u.searchParams.set('rank', String(rank));
+      }
       return u.pathname + u.search + u.hash;
     },
     [],
@@ -550,29 +553,26 @@ export default function ReportPage() {
     ],
   );
 
-  const handleRankClick = useCallback(
-    (groupName: string, rank: number) => {
-      const trimmedGroup = groupName.trim();
-      if (!trimmedGroup) {
-        toast.error('Unable to load rank details for this special group.');
-        return;
-      }
+  const handleGroupRowClick = useCallback((groupName: string) => {
+    const trimmedGroup = groupName.trim();
+    if (!trimmedGroup) {
+      toast.error('Unable to load details for this special group.');
+      return;
+    }
 
-      setSelectedGroupDetails({ group: trimmedGroup, rank });
-      setGroupDetailsMeta({ group: trimmedGroup, rank });
-      setGroupDetails([]);
-      setGroupDetailsError(null);
-      setGroupDetailsDialogOpen(true);
-    },
-    [],
-  );
+    setSelectedGroup(trimmedGroup);
+    setGroupDetailsMeta({ group: trimmedGroup, ranks: [] });
+    setGroupDetails([]);
+    setGroupDetailsError(null);
+    setGroupDetailsDialogOpen(true);
+  }, []);
 
   const handleGroupDialogOpenChange = useCallback(
     (open: boolean) => {
       setGroupDetailsDialogOpen(open);
       if (!open) {
         groupDetailsRequestId.current += 1;
-        setSelectedGroupDetails(null);
+        setSelectedGroup(null);
         setGroupDetails([]);
         setGroupDetailsError(null);
         setGroupDetailsLoading(false);
@@ -583,11 +583,11 @@ export default function ReportPage() {
   );
 
   useEffect(() => {
-    if (!groupDetailsDialogOpen || !selectedGroupDetails) {
+    if (!groupDetailsDialogOpen || !selectedGroup) {
       return;
     }
 
-    const trimmedGroup = selectedGroupDetails.group.trim();
+    const trimmedGroup = selectedGroup.trim();
     if (!trimmedGroup) {
       setGroupDetailsError('No special group selected.');
       setGroupDetails([]);
@@ -597,7 +597,7 @@ export default function ReportPage() {
     const requestId = ++groupDetailsRequestId.current;
     let cancelled = false;
 
-    setGroupDetailsMeta({ group: trimmedGroup, rank: selectedGroupDetails.rank });
+    setGroupDetailsMeta({ group: trimmedGroup, ranks: [] });
     setGroupDetails([]);
     setGroupDetailsError(null);
     setGroupDetailsLoading(true);
@@ -608,7 +608,6 @@ export default function ReportPage() {
           selectedAcademicYear,
           selectedDeadlineValue,
           trimmedGroup,
-          selectedGroupDetails.rank,
         );
         const res = await fetch(url, {
           headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -618,7 +617,7 @@ export default function ReportPage() {
         const responseText = await res.text();
 
         if (!res.ok) {
-          let message = 'Failed to load rank details.';
+          let message = 'Failed to load special group details.';
           if (responseText.trim() !== '') {
             try {
               const parsed = JSON.parse(responseText) as { message?: string };
@@ -637,19 +636,28 @@ export default function ReportPage() {
           : null;
 
         if (!json || !Array.isArray(json.applicants)) {
-          throw new Error('Unexpected response while loading rank details.');
+          throw new Error('Unexpected response while loading special group details.');
         }
 
         if (!cancelled && groupDetailsRequestId.current === requestId) {
           const normalizedGroup =
             typeof json.group === 'string' && json.group.trim() ? json.group.trim() : trimmedGroup;
-          const normalizedRank =
-            typeof json.rank === 'number' ? json.rank : selectedGroupDetails.rank;
+          const responseRanks = Array.isArray(json.ranks)
+            ? json.ranks
+                .map((value) => (typeof value === 'number' ? value : Number.parseInt(String(value), 10)))
+                .filter((value) => Number.isFinite(value) && value > 0)
+            : [];
+          const applicantRanks = json.applicants
+            .map((detail) => detail?.rank)
+            .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0);
+          const normalizedRanks = Array.from(new Set([...responseRanks, ...applicantRanks])).sort(
+            (a, b) => a - b,
+          );
 
           setGroupDetails(json.applicants);
           setGroupDetailsMeta({
             group: normalizedGroup,
-            rank: normalizedRank,
+            ranks: normalizedRanks,
           });
         }
       } catch (error) {
@@ -658,7 +666,7 @@ export default function ReportPage() {
           const message =
             error instanceof Error
               ? error.message
-              : 'Unable to load rank details for this special group.';
+              : 'Unable to load details for this special group.';
           setGroupDetails([]);
           setGroupDetailsError(message);
         }
@@ -678,12 +686,12 @@ export default function ReportPage() {
     buildSpecialGroupDetailsUrl,
     groupDetailsDialogOpen,
     selectedAcademicYear,
-    selectedGroupDetails,
     selectedDeadlineValue,
+    selectedGroup,
   ]);
 
-  const detailDialogGroup = groupDetailsMeta?.group ?? selectedGroupDetails?.group ?? 'Special group';
-  const detailDialogRank = groupDetailsMeta?.rank ?? selectedGroupDetails?.rank ?? null;
+  const detailDialogGroup = groupDetailsMeta?.group ?? selectedGroup ?? 'Special group';
+  const detailDialogRanks = groupDetailsMeta?.ranks ?? [];
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -763,16 +771,32 @@ export default function ReportPage() {
           <Dialog open={groupDetailsDialogOpen} onOpenChange={handleGroupDialogOpenChange}>
             <DialogContent className="sm:max-w-[720px]">
               <DialogHeader>
-                <DialogTitle>
-                  {detailDialogGroup}
-                  {typeof detailDialogRank === 'number'
-                    ? ` – Rank #${detailDialogRank.toLocaleString()}`
-                    : ''}
-                </DialogTitle>
+                <DialogTitle>{detailDialogGroup}</DialogTitle>
                 <DialogDescription>
-                  Applicants belonging to this special group for the selected rank.
+                  Applicants belonging to this special group
+                  {detailDialogRanks.length
+                    ? ` across rank${detailDialogRanks.length === 1 ? '' : 's'} ${detailDialogRanks
+                        .map((rank) => `#${rank.toLocaleString()}`)
+                        .join(', ')}`
+                    : ' for the selected period.'}
                 </DialogDescription>
               </DialogHeader>
+
+              {detailDialogRanks.length ? (
+                <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold uppercase tracking-wide text-[#1e3c73] dark:text-zinc-100">
+                    Ranks:
+                  </span>
+                  {detailDialogRanks.map((rank) => (
+                    <span
+                      key={rank}
+                      className="inline-flex items-center rounded-full border border-[#1e3c73]/40 px-2 py-0.5 font-semibold text-[#1e3c73] dark:border-[#1e3c73]/60 dark:text-zinc-100"
+                    >
+                      #{rank.toLocaleString()}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
 
               {groupDetailsLoading ? (
                 <div className="flex items-center justify-center py-10 text-[#1e3c73] dark:text-zinc-100">
@@ -784,7 +808,7 @@ export default function ReportPage() {
                 </div>
               ) : groupDetails.length === 0 ? (
                 <div className="py-6 text-sm text-muted-foreground">
-                  No applicants found for this rank in the selected special group.
+                  No applicants found for this special group in the selected period.
                 </div>
               ) : (
                 <div className="max-h-80 overflow-auto rounded-lg border border-sidebar-border/60">
@@ -965,7 +989,19 @@ export default function ReportPage() {
                     </TableRow>
                   ) : (
                     summary.special_groups.map((group) => (
-                      <TableRow key={group.name}>
+                      <TableRow
+                        key={group.name}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleGroupRowClick(group.name)}
+                        onKeyDown={(event: KeyboardEvent<HTMLTableRowElement>) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleGroupRowClick(group.name);
+                          }
+                        }}
+                        className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]"
+                      >
                         <TableCell className="font-medium text-[#1e3c73] dark:text-zinc-100">
                           {group.name}
                         </TableCell>
@@ -976,14 +1012,12 @@ export default function ReportPage() {
                           {group.ranks.length ? (
                             <div className="flex flex-wrap gap-1.5">
                               {group.ranks.map((rank) => (
-                                <button
+                                <span
                                   key={rank}
-                                  type="button"
-                                  onClick={() => handleRankClick(group.name, rank)}
-                                  className="inline-flex items-center rounded-full border border-[#1e3c73]/40 px-2 py-0.5 text-xs font-semibold text-[#1e3c73] transition focus:outline-none focus:ring-2 focus:ring-[#1e3c73] focus:ring-offset-2 focus:ring-offset-white hover:bg-[#1e3c73]/10 dark:border-[#1e3c73]/60 dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20 dark:focus:ring-offset-zinc-950"
+                                  className="inline-flex items-center rounded-full border border-[#1e3c73]/40 px-2 py-0.5 text-xs font-semibold text-[#1e3c73] dark:border-[#1e3c73]/60 dark:text-zinc-100"
                                 >
-                                  #{rank}
-                                </button>
+                                  #{rank.toLocaleString()}
+                                </span>
                               ))}
                             </div>
                           ) : (

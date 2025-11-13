@@ -86,22 +86,25 @@ class ReportController extends Controller
         $groupInput = $this->normalizeGroupLabel((string) $request->get('group', ''));
         $rankInput  = $request->get('rank');
 
+        $rank = null;
+        if ($rankInput !== null && $rankInput !== '') {
+            if (!is_numeric($rankInput)) {
+                return response()->json([
+                    'message' => 'A valid rank is required.',
+                ], 422);
+            }
+
+            $rank = (int) $rankInput;
+            if ($rank <= 0) {
+                return response()->json([
+                    'message' => 'A valid rank is required.',
+                ], 422);
+            }
+        }
+
         if ($groupInput === '') {
             return response()->json([
                 'message' => 'A valid special group is required.',
-            ], 422);
-        }
-
-        if (!is_numeric($rankInput)) {
-            return response()->json([
-                'message' => 'A valid rank is required.',
-            ], 422);
-        }
-
-        $rank = (int) $rankInput;
-        if ($rank <= 0) {
-            return response()->json([
-                'message' => 'A valid rank is required.',
             ], 422);
         }
 
@@ -118,7 +121,7 @@ class ReportController extends Controller
                     /** @var CmspApplication $application */
                     $application = $entry['application'];
 
-                    if ((int) $entry['rank'] !== $rank) {
+                    if ($rank !== null && (int) $entry['rank'] !== $rank) {
                         return false;
                     }
 
@@ -147,9 +150,19 @@ class ReportController extends Controller
                 ->values()
                 ->all();
 
+            $ranks = collect($applicants)
+                ->pluck('rank')
+                ->filter(fn ($value) => is_numeric($value) && (int) $value > 0)
+                ->map(fn ($value) => (int) $value)
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
             return response()->json([
                 'group'      => $groupLabel,
                 'rank'       => $rank,
+                'ranks'      => $ranks,
                 'applicants' => $applicants,
             ]);
         } catch (\Throwable $e) {
