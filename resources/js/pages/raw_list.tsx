@@ -769,7 +769,19 @@ function CmspsTable({
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
     const [actionSort, setActionSort] = useState<'validated' | 'pending' | null>(null);
-    const [rankSort, setRankSort] = useState<'asc' | 'desc' | null>(null);
+    const [rankSort, setRankSort] = useState<'asc' | 'desc' | null>(() => {
+        if (typeof window === 'undefined') {
+            return null;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('sort') === 'rank') {
+            const direction = params.get('direction');
+            return direction && direction.toLowerCase() === 'desc' ? 'desc' : 'asc';
+        }
+
+        return null;
+    });
     const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
     const [pointsSort, setPointsSort] = useState<'asc' | 'desc' | null>(null);
     const [submittedSort, setSubmittedSort] = useState<'asc' | 'desc' | null>(null);
@@ -779,25 +791,36 @@ function CmspsTable({
     }, [academicYear, deadline]);
 
     // AFTER
-    const buildUrl = useCallback((p: number, s: string, pp: number) => {
-        const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
-        const u = new URL(basePath, window.location.origin);
-        u.searchParams.set('page', String(p));
-        u.searchParams.set('per_page', String(pp));
-        u.searchParams.set('full', '1');
-        const trimmedSearch = s.trim();
-        if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
-        const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
-        if (trimmedAcademicYear) {
-            u.searchParams.set('academic_year', trimmedAcademicYear);
-        }
-        const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
-        if (trimmedDeadline) {
-            u.searchParams.set('deadline', trimmedDeadline);
-        }
-        // return a same-origin path
-        return u.pathname + u.search + u.hash;
-    }, [academicYear, deadline]);
+    type SortKey = 'rank';
+
+    const buildUrl = useCallback(
+        (p: number, s: string, pp: number, sort?: SortKey | null, direction?: 'asc' | 'desc' | null) => {
+            const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
+            const u = new URL(basePath, window.location.origin);
+            u.searchParams.set('page', String(p));
+            u.searchParams.set('per_page', String(pp));
+            u.searchParams.set('full', '1');
+            const trimmedSearch = s.trim();
+            if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
+            const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
+            if (trimmedAcademicYear) {
+                u.searchParams.set('academic_year', trimmedAcademicYear);
+            }
+            const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
+            if (trimmedDeadline) {
+                u.searchParams.set('deadline', trimmedDeadline);
+            }
+            if (sort) {
+                u.searchParams.set('sort', sort);
+                if (direction) {
+                    u.searchParams.set('direction', direction);
+                }
+            }
+            // return a same-origin path
+            return u.pathname + u.search + u.hash;
+        },
+        [academicYear, deadline],
+    );
 
     const buildExportUrl = useCallback((s: string) => {
         const basePath = toPath(resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export'));
@@ -822,38 +845,47 @@ function CmspsTable({
         toPath((window as any).route ? (window as any).route('validations.destroy', id) : `/validations/${id}`);
 
 
-    const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
-        setLoading(true);
-        try {
-            const res = await fetch(buildUrl(p, s, pp), {
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
-            });
-            if (!res.ok) throw new Error('Failed to load');
-            const json = await res.json();
-            const rawData: unknown[] = Array.isArray(json.data) ? json.data : [];
-            const normalized = rawData
-                .map((item) => normalizeRow(item))
-                .filter((item): item is ApplicationRow => item !== null);
-            setRows(normalized);
-            setTotal(json.meta?.total ?? 0);
-            setLastPage(json.meta?.last_page ?? 1);
-            setPage(json.meta?.current_page ?? p);
-            if (onSpecialCounts) {
-                onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
+    const fetchData = useCallback(
+        async (
+            p: number,
+            s: string,
+            pp: number,
+            sortKey: SortKey | null,
+            direction: 'asc' | 'desc' | null,
+        ) => {
+            setLoading(true);
+            try {
+                const res = await fetch(buildUrl(p, s, pp, sortKey, direction), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                if (!res.ok) throw new Error('Failed to load');
+                const json = await res.json();
+                const rawData: unknown[] = Array.isArray(json.data) ? json.data : [];
+                const normalized = rawData
+                    .map((item) => normalizeRow(item))
+                    .filter((item): item is ApplicationRow => item !== null);
+                setRows(normalized);
+                setTotal(json.meta?.total ?? 0);
+                setLastPage(json.meta?.last_page ?? 1);
+                setPage(json.meta?.current_page ?? p);
+                if (onSpecialCounts) {
+                    onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
+                }
+                setSelectedId(null);
+            } catch (e) {
+                setRows([]);
+                setTotal(0);
+                setLastPage(1);
+                if (onSpecialCounts) {
+                    onSpecialCounts({ ...EMPTY_SPECIAL_COUNTS });
+                }
+            } finally {
+                setLoading(false);
             }
-            setSelectedId(null);
-        } catch (e) {
-            setRows([]);
-            setTotal(0);
-            setLastPage(1);
-            if (onSpecialCounts) {
-                onSpecialCounts({ ...EMPTY_SPECIAL_COUNTS });
-            }
-        } finally {
-            setLoading(false);
-        }
-    }, [buildUrl, normalizeRow, onSpecialCounts]);
+        },
+        [buildUrl, normalizeRow, onSpecialCounts],
+    );
 
     const toggleActionSort = useCallback(() => {
         setActionSort((prev) => {
@@ -885,9 +917,40 @@ function CmspsTable({
                 setSubmittedSort(null);
             }
 
+            if (next !== prev) {
+                setPage(1);
+            }
+
             return next;
         });
-    }, [setActionSort, setNameSort, setPointsSort, setRankSort, setSubmittedSort]);
+    }, [setActionSort, setNameSort, setPage, setPointsSort, setRankSort, setSubmittedSort]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const current = new URL(window.location.href);
+        const params = current.searchParams;
+
+        if (rankSort) {
+            params.set('sort', 'rank');
+            params.set('direction', rankSort);
+        } else {
+            const existingSort = params.get('sort');
+            if (existingSort === 'rank') {
+                params.delete('sort');
+                params.delete('direction');
+            }
+        }
+
+        const nextSearch = params.toString();
+        const nextUrl = `${current.pathname}${nextSearch ? `?${nextSearch}` : ''}${current.hash}`;
+
+        if (nextUrl !== window.location.pathname + window.location.search + window.location.hash) {
+            window.history.replaceState(window.history.state, '', nextUrl);
+        }
+    }, [rankSort]);
 
     const toggleNameSort = useCallback(() => {
         setNameSort((prev) => {
@@ -1111,7 +1174,8 @@ function CmspsTable({
         setSearch(trimmed);
 
         if (shouldRefetchImmediately) {
-            void fetchData(targetPage, trimmed, perPage);
+            const sortKey: SortKey | null = rankSort ? 'rank' : null;
+            void fetchData(targetPage, trimmed, perPage, sortKey, rankSort);
         }
     };
 
@@ -1120,8 +1184,9 @@ function CmspsTable({
             return;
         }
 
-        fetchData(page, search, perPage);
-    }, [fetchData, page, perPage, search, ready]);
+        const sortKey: SortKey | null = rankSort ? 'rank' : null;
+        fetchData(page, search, perPage, sortKey, rankSort);
+    }, [fetchData, page, perPage, rankSort, search, ready]);
 
     const formatApplicantName = (row?: ApplicationRow | null) => {
         if (!row) return '—';
@@ -1291,7 +1356,8 @@ function CmspsTable({
 
             setValidationErrors({});
 
-            await fetchData(page, search, perPage);
+            const sortKey: SortKey | null = rankSort ? 'rank' : null;
+            await fetchData(page, search, perPage, sortKey, rankSort);
             setSelectedId(targetRowId);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to save validation.';
@@ -1351,7 +1417,8 @@ function CmspsTable({
             setRankPopoverOpen(false);
 
             setSelectedId(targetRowId);
-            fetchData(page, search, perPage).then(() => {
+            const sortKey: SortKey | null = rankSort ? 'rank' : null;
+            fetchData(page, search, perPage, sortKey, rankSort).then(() => {
                 setSelectedId(targetRowId);
             });
         } catch (error) {
