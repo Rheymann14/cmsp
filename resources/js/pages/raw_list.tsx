@@ -1602,7 +1602,7 @@ function CmspsTable({
 
                                 <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
-                                <th className="px-3 py-2 font-semibold">
+                                <th className="px-3 py-2 font-semibold min-w-[180px]">
                                     <button
                                         type="button"
                                         onClick={togglePointsSort}
