@@ -11,6 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -403,13 +404,17 @@ public function exportXlsx(Request $request)
 public function indexJson(\Illuminate\Http\Request $request)
 {
     $term    = trim((string) $request->get('search', ''));
-    $perPage = (int) $request->integer('per_page', 10);
+    $perPage = max(1, (int) $request->integer('per_page', 10));
     $academicYear = trim((string) $request->get('academic_year', ''));
     $deadlineInput = trim((string) $request->get('deadline', ''));
     $deadlineDate = null;
     if ($deadlineInput !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadlineInput) === 1) {
         $deadlineDate = $deadlineInput;
     }
+
+    $page = max(1, (int) $request->integer('page', 1));
+    $sortKey = $request->get('sort');
+    $sortDirection = strtolower((string) $request->get('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
 
     $q = CmspApplication::query()
         ->with([
@@ -487,15 +492,67 @@ public function indexJson(\Illuminate\Http\Request $request)
         ];
     }
 
-    $apps = $q->paginate($perPage)->appends($request->all());
+    if ($sortKey === 'rank') {
+        usort($rankingEntries, function (array $a, array $b) use ($sortDirection) {
+            if ($a['rank'] === $b['rank']) {
+                if ($a['final_points'] === $b['final_points']) {
+                    if ($a['total_points'] === $b['total_points']) {
+                        return $sortDirection === 'asc'
+                            ? $a['model']->id <=> $b['model']->id
+                            : $b['model']->id <=> $a['model']->id;
+                    }
 
-    $apps->getCollection()->transform(function (CmspApplication $application) use ($rankingsById) {
-        $ranking = $rankingsById[$application->id] ?? null;
-        $application->setAttribute('final_total_points', $ranking['final_points'] ?? null);
-        $application->setAttribute('rank', $ranking['rank'] ?? null);
+                    return $sortDirection === 'asc'
+                        ? $a['total_points'] <=> $b['total_points']
+                        : $b['total_points'] <=> $a['total_points'];
+                }
 
-        return $application;
-    });
+                return $sortDirection === 'asc'
+                    ? $a['final_points'] <=> $b['final_points']
+                    : $b['final_points'] <=> $a['final_points'];
+            }
+
+            return $sortDirection === 'asc'
+                ? $a['rank'] <=> $b['rank']
+                : $b['rank'] <=> $a['rank'];
+        });
+
+        $totalEntries = count($rankingEntries);
+        $perPage = max(1, $perPage);
+        $lastPage = $totalEntries > 0 ? (int) ceil($totalEntries / $perPage) : 1;
+        if ($page > $lastPage) {
+            $page = $lastPage;
+        }
+
+        $offset = ($page - 1) * $perPage;
+        $pageEntries = array_slice($rankingEntries, $offset, $perPage);
+
+        $items = array_map(function (array $entry) {
+            /** @var CmspApplication $model */
+            $model = $entry['model'];
+            $model->setAttribute('final_total_points', $entry['final_points'] ?? null);
+            $model->setAttribute('rank', $entry['rank'] ?? null);
+
+            return $model;
+        }, $pageEntries);
+
+        $apps = new LengthAwarePaginator($items, $totalEntries, $perPage, $page, [
+            'path' => LengthAwarePaginator::resolveCurrentPath(),
+            'pageName' => 'page',
+        ]);
+
+        $apps->appends($request->all());
+    } else {
+        $apps = $q->paginate($perPage)->appends($request->all());
+
+        $apps->getCollection()->transform(function (CmspApplication $application) use ($rankingsById) {
+            $ranking = $rankingsById[$application->id] ?? null;
+            $application->setAttribute('final_total_points', $ranking['final_points'] ?? null);
+            $application->setAttribute('rank', $ranking['rank'] ?? null);
+
+            return $application;
+        });
+    }
 
     return response()->json([
         'data' => $apps->items(),
