@@ -108,6 +108,97 @@ const EMPTY_SUMMARY: SummaryResponse = {
   special_groups: [],
 };
 
+const parseInteger = (value: unknown, { min, fallback = 0 }: { min?: number; fallback?: number } = {}) => {
+  const parsed =
+    typeof value === 'number'
+      ? Math.trunc(value)
+      : Number.parseInt(typeof value === 'string' ? value : String(value ?? ''), 10);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  if (typeof min === 'number' && parsed < min) {
+    return min;
+  }
+
+  return parsed;
+};
+
+const parseSummaryResponse = (input: unknown): SummaryResponse => {
+  if (!input || typeof input !== 'object') {
+    return EMPTY_SUMMARY;
+  }
+
+  const raw = input as Record<string, unknown>;
+
+  const totalsRaw = raw.totals;
+  const totals =
+    totalsRaw && typeof totalsRaw === 'object'
+      ? {
+          applicants: parseInteger((totalsRaw as Record<string, unknown>).applicants, { min: 0 }),
+          qualified_applicants: parseInteger(
+            (totalsRaw as Record<string, unknown>).qualified_applicants,
+            { min: 0 },
+          ),
+        }
+      : { ...EMPTY_SUMMARY.totals };
+
+  const rankCountsRaw = Array.isArray(raw.rank_counts) ? raw.rank_counts : [];
+  const rankCounts = rankCountsRaw
+    .reduce<{ rank: number; count: number }[]>((acc, item) => {
+      if (!item || typeof item !== 'object') {
+        return acc;
+      }
+
+      const row = item as Record<string, unknown>;
+      const rank = parseInteger(row.rank, { min: 1, fallback: NaN });
+      const count = parseInteger(row.count, { min: 0, fallback: NaN });
+
+      if (!Number.isFinite(rank) || !Number.isFinite(count)) {
+        return acc;
+      }
+
+      acc.push({ rank, count });
+      return acc;
+    }, [])
+    .sort((a, b) => a.rank - b.rank);
+
+  const specialGroupsRaw = Array.isArray(raw.special_groups) ? raw.special_groups : [];
+  const specialGroups = specialGroupsRaw.reduce<SummaryResponse['special_groups']>((acc, item) => {
+    if (!item || typeof item !== 'object') {
+      return acc;
+    }
+
+    const row = item as Record<string, unknown>;
+    const name = toStringOrEmpty(row.name).trim();
+    if (!name) {
+      return acc;
+    }
+
+    const count = parseInteger(row.count, { min: 0 });
+
+    const ranksRaw = Array.isArray(row.ranks) ? row.ranks : [];
+    const ranks = ranksRaw
+      .map((rank) => parseInteger(rank, { min: 1, fallback: NaN }))
+      .filter((rank): rank is number => Number.isFinite(rank));
+
+    acc.push({
+      name,
+      count,
+      ranks: Array.from(new Set(ranks)).sort((a, b) => a - b),
+    });
+
+    return acc;
+  }, []);
+
+  return {
+    totals,
+    rank_counts: rankCounts,
+    special_groups: specialGroups,
+  };
+};
+
 type ZiggyRouteFn = (name: string, params?: unknown) => string;
 type ZiggyWindow = typeof window & { route?: ZiggyRouteFn };
 
@@ -321,9 +412,9 @@ export default function ReportPage() {
           throw new Error(`Failed to load report summary (HTTP ${res.status}). ${txt.slice(0, 300)}`);
         }
 
-        const json = (await res.json()) as SummaryResponse;
+        const json = await res.json();
         if (!cancelled) {
-          setSummary(json);
+          setSummary(parseSummaryResponse(json));
         }
       } catch (error) {
         if (!cancelled) {

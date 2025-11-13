@@ -70,16 +70,14 @@ class CmspRankingService
 
         $ranked = [];
         $currentRank = 0;
-        $position = 0;
         $previousFinal = null;
 
         foreach ($sorted as $entry) {
-            $position++;
             if ($previousFinal !== null && $entry['final_points'] === $previousFinal) {
                 $rank = $currentRank;
             } else {
-                $rank = $position;
-                $currentRank = $rank;
+                $currentRank++;
+                $rank = $currentRank;
                 $previousFinal = $entry['final_points'];
             }
 
