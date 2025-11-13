@@ -96,6 +96,64 @@ const EMPTY_VALIDATION_FORM = {
     remarks: '',
 };
 
+const PER_PAGE_OPTIONS = [10, 20, 50] as const;
+const DEFAULT_PAGE = 1;
+const DEFAULT_PER_PAGE = PER_PAGE_OPTIONS[0];
+const ALLOWED_PER_PAGE = new Set<number>(PER_PAGE_OPTIONS);
+
+type RankDirection = 'asc' | 'desc';
+
+type TableQuerySnapshot = {
+    page: number;
+    perPage: number;
+    search: string;
+    rankSort: RankDirection | null;
+};
+
+const parsePositiveInt = (value: string | null, fallback: number): number => {
+    if (!value) {
+        return fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const parsePerPageParam = (value: string | null): number => {
+    const parsed = parsePositiveInt(value, DEFAULT_PER_PAGE);
+    return ALLOWED_PER_PAGE.has(parsed) ? parsed : DEFAULT_PER_PAGE;
+};
+
+const parseRankSortParam = (params: URLSearchParams): RankDirection | null => {
+    if (params.get('sort') !== 'rank') {
+        return null;
+    }
+
+    const direction = params.get('direction');
+    return direction && direction.toLowerCase() === 'desc' ? 'desc' : 'asc';
+};
+
+const readTableQueryParams = (search: string): TableQuerySnapshot => {
+    if (search.trim() === '') {
+        return {
+            page: DEFAULT_PAGE,
+            perPage: DEFAULT_PER_PAGE,
+            search: '',
+            rankSort: null,
+        };
+    }
+
+    const params = new URLSearchParams(search);
+    const searchTerm = params.get('search') ?? '';
+
+    return {
+        page: parsePositiveInt(params.get('page'), DEFAULT_PAGE),
+        perPage: parsePerPageParam(params.get('per_page')),
+        search: searchTerm.trim(),
+        rankSort: parseRankSortParam(params),
+    };
+};
+
 const InDialogPopoverContent = React.forwardRef<
     HTMLDivElement,
     PopoverPrimitive.PopoverContentProps & { container?: HTMLElement | null }
@@ -747,15 +805,28 @@ function CmspsTable({
         return base;
     }, []);
 
+    const initialQueryParams = (() => {
+        if (typeof window === 'undefined') {
+            return {
+                page: DEFAULT_PAGE,
+                perPage: DEFAULT_PER_PAGE,
+                search: '',
+                rankSort: null as RankDirection | null,
+            };
+        }
+
+        return readTableQueryParams(window.location.search);
+    })();
+
     const [rows, setRows] = useState<ApplicationRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(false);
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useState<number>(initialQueryParams.page);
     const [lastPage, setLastPage] = useState(1);
     const [total, setTotal] = useState(0);
-    const [perPage, setPerPage] = useState(10);
-    const [searchInput, setSearchInput] = useState('');
-    const [search, setSearch] = useState('');
+    const [perPage, setPerPage] = useState<number>(initialQueryParams.perPage);
+    const [searchInput, setSearchInput] = useState<string>(initialQueryParams.search);
+    const [search, setSearch] = useState<string>(initialQueryParams.search);
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
@@ -769,7 +840,7 @@ function CmspsTable({
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
     const [actionSort, setActionSort] = useState<'validated' | 'pending' | null>(null);
-    const [rankSort, setRankSort] = useState<'asc' | 'desc' | null>(null);
+    const [rankSort, setRankSort] = useState<RankDirection | null>(initialQueryParams.rankSort);
     const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
     const [pointsSort, setPointsSort] = useState<'asc' | 'desc' | null>(null);
     const [submittedSort, setSubmittedSort] = useState<'asc' | 'desc' | null>(null);
@@ -779,25 +850,36 @@ function CmspsTable({
     }, [academicYear, deadline]);
 
     // AFTER
-    const buildUrl = useCallback((p: number, s: string, pp: number) => {
-        const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
-        const u = new URL(basePath, window.location.origin);
-        u.searchParams.set('page', String(p));
-        u.searchParams.set('per_page', String(pp));
-        u.searchParams.set('full', '1');
-        const trimmedSearch = s.trim();
-        if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
-        const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
-        if (trimmedAcademicYear) {
-            u.searchParams.set('academic_year', trimmedAcademicYear);
-        }
-        const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
-        if (trimmedDeadline) {
-            u.searchParams.set('deadline', trimmedDeadline);
-        }
-        // return a same-origin path
-        return u.pathname + u.search + u.hash;
-    }, [academicYear, deadline]);
+    type SortKey = 'rank';
+
+    const buildUrl = useCallback(
+        (p: number, s: string, pp: number, sort?: SortKey | null, direction?: 'asc' | 'desc' | null) => {
+            const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
+            const u = new URL(basePath, window.location.origin);
+            u.searchParams.set('page', String(p));
+            u.searchParams.set('per_page', String(pp));
+            u.searchParams.set('full', '1');
+            const trimmedSearch = s.trim();
+            if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
+            const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
+            if (trimmedAcademicYear) {
+                u.searchParams.set('academic_year', trimmedAcademicYear);
+            }
+            const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
+            if (trimmedDeadline) {
+                u.searchParams.set('deadline', trimmedDeadline);
+            }
+            if (sort) {
+                u.searchParams.set('sort', sort);
+                if (direction) {
+                    u.searchParams.set('direction', direction);
+                }
+            }
+            // return a same-origin path
+            return u.pathname + u.search + u.hash;
+        },
+        [academicYear, deadline],
+    );
 
     const buildExportUrl = useCallback((s: string) => {
         const basePath = toPath(resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export'));
@@ -822,38 +904,47 @@ function CmspsTable({
         toPath((window as any).route ? (window as any).route('validations.destroy', id) : `/validations/${id}`);
 
 
-    const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
-        setLoading(true);
-        try {
-            const res = await fetch(buildUrl(p, s, pp), {
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
-            });
-            if (!res.ok) throw new Error('Failed to load');
-            const json = await res.json();
-            const rawData: unknown[] = Array.isArray(json.data) ? json.data : [];
-            const normalized = rawData
-                .map((item) => normalizeRow(item))
-                .filter((item): item is ApplicationRow => item !== null);
-            setRows(normalized);
-            setTotal(json.meta?.total ?? 0);
-            setLastPage(json.meta?.last_page ?? 1);
-            setPage(json.meta?.current_page ?? p);
-            if (onSpecialCounts) {
-                onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
+    const fetchData = useCallback(
+        async (
+            p: number,
+            s: string,
+            pp: number,
+            sortKey: SortKey | null,
+            direction: 'asc' | 'desc' | null,
+        ) => {
+            setLoading(true);
+            try {
+                const res = await fetch(buildUrl(p, s, pp, sortKey, direction), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                if (!res.ok) throw new Error('Failed to load');
+                const json = await res.json();
+                const rawData: unknown[] = Array.isArray(json.data) ? json.data : [];
+                const normalized = rawData
+                    .map((item) => normalizeRow(item))
+                    .filter((item): item is ApplicationRow => item !== null);
+                setRows(normalized);
+                setTotal(json.meta?.total ?? 0);
+                setLastPage(json.meta?.last_page ?? 1);
+                setPage(json.meta?.current_page ?? p);
+                if (onSpecialCounts) {
+                    onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
+                }
+                setSelectedId(null);
+            } catch (e) {
+                setRows([]);
+                setTotal(0);
+                setLastPage(1);
+                if (onSpecialCounts) {
+                    onSpecialCounts({ ...EMPTY_SPECIAL_COUNTS });
+                }
+            } finally {
+                setLoading(false);
             }
-            setSelectedId(null);
-        } catch (e) {
-            setRows([]);
-            setTotal(0);
-            setLastPage(1);
-            if (onSpecialCounts) {
-                onSpecialCounts({ ...EMPTY_SPECIAL_COUNTS });
-            }
-        } finally {
-            setLoading(false);
-        }
-    }, [buildUrl, normalizeRow, onSpecialCounts]);
+        },
+        [buildUrl, normalizeRow, onSpecialCounts],
+    );
 
     const toggleActionSort = useCallback(() => {
         setActionSort((prev) => {
@@ -885,9 +976,79 @@ function CmspsTable({
                 setSubmittedSort(null);
             }
 
+            if (next !== prev) {
+                setPage(1);
+            }
+
             return next;
         });
-    }, [setActionSort, setNameSort, setPointsSort, setRankSort, setSubmittedSort]);
+    }, [setActionSort, setNameSort, setPage, setPointsSort, setRankSort, setSubmittedSort]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const current = new URL(window.location.href);
+        const params = current.searchParams;
+
+        if (rankSort) {
+            params.set('sort', 'rank');
+            params.set('direction', rankSort);
+        } else {
+            if (params.get('sort') === 'rank') {
+                params.delete('sort');
+            }
+            params.delete('direction');
+        }
+
+        if (search) {
+            params.set('search', search);
+        } else {
+            params.delete('search');
+        }
+
+        if (page > DEFAULT_PAGE) {
+            params.set('page', String(page));
+        } else {
+            params.delete('page');
+        }
+
+        if (perPage !== DEFAULT_PER_PAGE) {
+            params.set('per_page', String(perPage));
+        } else {
+            params.delete('per_page');
+        }
+
+        const nextSearch = params.toString();
+        const nextUrl = `${current.pathname}${nextSearch ? `?${nextSearch}` : ''}${current.hash}`;
+
+        if (nextUrl !== window.location.pathname + window.location.search + window.location.hash) {
+            window.history.replaceState(window.history.state, '', nextUrl);
+        }
+    }, [page, perPage, rankSort, search]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const handlePopState = () => {
+            const snapshot = readTableQueryParams(window.location.search);
+
+            setRankSort((prev) => (prev === snapshot.rankSort ? prev : snapshot.rankSort));
+            setPage((prev) => (prev === snapshot.page ? prev : snapshot.page));
+            setPerPage((prev) => (prev === snapshot.perPage ? prev : snapshot.perPage));
+            setSearch((prev) => (prev === snapshot.search ? prev : snapshot.search));
+            setSearchInput((prev) => (prev === snapshot.search ? prev : snapshot.search));
+        };
+
+        window.addEventListener('popstate', handlePopState);
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, []);
 
     const toggleNameSort = useCallback(() => {
         setNameSort((prev) => {
@@ -1109,9 +1270,11 @@ function CmspsTable({
 
         setPage(targetPage);
         setSearch(trimmed);
+        setSearchInput(trimmed);
 
         if (shouldRefetchImmediately) {
-            void fetchData(targetPage, trimmed, perPage);
+            const sortKey: SortKey | null = rankSort ? 'rank' : null;
+            void fetchData(targetPage, trimmed, perPage, sortKey, rankSort);
         }
     };
 
@@ -1120,8 +1283,9 @@ function CmspsTable({
             return;
         }
 
-        fetchData(page, search, perPage);
-    }, [fetchData, page, perPage, search, ready]);
+        const sortKey: SortKey | null = rankSort ? 'rank' : null;
+        fetchData(page, search, perPage, sortKey, rankSort);
+    }, [fetchData, page, perPage, rankSort, search, ready]);
 
     const formatApplicantName = (row?: ApplicationRow | null) => {
         if (!row) return '—';
@@ -1291,7 +1455,8 @@ function CmspsTable({
 
             setValidationErrors({});
 
-            await fetchData(page, search, perPage);
+            const sortKey: SortKey | null = rankSort ? 'rank' : null;
+            await fetchData(page, search, perPage, sortKey, rankSort);
             setSelectedId(targetRowId);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to save validation.';
@@ -1351,7 +1516,8 @@ function CmspsTable({
             setRankPopoverOpen(false);
 
             setSelectedId(targetRowId);
-            fetchData(page, search, perPage).then(() => {
+            const sortKey: SortKey | null = rankSort ? 'rank' : null;
+            fetchData(page, search, perPage, sortKey, rankSort).then(() => {
                 setSelectedId(targetRowId);
             });
         } catch (error) {
@@ -1477,9 +1643,19 @@ function CmspsTable({
                     <select
                         className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                         value={perPage}
-                        onChange={(e) => setPerPage(Number(e.target.value))}
+                        onChange={(e) => {
+                            const parsed = Number.parseInt(e.target.value, 10);
+                            const next = Number.isFinite(parsed) && parsed > 0 && ALLOWED_PER_PAGE.has(parsed)
+                                ? parsed
+                                : DEFAULT_PER_PAGE;
+
+                            if (next !== perPage) {
+                                setPage(1);
+                                setPerPage(next);
+                            }
+                        }}
                     >
-                        {[10, 20, 50].map((n) => (
+                        {PER_PAGE_OPTIONS.map((n) => (
                             <option key={n} value={n}>{n}</option>
                         ))}
                     </select>
