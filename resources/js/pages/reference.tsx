@@ -84,12 +84,12 @@ const parseAyDeadlines = (input: unknown): DeadlineOption[] => {
                 typeof raw.new_slots === 'number'
                     ? Math.max(0, Math.trunc(raw.new_slots))
                     : (() => {
-                          const parsedSlots = Number.parseInt(
-                              typeof raw.new_slots === 'string' ? raw.new_slots : String(raw.new_slots ?? ''),
-                              10,
-                          );
-                          return Number.isFinite(parsedSlots) ? Math.max(0, parsedSlots) : 0;
-                      })(),
+                        const parsedSlots = Number.parseInt(
+                            typeof raw.new_slots === 'string' ? raw.new_slots : String(raw.new_slots ?? ''),
+                            10,
+                        );
+                        return Number.isFinite(parsedSlots) ? Math.max(0, parsedSlots) : 0;
+                    })(),
         });
 
         return acc;
@@ -309,16 +309,16 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
             onSuccess: (page) => {
                 const flashMessage =
                     page &&
-                    typeof page === 'object' &&
-                    'props' in page &&
-                    page.props &&
-                    typeof page.props === 'object' &&
-                    'flash' in page.props &&
-                    page.props.flash &&
-                    typeof page.props.flash === 'object' &&
-                    page.props.flash !== null &&
-                    'success' in page.props.flash &&
-                    typeof page.props.flash.success === 'string'
+                        typeof page === 'object' &&
+                        'props' in page &&
+                        page.props &&
+                        typeof page.props === 'object' &&
+                        'flash' in page.props &&
+                        page.props.flash &&
+                        typeof page.props.flash === 'object' &&
+                        page.props.flash !== null &&
+                        'success' in page.props.flash &&
+                        typeof page.props.flash.success === 'string'
                         ? page.props.flash.success
                         : null;
 
@@ -555,7 +555,13 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
                     </Card>
 
                     <div className="flex justify-end">
-                        <Button type="submit" disabled={isFormDisabled}>
+                        <Button className="
+                                  
+                                    bg-[#1e3c73] hover:bg-[#1a3565]
+                                    text-white hover:text-white                                  
+                                    focus:outline-none focus:ring-1 focus:ring-[#1e3c73]                                   
+                                    "
+                            type="submit" disabled={isFormDisabled}>
                             {(processing || reloadingReferencePoints) && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
