@@ -22,6 +22,13 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface ReferencePoint {
+    id: number;
+    range_from: number;
+    range_to: number | null;
+    equivalent_points: number;
+}
+
 export interface User {
     id: number;
     name: string;

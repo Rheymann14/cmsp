@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 
 use App\Models\AyDeadline;
 use App\Models\CmspApplication;
+use App\Models\ReferencePoint;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -23,6 +25,9 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class CmspApplicationController extends Controller
 {
+    private ?Collection $gradeReferencePoints = null;
+    private ?Collection $incomeReferencePoints = null;
+
     /** Store to public/attachments with ULID + original filename; returns relative path */
     private function putAttachment(UploadedFile $file, string $dir = 'attachments'): string
     {
@@ -512,44 +517,61 @@ public function indexJson(\Illuminate\Http\Request $request)
 
     private function mapGradePoints(float $grade): int
     {
-        if ($grade >= 99) {
-            return 100;
-        }
-        if ($grade >= 97) {
-            return 95;
-        }
-        if ($grade >= 95) {
-            return 90;
-        }
-        if ($grade >= 93) {
-            return 85;
-        }
-        if ($grade >= 91) {
-            return 80;
-        }
-
-        return 75;
+        return $this->mapPointsFromReferences(
+            $grade,
+            $this->referencePoints(ReferencePoint::CATEGORY_GRADE),
+            75
+        );
     }
 
     private function mapIncomePoints(float $income): int
     {
-        if ($income <= 100000) {
-            return 100;
-        }
-        if ($income <= 200000) {
-            return 85;
-        }
-        if ($income <= 300000) {
-            return 70;
-        }
-        if ($income <= 400000) {
-            return 55;
-        }
-        if ($income <= 500000) {
-            return 40;
+        return $this->mapPointsFromReferences(
+            $income,
+            $this->referencePoints(ReferencePoint::CATEGORY_INCOME),
+            0
+        );
+    }
+
+    private function referencePoints(string $category): Collection
+    {
+        if ($category === ReferencePoint::CATEGORY_GRADE) {
+            if ($this->gradeReferencePoints === null) {
+                $this->gradeReferencePoints = ReferencePoint::query()
+                    ->where('category', ReferencePoint::CATEGORY_GRADE)
+                    ->orderBy('range_from')
+                    ->get();
+            }
+
+            return $this->gradeReferencePoints;
         }
 
-        return 0;
+        if ($category === ReferencePoint::CATEGORY_INCOME) {
+            if ($this->incomeReferencePoints === null) {
+                $this->incomeReferencePoints = ReferencePoint::query()
+                    ->where('category', ReferencePoint::CATEGORY_INCOME)
+                    ->orderBy('range_from')
+                    ->get();
+            }
+
+            return $this->incomeReferencePoints;
+        }
+
+        return collect();
+    }
+
+    private function mapPointsFromReferences(float $value, Collection $references, int $fallback): int
+    {
+        foreach ($references as $reference) {
+            $rangeFrom = (float) ($reference->range_from ?? 0);
+            $rangeTo = $reference->range_to !== null ? (float) $reference->range_to : null;
+
+            if ($value >= $rangeFrom && ($rangeTo === null || $value <= $rangeTo)) {
+                return (int) $reference->equivalent_points;
+            }
+        }
+
+        return $fallback;
     }
 
     private function resolveHouseholdIncome(CmspApplication $application): float

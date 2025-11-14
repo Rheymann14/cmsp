@@ -44,6 +44,11 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
       href: '/raw_list',
       icon: FileSpreadsheet,
     },
+    {
+      title: 'Reference',
+      href: '/reference',
+      icon: NotebookText,
+    },
 
   ];
 
