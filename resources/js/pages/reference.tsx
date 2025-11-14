@@ -1,6 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { type BreadcrumbItem, type ReferencePoint, type SharedData } from '@/types';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ interface ReferencePageProps {
     incomePoints: ReferencePoint[];
 }
 
-interface ReferenceFormItem {
+interface ReferenceFormItem extends Record<string, FormDataConvertible> {
     id: number;
     equivalent_points: string;
 }
@@ -132,7 +133,7 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
     const {
         flash,
         ziggy,
-    } = usePage<SharedData>();
+    } = usePage<SharedData>().props;
 
     const initialFilters = useMemo(() => {
         const location = ziggy?.location ?? '';
