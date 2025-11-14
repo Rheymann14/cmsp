@@ -431,12 +431,46 @@ export default function ReportPage() {
   );
 
   const buildPrintWindow = useCallback((title: string, body: string) => {
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
-
-    if (!printWindow) {
-      toast.error('Unable to open the print preview. Please allow pop-ups and try again.');
+    if (typeof document === 'undefined') {
+      toast.error('Printing is not available in this environment.');
       return;
     }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-modals allow-scripts');
+
+    let cleanupTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let printTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let objectUrl: string | null = null;
+
+    const cleanup = () => {
+      if (cleanupTimer !== null) {
+        window.clearTimeout(cleanupTimer);
+        cleanupTimer = null;
+      }
+      if (printTimer !== null) {
+        window.clearTimeout(printTimer);
+        printTimer = null;
+      }
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+      iframe.removeEventListener('load', handleLoad);
+      iframe.contentWindow?.removeEventListener('afterprint', handleAfterPrint);
+      const { parentNode } = iframe;
+      if (parentNode) {
+        parentNode.removeChild(iframe);
+      }
+    };
 
     const documentTitle = title.trim() || 'Report';
     const html = `<!DOCTYPE html>
@@ -499,15 +533,61 @@ export default function ReportPage() {
         </body>
       </html>`;
 
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
+    const handleAfterPrint = () => {
+      cleanup();
+    };
 
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    const handleLoad = () => {
+      try {
+        const { contentWindow } = iframe;
+        if (!contentWindow) {
+          throw new Error('Missing print window context.');
+        }
+
+        contentWindow.addEventListener('afterprint', handleAfterPrint, { once: true });
+        contentWindow.focus();
+
+        printTimer = window.setTimeout(() => {
+          try {
+            contentWindow.print();
+            cleanupTimer = window.setTimeout(() => {
+              cleanup();
+            }, 5000);
+          } catch (error) {
+            console.error(error);
+            toast.error('Unable to open the print preview. Please try again.');
+            cleanup();
+          }
+        }, 50);
+      } catch (error) {
+        console.error(error);
+        toast.error('Unable to open the print preview. Please try again.');
+        cleanup();
+      }
+    };
+
+    iframe.addEventListener('load', handleLoad, { once: true });
+
+    try {
+      if ('srcdoc' in iframe) {
+        iframe.srcdoc = html;
+      } else {
+        const blob = new Blob([html], { type: 'text/html' });
+        objectUrl = URL.createObjectURL(blob);
+        iframe.src = objectUrl;
+      }
+
+      const target = document.body ?? document.documentElement;
+      if (!target) {
+        throw new Error('Unable to attach print frame to the document.');
+      }
+
+      target.appendChild(iframe);
+    } catch (error) {
+      console.error(error);
+      cleanup();
+      toast.error('Unable to prepare the print preview. Please try again.');
+    }
   }, []);
 
   const handlePrintSpecialGroups = useCallback(() => {
