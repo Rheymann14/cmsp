@@ -305,6 +305,24 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
 
         put(route('reference.update'), {
             preserveScroll: true,
+            onSuccess: (page) => {
+                const flashMessage =
+                    page &&
+                    typeof page === 'object' &&
+                    'props' in page &&
+                    page.props &&
+                    typeof page.props === 'object' &&
+                    'flash' in page.props &&
+                    page.props.flash &&
+                    typeof page.props.flash === 'object' &&
+                    page.props.flash !== null &&
+                    'success' in page.props.flash &&
+                    typeof page.props.flash.success === 'string'
+                        ? page.props.flash.success
+                        : null;
+
+                toast.success(flashMessage ?? 'Reference points updated successfully.');
+            },
             onError: (formErrors) => {
                 const message = Object.values(formErrors).find(Boolean);
                 toast.error(message ?? 'Unable to save reference points.');
