@@ -18,7 +18,8 @@ class DatabaseSeeder extends Seeder
             CourseSeeder::class,
             EthnicitySeeder::class,
             ReligionSeeder::class,
-       
+            ReferencePointSeeder::class,
+
         ]);
     }
 }

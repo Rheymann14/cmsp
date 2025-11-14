@@ -19,6 +19,7 @@ use App\Http\Controllers\TrackApplicationController;
 use App\Http\Controllers\AyDeadlineController;
 use App\Http\Controllers\ValidationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReferencePointController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -96,6 +97,9 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
     Route::get('/reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
     Route::get('/reports/special-group-details', [ReportController::class, 'specialGroupDetails'])
         ->name('reports.special-group-details');
+
+    Route::get('/reference', [ReferencePointController::class, 'index'])->name('reference.index');
+    Route::put('/reference', [ReferencePointController::class, 'update'])->name('reference.update');
 
 
 

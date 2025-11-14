@@ -27,6 +27,11 @@ export function AppSidebar() {
             href: '/raw_list',
             icon: FileSpreadsheet,
         },
+        {
+            title: 'Reference',
+            href: '/reference',
+            icon: NotebookText,
+        },
     ];
 
     // ✅ Conditionally include Role Management if Admin
