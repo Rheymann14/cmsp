@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CalendarRange, Check } from 'lucide-react';
+import { Loader2, CalendarRange, Check, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Toaster, toast } from 'sonner';
 
@@ -83,6 +83,24 @@ const toStringOrEmpty = (value: unknown): string => {
   }
   return String(value);
 };
+
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"]|'/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return char;
+    }
+  });
 
 interface DeadlineOption {
   id: number;
@@ -411,6 +429,237 @@ export default function ReportPage() {
     () => summary.rank_counts.reduce((acc, item) => acc + item.count, 0),
     [summary.rank_counts],
   );
+
+  const buildPrintWindow = useCallback((title: string, body: string) => {
+    if (typeof document === 'undefined') {
+      toast.error('Printing is not available in this environment.');
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-modals allow-scripts');
+
+    let cleanupTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let printTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let objectUrl: string | null = null;
+
+    const cleanup = () => {
+      if (cleanupTimer !== null) {
+        window.clearTimeout(cleanupTimer);
+        cleanupTimer = null;
+      }
+      if (printTimer !== null) {
+        window.clearTimeout(printTimer);
+        printTimer = null;
+      }
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+      iframe.removeEventListener('load', handleLoad);
+      iframe.contentWindow?.removeEventListener('afterprint', handleAfterPrint);
+      const { parentNode } = iframe;
+      if (parentNode) {
+        parentNode.removeChild(iframe);
+      }
+    };
+
+    const documentTitle = title.trim() || 'Report';
+    const html = `<!DOCTYPE html>
+      <html>
+        <head>
+          <meta charSet="utf-8" />
+          <title>${escapeHtml(documentTitle)}</title>
+          <style>
+            :root {
+              color-scheme: light;
+            }
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              padding: 32px;
+              color: #111827;
+              background-color: #ffffff;
+              line-height: 1.5;
+            }
+            h1 {
+              margin: 0 0 4px;
+              font-size: 22px;
+              color: #1e3c73;
+            }
+            p.subtitle {
+              margin: 0 0 20px;
+              color: #4b5563;
+              font-size: 14px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 12px;
+              font-size: 13px;
+            }
+            th, td {
+              border: 1px solid #d1d5db;
+              padding: 8px 10px;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background-color: #e5e7eb;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              font-size: 11px;
+              color: #1f2937;
+            }
+            td.text-center {
+              text-align: center;
+            }
+            .footer {
+              margin-top: 28px;
+              font-size: 11px;
+              color: #6b7280;
+            }
+          </style>
+        </head>
+        <body>
+          ${body}
+        </body>
+      </html>`;
+
+    const handleAfterPrint = () => {
+      cleanup();
+    };
+
+    const handleLoad = () => {
+      try {
+        const { contentWindow } = iframe;
+        if (!contentWindow) {
+          throw new Error('Missing print window context.');
+        }
+
+        contentWindow.addEventListener('afterprint', handleAfterPrint, { once: true });
+        contentWindow.focus();
+
+        printTimer = window.setTimeout(() => {
+          try {
+            contentWindow.print();
+            cleanupTimer = window.setTimeout(() => {
+              cleanup();
+            }, 5000);
+          } catch (error) {
+            console.error(error);
+            toast.error('Unable to open the print preview. Please try again.');
+            cleanup();
+          }
+        }, 50);
+      } catch (error) {
+        console.error(error);
+        toast.error('Unable to open the print preview. Please try again.');
+        cleanup();
+      }
+    };
+
+    iframe.addEventListener('load', handleLoad, { once: true });
+
+    try {
+      if ('srcdoc' in iframe) {
+        iframe.srcdoc = html;
+      } else {
+        const blob = new Blob([html], { type: 'text/html' });
+        objectUrl = URL.createObjectURL(blob);
+        iframe.src = objectUrl;
+      }
+
+      const target = document.body ?? document.documentElement;
+      if (!target) {
+        throw new Error('Unable to attach print frame to the document.');
+      }
+
+      target.appendChild(iframe);
+    } catch (error) {
+      console.error(error);
+      cleanup();
+      toast.error('Unable to prepare the print preview. Please try again.');
+    }
+  }, []);
+
+  const handlePrintSpecialGroups = useCallback(() => {
+    const yearLabel = selectedAcademicYear ? `(${selectedAcademicYear})` : '';
+    const rows = summary.special_groups.length
+      ? summary.special_groups
+          .map((group) => {
+            const ranks = group.ranks.length
+              ? group.ranks.map((rank) => `#${rank.toLocaleString()}`).join(', ')
+              : '—';
+            return `<tr>
+                <td>${escapeHtml(group.name)}</td>
+                <td class="text-center">${group.count.toLocaleString()}</td>
+                <td>${escapeHtml(ranks)}</td>
+              </tr>`;
+          })
+          .join('')
+      : '<tr><td colspan="3" class="text-center">No special group data found for the selected period.</td></tr>';
+
+    const body = `
+      <h1>CHED Merit Scholarship Program ${escapeHtml(yearLabel)}</h1>
+      <p class="subtitle">Special group distribution with corresponding rank placements.</p>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Special Group</th>
+            <th scope="col">No. of Applicants</th>
+            <th scope="col">Ranks</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      <div class="footer">Generated on ${escapeHtml(new Date().toLocaleString())}</div>
+    `;
+
+    buildPrintWindow(`Special Group Distribution ${yearLabel}`, body);
+  }, [buildPrintWindow, selectedAcademicYear, summary.special_groups]);
+
+  const handlePrintRankDistribution = useCallback(() => {
+    const yearLabel = selectedAcademicYear ? `(${selectedAcademicYear})` : '';
+    const rows = summary.rank_counts.length
+      ? summary.rank_counts
+          .map(
+            (item) => `<tr>
+              <td>${item.rank.toLocaleString()}</td>
+              <td class="text-center">${item.count.toLocaleString()}</td>
+            </tr>`,
+          )
+          .join('')
+      : '<tr><td colspan="2" class="text-center">No ranking data found for the selected period.</td></tr>';
+
+    const body = `
+      <h1>Rank Distribution ${escapeHtml(yearLabel)}</h1>
+      <p class="subtitle">Number of applicants per rank based on computed points. Ties share the same rank.</p>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Rank</th>
+            <th scope="col">No. of Applicants</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      <div class="footer">Total applicants in distribution: ${totalRankedApplicants.toLocaleString()}<br />Generated on ${escapeHtml(new Date().toLocaleString())}</div>
+    `;
+
+    buildPrintWindow(`Rank Distribution ${yearLabel}`, body);
+  }, [buildPrintWindow, selectedAcademicYear, summary.rank_counts, totalRankedApplicants]);
 
   const formattedNewSlots = useMemo(() => {
     const parsed = Number.parseInt(newSlots.replace(/[^0-9]/g, ''), 10);
@@ -957,13 +1206,27 @@ export default function ReportPage() {
 
         <section className="space-y-4">
           <Card className="rounded-xl border border-sidebar-border/70 shadow-sm dark:border-sidebar-border">
-            <CardHeader className="space-y-1 border-b border-sidebar-border/60 pb-4 dark:border-sidebar-border">
-              <CardTitle className="text-lg font-semibold text-[#1e3c73]">
-                CHED Merit Scholarship Program {selectedAcademicYear ? `(${selectedAcademicYear})` : ''}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Special group distribution with corresponding rank placements.
-              </p>
+            <CardHeader className="border-b border-sidebar-border/60 pb-4 dark:border-sidebar-border">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg font-semibold text-[#1e3c73]">
+                    CHED Merit Scholarship Program {selectedAcademicYear ? `(${selectedAcademicYear})` : ''}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Special group distribution with corresponding rank placements.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrintSpecialGroups}
+                  disabled={summaryLoading}
+                  className="inline-flex items-center gap-2 border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10 dark:border-[#1e3c73]/80 dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="px-0">
               <Table>
@@ -1033,13 +1296,27 @@ export default function ReportPage() {
           </Card>
 
           <Card className="rounded-xl border border-sidebar-border/70 shadow-sm dark:border-sidebar-border">
-            <CardHeader className="space-y-1 border-b border-sidebar-border/60 pb-4 dark:border-sidebar-border">
-              <CardTitle className="text-lg font-semibold text-[#1e3c73]">
-                Rank distribution {selectedAcademicYear ? `(${selectedAcademicYear})` : ''}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Number of applicants per rank based on computed points. Ties share the same rank.
-              </p>
+            <CardHeader className="border-b border-sidebar-border/60 pb-4 dark:border-sidebar-border">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg font-semibold text-[#1e3c73]">
+                    Rank distribution {selectedAcademicYear ? `(${selectedAcademicYear})` : ''}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Number of applicants per rank based on computed points. Ties share the same rank.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrintRankDistribution}
+                  disabled={summaryLoading}
+                  className="inline-flex items-center gap-2 border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10 dark:border-[#1e3c73]/80 dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {summary.rank_counts.length === 0 ? (
