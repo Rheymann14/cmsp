@@ -336,22 +336,22 @@ export default function RawList() {
                             </Command>
                         </DialogContent>
                     </Dialog>
-                  
-                        <div className="w-full flex flex-col   gap-1">
-                            <div className="inline-flex  gap-2">
-                                <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
-                                    {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
-                                </span>
 
-                            </div>
-
-                            <span className="text-xs text-muted-foreground">
-                                {selectedDeadline?.deadline_formatted
-                                    ? `Deadline: ${selectedDeadline.deadline_formatted}`
-                                    : 'No deadline date selected'}
+                    <div className="w-full flex flex-col   gap-1">
+                        <div className="inline-flex  gap-2">
+                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
                             </span>
+
                         </div>
-                   
+
+                        <span className="text-xs text-muted-foreground">
+                            {selectedDeadline?.deadline_formatted
+                                ? `Deadline: ${selectedDeadline.deadline_formatted}`
+                                : 'No deadline date selected'}
+                        </span>
+                    </div>
+
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1426,10 +1426,15 @@ function CmspsTable({
     }, [buildExportUrl, search]);
 
     return (
+
         <div className="mt-5 px-4 py-4 w-full max-w-full min-w-0">
+
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
                 {/* Left: search */}
                 <div className="flex items-center gap-2">
+
+
                     <div className="relative">
                         <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                         <input
@@ -1460,6 +1465,7 @@ function CmspsTable({
                         )}
                     </div>
 
+
                     <Button
                         type="button"
                         variant="outline"
@@ -1469,7 +1475,10 @@ function CmspsTable({
                     >
                         <Search className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
                     </Button>
+          
                 </div>
+
+
 
                 {/* Right: per-page */}
                 <div className="flex items-center gap-2">
@@ -1745,7 +1754,7 @@ function CmspsTable({
                                             'hover:bg-zinc-50 dark:hover:bg-zinc-900/40',
                                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
                                             selectedId === r.id &&
-                                                'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
+                                            'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
                                         )}
                                     >
                                         <td
