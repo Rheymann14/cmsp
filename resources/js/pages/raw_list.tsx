@@ -414,8 +414,8 @@ export default function RawList() {
                 </div>
 
                 <div className="w-full min-w-0">
-                    {/* full-bleed: match AppLayout page padding p-4 sm:p-6 lg:p-8 */}
-                    <div className="mx-[-1rem] sm:mx-[-1.5rem] lg:mx-[-2rem]">
+                    {/* Break out of AppLayout max width so the table can use the viewport width. */}
+                    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
                         <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                             <CmspsTable
                                 onSpecialCounts={handleSpecialCounts}
