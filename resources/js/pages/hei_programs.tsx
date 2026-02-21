@@ -16,11 +16,64 @@ type HeiItem = {
     municipalityCity?: string | null;
 };
 
+type CourseOption = {
+    id: number;
+    label: string;
+};
+
+const normalizeText = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+const compactText = (value: string): string => normalizeText(value).replace(/\s+/g, '');
+
+const stopWords = new Set([
+    'bachelor',
+    'science',
+    'arts',
+    'in',
+    'of',
+    'and',
+    'the',
+    'major',
+    'related',
+    'fields',
+    'education',
+]);
+
+const extractAcronym = (value: string): string =>
+    normalizeText(value)
+        .split(' ')
+        .filter((word) => word && !stopWords.has(word))
+        .map((word) => word[0])
+        .join('')
+        .toUpperCase();
+
+const isPriorityMatch = (programName: string, courses: CourseOption[]): boolean => {
+    const normalizedProgram = normalizeText(programName);
+    const compactProgram = compactText(programName);
+    const acronymProgram = extractAcronym(programName);
+
+    return courses.some((course) => {
+        const normalizedCourse = normalizeText(course.label);
+        const compactCourse = compactText(course.label);
+        const acronymCourse = extractAcronym(course.label);
+
+        return (
+            normalizedProgram === normalizedCourse ||
+            compactProgram === compactCourse ||
+            normalizedProgram.includes(normalizedCourse) ||
+            normalizedCourse.includes(normalizedProgram) ||
+            (acronymProgram.length >= 3 && acronymProgram === acronymCourse) ||
+            (acronymCourse.length >= 3 && compactProgram.includes(acronymCourse.toLowerCase()))
+        );
+    });
+};
+
 export default function HeiProgramsPage() {
     const [heis, setHeis] = useState<HeiItem[]>([]);
     const [search, setSearch] = useState('');
     const [selectedHei, setSelectedHei] = useState<HeiItem | null>(null);
     const [programs, setPrograms] = useState<string[]>([]);
+    const [priorityCourses, setPriorityCourses] = useState<CourseOption[]>([]);
     const [loadingHei, setLoadingHei] = useState(true);
     const [loadingPrograms, setLoadingPrograms] = useState(false);
 
@@ -54,6 +107,43 @@ export default function HeiProgramsPage() {
         };
 
         void loadHei();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadPriorityCourses = async () => {
+            try {
+                const res = await fetch('/api/courses', {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+
+                if (!res.ok) throw new Error('Failed to fetch courses');
+                const json = await res.json();
+                if (cancelled) return;
+
+                const items = Array.isArray(json?.data) ? json.data : [];
+                setPriorityCourses(
+                    items
+                        .map((item: Record<string, unknown>) => ({
+                            id: Number(item.id),
+                            label: String(item.label ?? ''),
+                        }))
+                        .filter((item: CourseOption) => Number.isFinite(item.id) && item.label.length > 0),
+                );
+            } catch {
+                if (!cancelled) {
+                    setPriorityCourses([]);
+                }
+            }
+        };
+
+        void loadPriorityCourses();
 
         return () => {
             cancelled = true;
@@ -107,6 +197,17 @@ export default function HeiProgramsPage() {
         );
     }, [heis, search]);
 
+    const programRows = useMemo(
+        () =>
+            programs.map((program) => ({
+                program,
+                matched: isPriorityMatch(program, priorityCourses),
+            })),
+        [programs, priorityCourses],
+    );
+
+    const matchedCount = useMemo(() => programRows.filter((row) => row.matched).length, [programRows]);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="HEIs & Programs" />
@@ -116,6 +217,9 @@ export default function HeiProgramsPage() {
                     <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">HEIs & Programs</h1>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                         Browse Higher Education Institutions and view the list of programs offered per institution.
+                    </p>
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                        Green items indicate a match with CHED Priority Courses.
                     </p>
                 </div>
 
@@ -154,7 +258,9 @@ export default function HeiProgramsPage() {
                                             onClick={() => setSelectedHei(hei)}
                                         >
                                             <div className="space-y-1">
-                                                <div className="font-semibold leading-snug">{heiIndex + 1}. {hei.instName}</div>
+                                                <div className="font-semibold leading-snug">
+                                                    {heiIndex + 1}. {hei.instName}
+                                                </div>
                                                 <div className="text-xs opacity-80">Code: {hei.instCode}</div>
                                                 {(hei.province || hei.municipalityCity) && (
                                                     <div className="text-xs opacity-80">
@@ -191,13 +297,18 @@ export default function HeiProgramsPage() {
                                 <div className="space-y-3">
                                     <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
                                         <span className="font-semibold">HEI Code:</span> {selectedHei.instCode}
+                                        <span className="mx-2">•</span>
+                                        <span className="font-semibold text-green-700 dark:text-green-300">Matched Priority Courses:</span> {matchedCount} / {programRows.length}
                                     </div>
 
                                     <ol className="space-y-2 rounded-lg border border-amber-100 bg-amber-50/30 p-3 dark:border-amber-900/40 dark:bg-amber-950/10">
-                                        {programs.map((program, programIndex) => (
-                                            <li key={program} className="text-sm text-amber-900 dark:text-amber-100">
+                                        {programRows.map((row, programIndex) => (
+                                            <li
+                                                key={row.program}
+                                                className={`text-sm ${row.matched ? 'text-green-700 dark:text-green-300 font-medium' : 'text-amber-900 dark:text-amber-100'}`}
+                                            >
                                                 <span className="mr-2 font-semibold">{programIndex + 1}.</span>
-                                                <span>{program}</span>
+                                                <span>{row.program}</span>
                                             </li>
                                         ))}
                                     </ol>
