@@ -264,7 +264,7 @@ export default function RawList() {
                 </h1>
             </div>
 
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-visible">
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
@@ -414,8 +414,8 @@ export default function RawList() {
                 </div>
 
                 <div className="w-full min-w-0">
-                    {/* full-bleed: match AppLayout page padding p-4 sm:p-6 lg:p-8 */}
-                    <div className="mx-[-1rem] sm:mx-[-1.5rem] lg:mx-[-2rem]">
+                    {/* Break out of AppLayout max width so the table can use the viewport width. */}
+                    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
                         <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                             <CmspsTable
                                 onSpecialCounts={handleSpecialCounts}
@@ -1521,7 +1521,7 @@ function CmspsTable({
 
             <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 w-full max-w-full">
                 <div className="overflow-x-auto w-full max-w-full min-w-0">
-                    <table className="w-full table-auto text-left text-sm
+                    <table className="min-w-full w-max table-auto text-left text-sm
                         [&>tbody>tr>td]:break-words
                         [&>tbody>tr>td]:align-top
                         [&>tbody>tr>td]:max-w-[240px]">
