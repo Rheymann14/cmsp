@@ -20,6 +20,7 @@ use App\Http\Controllers\AyDeadlineController;
 use App\Http\Controllers\ValidationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReferencePointController;
+use App\Http\Controllers\HeiProgramController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
@@ -100,6 +101,10 @@ Route::middleware(['auth', EnsureActiveRoleAndRegion::class])->group(function ()
 
     Route::get('/reference', [ReferencePointController::class, 'index'])->name('reference.index');
     Route::put('/reference', [ReferencePointController::class, 'update'])->name('reference.update');
+
+    Route::get('/hei_programs', [HeiProgramController::class, 'index'])->name('hei_programs');
+    Route::get('/api/hei_programs', [HeiProgramController::class, 'listHei'])->name('api.hei_programs');
+    Route::get('/api/hei_programs/{instCode}/programs', [HeiProgramController::class, 'listPrograms'])->name('api.hei_programs.programs');
 
 
 
