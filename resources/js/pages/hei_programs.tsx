@@ -1,15 +1,14 @@
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+import { Building2, GraduationCap, Loader2, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'HEIs & Programs', href: '/hei_programs' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'HEIs & Programs', href: '/hei_programs' }];
 
 type HeiItem = {
     instCode: string;
@@ -105,9 +104,7 @@ export default function HeiProgramsPage() {
         if (!keyword) return heis;
 
         return heis.filter((hei) =>
-            `${hei.instCode} ${hei.instName} ${hei.province ?? ''} ${hei.municipalityCity ?? ''}`
-                .toLowerCase()
-                .includes(keyword)
+            `${hei.instCode} ${hei.instName} ${hei.province ?? ''} ${hei.municipalityCity ?? ''}`.toLowerCase().includes(keyword),
         );
     }, [heis, search]);
 
@@ -115,68 +112,104 @@ export default function HeiProgramsPage() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="HEIs & Programs" />
 
-            <div className="grid gap-4 p-4 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>HEIs</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <Input
-                            placeholder="Search HEI by code, name, province, city"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                        />
+            <div className="p-4 md:p-6">
+                <div className="mb-5 rounded-xl border border-blue-200/60 bg-gradient-to-r from-blue-50 via-indigo-50 to-sky-50 p-5 shadow-sm dark:border-blue-900/40 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-slate-950/30">
+                    <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">HEIs & Programs</h1>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                        Browse Higher Education Institutions and view the list of programs offered per institution.
+                    </p>
+                </div>
 
-                        <div className="max-h-[500px] space-y-2 overflow-y-auto rounded border p-2">
-                            {loadingHei ? (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading HEIs...
-                                </div>
-                            ) : filteredHeis.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No HEI found.</p>
-                            ) : (
-                                filteredHeis.map((hei) => (
-                                    <Button
-                                        key={hei.instCode}
-                                        variant={selectedHei?.instCode === hei.instCode ? 'default' : 'outline'}
-                                        className="h-auto w-full justify-start whitespace-normal text-left"
-                                        onClick={() => setSelectedHei(hei)}
-                                    >
-                                        <div>
-                                            <div className="font-semibold">{hei.instName}</div>
-                                            <div className="text-xs opacity-80">{hei.instCode}</div>
-                                        </div>
-                                    </Button>
-                                ))
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="grid gap-5 lg:grid-cols-2">
+                    <Card className="border-blue-100/80 shadow-sm dark:border-blue-900/40">
+                        <CardHeader className="rounded-t-xl bg-blue-50/70 dark:bg-blue-950/20">
+                            <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                                <Building2 className="h-5 w-5" /> HEIs
+                            </CardTitle>
+                        </CardHeader>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            Programs {selectedHei ? `- ${selectedHei.instName}` : ''}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {!selectedHei ? (
-                            <p className="text-sm text-muted-foreground">Select an HEI to view programs.</p>
-                        ) : loadingPrograms ? (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin" /> Loading programs...
+                        <CardContent className="space-y-3 p-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    className="pl-9"
+                                    placeholder="Search by code, name, province, city"
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                />
                             </div>
-                        ) : programs.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No programs found for this HEI.</p>
-                        ) : (
-                            <ul className="list-disc space-y-1 pl-5 text-sm">
-                                {programs.map((program) => (
-                                    <li key={program}>{program}</li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
+
+                            <div className="max-h-[520px] space-y-2 overflow-y-auto rounded-lg border border-blue-100 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                                {loadingHei ? (
+                                    <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+                                        <Loader2 className="h-4 w-4 animate-spin" /> Loading HEIs...
+                                    </div>
+                                ) : filteredHeis.length === 0 ? (
+                                    <p className="p-2 text-sm text-muted-foreground">No HEI found.</p>
+                                ) : (
+                                    filteredHeis.map((hei) => (
+                                        <Button
+                                            key={hei.instCode}
+                                            variant={selectedHei?.instCode === hei.instCode ? 'default' : 'ghost'}
+                                            className="h-auto w-full justify-start whitespace-normal border border-transparent px-3 py-2 text-left hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20"
+                                            onClick={() => setSelectedHei(hei)}
+                                        >
+                                            <div className="space-y-1">
+                                                <div className="font-semibold leading-snug">{hei.instName}</div>
+                                                <div className="text-xs opacity-80">Code: {hei.instCode}</div>
+                                                {(hei.province || hei.municipalityCity) && (
+                                                    <div className="text-xs opacity-80">
+                                                        {hei.municipalityCity ?? ''}
+                                                        {hei.municipalityCity && hei.province ? ', ' : ''}
+                                                        {hei.province ?? ''}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </Button>
+                                    ))
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-emerald-100/80 shadow-sm dark:border-emerald-900/40">
+                        <CardHeader className="rounded-t-xl bg-emerald-50/70 dark:bg-emerald-950/20">
+                            <CardTitle className="flex items-center gap-2 text-emerald-900 dark:text-emerald-100">
+                                <GraduationCap className="h-5 w-5" /> Programs {selectedHei ? `· ${selectedHei.instName}` : ''}
+                            </CardTitle>
+                        </CardHeader>
+
+                        <CardContent className="p-4">
+                            {!selectedHei ? (
+                                <p className="text-sm text-muted-foreground">Select an HEI to view programs.</p>
+                            ) : loadingPrograms ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading programs...
+                                </div>
+                            ) : programs.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No programs found for this HEI.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-3 text-xs text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-100">
+                                        <span className="font-semibold">HEI Code:</span> {selectedHei.instCode}
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {programs.map((program) => (
+                                            <Badge
+                                                key={program}
+                                                variant="secondary"
+                                                className="bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-100"
+                                            >
+                                                {program}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </AppLayout>
     );
