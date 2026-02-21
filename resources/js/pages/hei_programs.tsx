@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -147,15 +146,15 @@ export default function HeiProgramsPage() {
                                 ) : filteredHeis.length === 0 ? (
                                     <p className="p-2 text-sm text-muted-foreground">No HEI found.</p>
                                 ) : (
-                                    filteredHeis.map((hei) => (
+                                    filteredHeis.map((hei, heiIndex) => (
                                         <Button
                                             key={hei.instCode}
-                                            variant={selectedHei?.instCode === hei.instCode ? 'default' : 'ghost'}
-                                            className="h-auto w-full justify-start whitespace-normal border border-transparent px-3 py-2 text-left hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20"
+                                            variant="ghost"
+                                            className={`h-auto w-full justify-start whitespace-normal border px-3 py-2 text-left ${selectedHei?.instCode === hei.instCode ? 'border-blue-300 bg-blue-100 text-blue-900 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20'}`}
                                             onClick={() => setSelectedHei(hei)}
                                         >
                                             <div className="space-y-1">
-                                                <div className="font-semibold leading-snug">{hei.instName}</div>
+                                                <div className="font-semibold leading-snug">{heiIndex + 1}. {hei.instName}</div>
                                                 <div className="text-xs opacity-80">Code: {hei.instCode}</div>
                                                 {(hei.province || hei.municipalityCity) && (
                                                     <div className="text-xs opacity-80">
@@ -172,9 +171,9 @@ export default function HeiProgramsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-emerald-100/80 shadow-sm dark:border-emerald-900/40">
-                        <CardHeader className="rounded-t-xl bg-emerald-50/70 dark:bg-emerald-950/20">
-                            <CardTitle className="flex items-center gap-2 text-emerald-900 dark:text-emerald-100">
+                    <Card className="border-amber-100/80 shadow-sm dark:border-amber-900/40">
+                        <CardHeader className="rounded-t-xl bg-amber-50/70 dark:bg-amber-950/20">
+                            <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
                                 <GraduationCap className="h-5 w-5" /> Programs {selectedHei ? `· ${selectedHei.instName}` : ''}
                             </CardTitle>
                         </CardHeader>
@@ -190,21 +189,18 @@ export default function HeiProgramsPage() {
                                 <p className="text-sm text-muted-foreground">No programs found for this HEI.</p>
                             ) : (
                                 <div className="space-y-3">
-                                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-3 text-xs text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-100">
+                                    <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
                                         <span className="font-semibold">HEI Code:</span> {selectedHei.instCode}
                                     </div>
 
-                                    <div className="flex flex-wrap gap-2">
-                                        {programs.map((program) => (
-                                            <Badge
-                                                key={program}
-                                                variant="secondary"
-                                                className="bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-100"
-                                            >
-                                                {program}
-                                            </Badge>
+                                    <ol className="space-y-2 rounded-lg border border-amber-100 bg-amber-50/30 p-3 dark:border-amber-900/40 dark:bg-amber-950/10">
+                                        {programs.map((program, programIndex) => (
+                                            <li key={program} className="text-sm text-amber-900 dark:text-amber-100">
+                                                <span className="mr-2 font-semibold">{programIndex + 1}.</span>
+                                                <span>{program}</span>
+                                            </li>
                                         ))}
-                                    </div>
+                                    </ol>
                                 </div>
                             )}
                         </CardContent>
