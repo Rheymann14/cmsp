@@ -80,7 +80,7 @@ export default function Password() {
                                     className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                                     aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                                 >
-                                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    {showCurrentPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                                 </button>
                             </div>
 
@@ -107,7 +107,7 @@ export default function Password() {
                                     className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                                     aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
                                 >
-                                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    {showNewPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                                 </button>
                             </div>
 
@@ -133,7 +133,7 @@ export default function Password() {
                                     className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                                     aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                                 >
-                                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    {showConfirmPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                                 </button>
                             </div>
 
