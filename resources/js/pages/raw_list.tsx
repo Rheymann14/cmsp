@@ -416,7 +416,7 @@ export default function RawList() {
                 <div className="w-full min-w-0">
                     {/* Break out of AppLayout max width so the table can use the viewport width. */}
                     <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
-                        <div className="mx-auto w-full max-w-[88rem] rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <div className="mx-auto w-full max-w-[92rem] rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                             <CmspsTable
                                 onSpecialCounts={handleSpecialCounts}
                                 academicYear={selectedAcademicYear}
