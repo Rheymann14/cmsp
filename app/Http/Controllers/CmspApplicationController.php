@@ -20,6 +20,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -592,6 +593,59 @@ public function indexJson(\Illuminate\Http\Request $request)
         return 0;
     }
 
+
+
+    private function normalizeNumericValue(mixed $value): float
+    {
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        if (is_string($value)) {
+            $normalized = preg_replace('/[^\d.\-]/', '', $value) ?? '';
+
+            return is_numeric($normalized) ? (float) $normalized : 0.0;
+        }
+
+        return 0.0;
+    }
+    private function resolveValidationRemarks(CmspApplication $application): string
+    {
+        $fatherYearly = $this->normalizeNumericValue($application->father_income_yearly_bracket);
+        $motherYearly = $this->normalizeNumericValue($application->mother_income_yearly_bracket);
+        $fatherMonthly = $this->normalizeNumericValue($application->father_income_monthly);
+        $motherMonthly = $this->normalizeNumericValue($application->mother_income_monthly);
+
+        $fatherDerivedYearly = $fatherYearly > 0 ? $fatherYearly : ($fatherMonthly * 12);
+        $motherDerivedYearly = $motherYearly > 0 ? $motherYearly : ($motherMonthly * 12);
+        $combinedParentYearlyIncome = $fatherDerivedYearly + $motherDerivedYearly;
+
+        $average = ((float) ($application->gwa_g12_s1 ?? 0) + (float) ($application->gwa_g12_s2 ?? 0)) / 2;
+        $roundedAverage = (int) round($average, 0, PHP_ROUND_HALF_UP);
+
+        $incomeDisqualified = $combinedParentYearlyIncome > 501000;
+        $gradeDisqualified = $roundedAverage < 93;
+
+        if (!$incomeDisqualified && !$gradeDisqualified) {
+            return 'Qualified Applicant';
+        }
+
+        if ($incomeDisqualified && $gradeDisqualified) {
+            return 'Disqualified - Combined salary exceeded 501k, did not meet the grade requirement';
+        }
+
+        if ($incomeDisqualified) {
+            return 'Disqualified - Combined salary exceeded 501k';
+        }
+
+        return 'Disqualified - Did not meet the grade requirement';
+    }
+
+    private function isDisqualifiedRemarks(string $remarks): bool
+    {
+        return str_starts_with(strtolower(trim($remarks)), 'disqualified');
+    }
+
     /**
      * @return array{
      *     gwa: float,
@@ -985,8 +1039,18 @@ public function indexJson(\Illuminate\Http\Request $request)
             $sheet->setCellValue("AF{$row}", $entry['final_points']);
             $sheet->setCellValue("AG{$row}", $entry['rank'] ?? $seq);
             $sheet->setCellValue("AH{$row}", $app->validation_document_status ?? '');
-            $sheet->setCellValue("AI{$row}", $app->validation_remarks ?? '');
+            $remarks = $this->resolveValidationRemarks($app);
+            $sheet->setCellValue("AI{$row}", $remarks);
             $sheet->setCellValue("AJ{$row}", $app->validation_no_siblings ?? '');
+
+            if ($this->isDisqualifiedRemarks($remarks)) {
+                $sheet->getStyle("A{$row}:AK{$row}")->applyFromArray([
+                    "fill" => [
+                        "fillType" => Fill::FILL_SOLID,
+                        "color" => ["argb" => "FFFFC7CE"],
+                    ],
+                ]);
+            }
             $sheet->setCellValue("AK{$row}", $app->validation_initial_rank ?? '');
         }
 
