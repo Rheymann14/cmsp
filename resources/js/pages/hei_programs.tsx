@@ -26,6 +26,17 @@ type ProgramItem = {
     programName: string;
     major?: string | null;
     status?: number | null;
+    programStatus?: string | null;
+};
+
+const isInactiveProgram = (program: ProgramItem): boolean => {
+    if (program.status === 0) return true;
+
+    const normalizedProgramStatus = String(program.programStatus ?? '')
+        .trim()
+        .toLowerCase();
+
+    return normalizedProgramStatus === 'inactive' || normalizedProgramStatus === '0';
 };
 
 const normalizeText = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -184,6 +195,7 @@ export default function HeiProgramsPage() {
                                 programName: item,
                                 major: null,
                                 status: null,
+                                programStatus: null,
                             };
                         }
 
@@ -193,6 +205,7 @@ export default function HeiProgramsPage() {
                         return {
                             programName: String(typedItem.programName ?? '').trim(),
                             major: typedItem.major ? String(typedItem.major).trim() : null,
+                            programStatus: typedItem.program_status ? String(typedItem.program_status).trim() : null,
                             status:
                                 typedItem.status === 0 || typedItem.status === '0'
                                     ? 0
@@ -371,7 +384,7 @@ export default function HeiProgramsPage() {
                                         "
                                     >
                                         {programRows.map((row, programIndex) => {
-                                            const inactive = row.program.status === 0;
+                                            const inactive = isInactiveProgram(row.program);
                                             const matched = row.matched;
 
                                             // Inactive should "win" over matched highlight
