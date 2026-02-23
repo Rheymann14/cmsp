@@ -178,28 +178,26 @@ export default function HeiProgramsPage() {
 
                 if (!cancelled) {
                     const items = Array.isArray(json?.programs) ? json.programs : [];
-                    setPrograms(
-                        items
-                            .map((item: unknown) => {
-                                if (typeof item === 'string') {
-                                    return {
-                                        programName: item,
-                                        major: null,
-                                        status: null,
-                                    };
-                                }
+                    const normalizedPrograms: Array<ProgramItem | null> = items.map((item: unknown) => {
+                        if (typeof item === 'string') {
+                            return {
+                                programName: item,
+                                major: null,
+                                status: null,
+                            };
+                        }
 
-                                if (!item || typeof item !== 'object') return null;
-                                const typedItem = item as Record<string, unknown>;
+                        if (!item || typeof item !== 'object') return null;
+                        const typedItem = item as Record<string, unknown>;
 
-                                return {
-                                    programName: String(typedItem.programName ?? '').trim(),
-                                    major: typedItem.major ? String(typedItem.major).trim() : null,
-                                    status: typedItem.status ? String(typedItem.status).trim() : null,
-                                };
-                            })
-                            .filter((item): item is ProgramItem => Boolean(item && item.programName)),
-                    );
+                        return {
+                            programName: String(typedItem.programName ?? '').trim(),
+                            major: typedItem.major ? String(typedItem.major).trim() : null,
+                            status: typedItem.status ? String(typedItem.status).trim() : null,
+                        };
+                    });
+
+                    setPrograms(normalizedPrograms.filter((item: ProgramItem | null): item is ProgramItem => Boolean(item?.programName)));
                 }
             } catch {
                 if (!cancelled) {
