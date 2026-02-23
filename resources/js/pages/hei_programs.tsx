@@ -393,7 +393,7 @@ export default function HeiProgramsPage() {
                                             divide-y divide-slate-200
                                             rounded-lg border border-slate-200
                                             bg-white/60
-                                            max-h-[420px] overflow-y-auto
+                                            max-h-[480px] overflow-y-auto
                                             scroll-smooth
                                             dark:divide-slate-800
                                             dark:border-slate-800
@@ -439,7 +439,7 @@ export default function HeiProgramsPage() {
                                                     <div className="flex shrink-0 items-center gap-1.5">
                                                         {inactive && (
                                                             <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-                                                                Inactive
+                                                                Discontinued
                                                             </Badge>
                                                         )}
 
