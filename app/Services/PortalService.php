@@ -78,7 +78,13 @@ class PortalService
                 ->map(fn ($item) => [
                     'programName' => isset($item['programName']) ? trim((string) $item['programName']) : null,
                     'major' => isset($item['majorName']) ? trim((string) $item['majorName']) : (isset($item['major']) ? trim((string) $item['major']) : null),
-                    'status' => isset($item['program_status']) ? trim((string) $item['program_status']) : (isset($item['status']) ? trim((string) $item['status']) : null),
+                    'program_status' => isset($item['program_status'])
+                        ? trim((string) $item['program_status'])
+                        : null,
+
+                    'status' => isset($item['status'])
+                        ? (int) $item['status']
+                        : null,
                 ])
                 ->filter(fn ($program) => filled($program['programName']))
                 ->unique(fn ($program) => implode('|', [

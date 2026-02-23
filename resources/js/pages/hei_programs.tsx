@@ -25,7 +25,7 @@ type CourseOption = {
 type ProgramItem = {
     programName: string;
     major?: string | null;
-    status?: string | null;
+    status?: number | null;
 };
 
 const normalizeText = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -193,7 +193,14 @@ export default function HeiProgramsPage() {
                         return {
                             programName: String(typedItem.programName ?? '').trim(),
                             major: typedItem.major ? String(typedItem.major).trim() : null,
-                            status: typedItem.status ? String(typedItem.status).trim() : null,
+                            status:
+                                typedItem.status === 0 || typedItem.status === '0'
+                                    ? 0
+                                    : typedItem.status === 1 || typedItem.status === '1'
+                                        ? 1
+                                        : typedItem.status == null
+                                            ? null
+                                            : Number(typedItem.status),
                         };
                     });
 
@@ -304,46 +311,117 @@ export default function HeiProgramsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-amber-100/80 shadow-sm dark:border-amber-900/40">
-                        <CardHeader className="rounded-t-xl bg-amber-50/70 dark:bg-amber-950/20">
-                            <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
-                                <GraduationCap className="h-5 w-5" /> Programs {selectedHei ? `· ${selectedHei.instName}` : ''}
+                    <Card className="border-slate-200/70 bg-white/70 shadow-sm backdrop-blur dark:border-slate-800/70 dark:bg-slate-950/40">
+                        <CardHeader className="border-b border-slate-200/60 bg-slate-50/60 px-4 py-3 dark:border-slate-800/60 dark:bg-slate-900/30">
+                            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                                    <GraduationCap className="h-4 w-4" />
+                                </span>
+
+                                <span>Programs</span>
+
+                                {selectedHei ? (
+                                    <span className="min-w-0 truncate text-xs font-medium text-slate-600 dark:text-slate-300">
+                                        • {selectedHei.instName}
+                                    </span>
+                                ) : null}
                             </CardTitle>
                         </CardHeader>
 
                         <CardContent className="p-4">
                             {!selectedHei ? (
-                                <p className="text-sm text-muted-foreground">Select an HEI to view programs.</p>
+                                <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                    Select an HEI to view programs.
+                                </div>
                             ) : loadingPrograms ? (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading programs...
+                                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-300">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading programs…
                                 </div>
                             ) : programs.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No programs found for this HEI.</p>
+                                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-300">
+                                    No programs found for this HEI.
+                                </div>
                             ) : (
                                 <div className="space-y-3">
-                                    <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
-                                        <span className="font-semibold">HEI Code:</span> {selectedHei.instCode}
-                                        <span className="mx-2">•</span>
-                                        <span className="font-semibold text-green-700 dark:text-green-300">Matched Priority Courses:</span> {matchedCount} / {programRows.length}
+                                    {/* Summary strip */}
+                                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-200">
+                                        <span className="font-medium">HEI Code:</span>
+                                        <span className="font-mono">{selectedHei.instCode}</span>
+
+                                        <span className="mx-1 text-slate-300 dark:text-slate-700">•</span>
+
+                                        <span className="font-medium">Matched Priority:</span>
+                                        <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                            {matchedCount} / {programRows.length}
+                                        </span>
                                     </div>
 
-                                    <ol className="space-y-2 rounded-lg border border-amber-100 bg-amber-50/30 p-3 dark:border-amber-900/40 dark:bg-amber-950/10">
-                                        {programRows.map((row, programIndex) => (
-                                            <li
-                                                key={`${row.program.programName}-${row.program.major ?? ''}-${programIndex}`}
-                                                className={`text-sm ${row.program.status?.toLowerCase() === 'inactive' ? 'text-red-700 dark:text-red-300 font-medium' : row.matched ? 'text-green-700 dark:text-green-300 font-medium' : 'text-amber-900 dark:text-amber-100'}`}
-                                            >
-                                                <span className="mr-2 font-semibold">{programIndex + 1}.</span>
-                                                <span>{row.program.programName}</span>
-                                                {row.program.major && <span className="ml-2 text-xs text-muted-foreground">(Major: {row.program.major})</span>}
-                                                {row.program.status?.toLowerCase() === 'inactive' && (
-                                                    <Badge className="ml-2 border-red-200 bg-red-100 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-                                                        Inactive
-                                                    </Badge>
-                                                )}
-                                            </li>
-                                        ))}
+                                    {/* Programs list */}
+                                    <ol
+                                        className="
+                                            divide-y divide-slate-200
+                                            rounded-lg border border-slate-200
+                                            bg-white/60
+                                            max-h-[420px] overflow-y-auto
+                                            scroll-smooth
+                                            dark:divide-slate-800
+                                            dark:border-slate-800
+                                            dark:bg-slate-950/20
+                                        "
+                                    >
+                                        {programRows.map((row, programIndex) => {
+                                            const inactive = row.program.status === 0;
+                                            const matched = row.matched;
+
+                                            // Inactive should "win" over matched highlight
+                                            const showMatched = matched;
+
+                                            return (
+                                                <li
+                                                    key={`${row.program.programName}-${row.program.major ?? ""}-${programIndex}`}
+                                                    className={[
+                                                        "group relative flex items-start gap-3 px-4 py-3 transition-colors",
+                                                        "hover:bg-slate-50/70 dark:hover:bg-slate-900/30",
+                                                        showMatched ? "bg-emerald-50/60 dark:bg-emerald-950/20" : "",
+                                                        inactive ? "bg-red-50/40 dark:bg-red-950/10 opacity-80" : "",
+                                                    ].join(" ")}
+                                                >
+                                                    {showMatched ? (
+                                                        <span className="absolute left-0 top-0 h-full w-1 rounded-l-lg bg-emerald-500/40 dark:bg-emerald-400/30" />
+                                                    ) : null}
+
+                                                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                                                        {programIndex + 1}
+                                                    </span>
+
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                            {row.program.programName}
+                                                        </p>
+
+                                                        {row.program.major ? (
+                                                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                                Major: {row.program.major}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex shrink-0 items-center gap-1.5">
+                                                        {inactive && (
+                                                            <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                                                Inactive
+                                                            </Badge>
+                                                        )}
+
+                                                        {matched && (
+                                                            <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                                Priority Course
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
                                     </ol>
                                 </div>
                             )}
