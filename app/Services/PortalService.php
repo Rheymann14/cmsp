@@ -75,10 +75,15 @@ class PortalService
             $data = $this->postToPortal($instCode);
 
             return collect($data)
-                ->pluck('programName')
-                ->filter(fn ($program) => filled($program))
-                ->map(fn ($program) => trim((string) $program))
-                ->unique()
+                ->map(fn ($item) => [
+                    'programName' => trim((string) ($item['programName'] ?? '')),
+                    'major' => filled($item['major'] ?? null) ? trim((string) $item['major']) : null,
+                    'status' => filled($item['programStatus'] ?? null)
+                        ? trim((string) $item['programStatus'])
+                        : (filled($item['status'] ?? null) ? trim((string) $item['status']) : null),
+                ])
+                ->filter(fn ($item) => filled($item['programName']))
+                ->unique(fn ($item) => strtolower($item['programName']) . '|' . strtolower((string) ($item['major'] ?? '')) . '|' . strtolower((string) ($item['status'] ?? '')))
                 ->values()
                 ->all();
         });

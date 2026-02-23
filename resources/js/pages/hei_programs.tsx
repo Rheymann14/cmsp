@@ -68,11 +68,17 @@ const isPriorityMatch = (programName: string, courses: CourseOption[]): boolean 
     });
 };
 
+type ProgramItem = {
+    programName: string;
+    major?: string | null;
+    status?: string | null;
+};
+
 export default function HeiProgramsPage() {
     const [heis, setHeis] = useState<HeiItem[]>([]);
     const [search, setSearch] = useState('');
     const [selectedHei, setSelectedHei] = useState<HeiItem | null>(null);
-    const [programs, setPrograms] = useState<string[]>([]);
+    const [programs, setPrograms] = useState<ProgramItem[]>([]);
     const [priorityCourses, setPriorityCourses] = useState<CourseOption[]>([]);
     const [loadingHei, setLoadingHei] = useState(true);
     const [loadingPrograms, setLoadingPrograms] = useState(false);
@@ -170,7 +176,17 @@ export default function HeiProgramsPage() {
                 const json = await res.json();
 
                 if (!cancelled) {
-                    setPrograms(Array.isArray(json?.programs) ? json.programs : []);
+                    setPrograms(
+                        Array.isArray(json?.programs)
+                            ? json.programs
+                                  .map((item: Record<string, unknown>) => ({
+                                      programName: String(item.programName ?? ''),
+                                      major: item.major ? String(item.major) : null,
+                                      status: item.status ? String(item.status) : null,
+                                  }))
+                                  .filter((item: ProgramItem) => item.programName.length > 0)
+                            : [],
+                    );
                 }
             } catch {
                 if (!cancelled) {
@@ -200,8 +216,8 @@ export default function HeiProgramsPage() {
     const programRows = useMemo(
         () =>
             programs.map((program) => ({
-                program,
-                matched: isPriorityMatch(program, priorityCourses),
+                ...program,
+                matched: isPriorityMatch(program.programName, priorityCourses),
             })),
         [programs, priorityCourses],
     );
@@ -304,11 +320,13 @@ export default function HeiProgramsPage() {
                                     <ol className="space-y-2 rounded-lg border border-amber-100 bg-amber-50/30 p-3 dark:border-amber-900/40 dark:bg-amber-950/10">
                                         {programRows.map((row, programIndex) => (
                                             <li
-                                                key={row.program}
+                                                key={`${row.programName}-${row.major ?? ''}-${row.status ?? ''}-${programIndex}`}
                                                 className={`text-sm ${row.matched ? 'text-green-700 dark:text-green-300 font-medium' : 'text-amber-900 dark:text-amber-100'}`}
                                             >
                                                 <span className="mr-2 font-semibold">{programIndex + 1}.</span>
-                                                <span>{row.program}</span>
+                                                <span>{row.programName}</span>
+                                                {row.major && <span className="ml-2 text-xs opacity-80">• Major: {row.major}</span>}
+                                                {row.status && <span className="ml-2 text-xs opacity-80">• Status: {row.status}</span>}
                                             </li>
                                         ))}
                                     </ol>
