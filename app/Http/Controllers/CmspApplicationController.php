@@ -617,16 +617,27 @@ public function indexJson(\Illuminate\Http\Request $request)
         $average = ((float) ($application->gwa_g12_s1 ?? 0) + (float) ($application->gwa_g12_s2 ?? 0)) / 2;
         $roundedAverage = (int) round($average, 0, PHP_ROUND_HALF_UP);
 
-        if ($combinedParentYearlyIncome > 501000 || $roundedAverage < 93) {
-            return 'Disqualified';
+        $incomeDisqualified = $combinedParentYearlyIncome > 501000;
+        $gradeDisqualified = $roundedAverage < 93;
+
+        if (!$incomeDisqualified && !$gradeDisqualified) {
+            return 'Qualified Applicant';
         }
 
-        return 'Qualified Applicant';
+        if ($incomeDisqualified && $gradeDisqualified) {
+            return 'Disqualified - Combined salary exceeded 501k, did not meet the grade requirement';
+        }
+
+        if ($incomeDisqualified) {
+            return 'Disqualified - Combined salary exceeded 501k';
+        }
+
+        return 'Disqualified - Did not meet the grade requirement';
     }
 
     private function isDisqualifiedRemarks(string $remarks): bool
     {
-        return strcasecmp(trim($remarks), 'Disqualified') === 0;
+        return str_starts_with(strtolower(trim($remarks)), 'disqualified');
     }
 
     /**

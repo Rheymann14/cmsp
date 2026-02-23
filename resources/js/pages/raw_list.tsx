@@ -120,7 +120,7 @@ const toNumberSafe = (value: unknown): number => {
 };
 
 const isDisqualifiedRemarks = (remarks: string | null | undefined): boolean => {
-    return typeof remarks === 'string' && remarks.trim().toLowerCase() === DISQUALIFIED_REMARK.toLowerCase();
+    return typeof remarks === 'string' && remarks.trim().toLowerCase().startsWith(DISQUALIFIED_REMARK.toLowerCase());
 };
 
 const getAutoRemarksForRow = (row: {
@@ -142,7 +142,19 @@ const getAutoRemarksForRow = (row: {
     const isIncomeDisqualified = combinedParentYearlyIncome > DISQUALIFIED_MAX_COMBINED_PARENT_YEARLY_INCOME;
     const isAverageDisqualified = roundedAverage < DISQUALIFIED_MIN_AVERAGE;
 
-    return isIncomeDisqualified || isAverageDisqualified ? DISQUALIFIED_REMARK : QUALIFIED_REMARK;
+    if (!isIncomeDisqualified && !isAverageDisqualified) {
+        return QUALIFIED_REMARK;
+    }
+
+    if (isIncomeDisqualified && isAverageDisqualified) {
+        return `${DISQUALIFIED_REMARK} - Combined salary exceeded 501k, did not meet the grade requirement`;
+    }
+
+    if (isIncomeDisqualified) {
+        return `${DISQUALIFIED_REMARK} - Combined salary exceeded 501k`;
+    }
+
+    return `${DISQUALIFIED_REMARK} - Did not meet the grade requirement`;
 };
 
 const InDialogPopoverContent = React.forwardRef<
