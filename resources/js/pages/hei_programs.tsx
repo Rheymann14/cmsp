@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
@@ -19,6 +20,12 @@ type HeiItem = {
 type CourseOption = {
     id: number;
     label: string;
+};
+
+type ProgramItem = {
+    programName: string;
+    major?: string | null;
+    status?: string | null;
 };
 
 const normalizeText = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -72,7 +79,7 @@ export default function HeiProgramsPage() {
     const [heis, setHeis] = useState<HeiItem[]>([]);
     const [search, setSearch] = useState('');
     const [selectedHei, setSelectedHei] = useState<HeiItem | null>(null);
-    const [programs, setPrograms] = useState<string[]>([]);
+    const [programs, setPrograms] = useState<ProgramItem[]>([]);
     const [priorityCourses, setPriorityCourses] = useState<CourseOption[]>([]);
     const [loadingHei, setLoadingHei] = useState(true);
     const [loadingPrograms, setLoadingPrograms] = useState(false);
@@ -170,7 +177,29 @@ export default function HeiProgramsPage() {
                 const json = await res.json();
 
                 if (!cancelled) {
-                    setPrograms(Array.isArray(json?.programs) ? json.programs : []);
+                    const items = Array.isArray(json?.programs) ? json.programs : [];
+                    setPrograms(
+                        items
+                            .map((item: unknown) => {
+                                if (typeof item === 'string') {
+                                    return {
+                                        programName: item,
+                                        major: null,
+                                        status: null,
+                                    };
+                                }
+
+                                if (!item || typeof item !== 'object') return null;
+                                const typedItem = item as Record<string, unknown>;
+
+                                return {
+                                    programName: String(typedItem.programName ?? '').trim(),
+                                    major: typedItem.major ? String(typedItem.major).trim() : null,
+                                    status: typedItem.status ? String(typedItem.status).trim() : null,
+                                };
+                            })
+                            .filter((item): item is ProgramItem => Boolean(item && item.programName)),
+                    );
                 }
             } catch {
                 if (!cancelled) {
@@ -201,7 +230,7 @@ export default function HeiProgramsPage() {
         () =>
             programs.map((program) => ({
                 program,
-                matched: isPriorityMatch(program, priorityCourses),
+                matched: isPriorityMatch(program.programName, priorityCourses),
             })),
         [programs, priorityCourses],
     );
@@ -304,11 +333,17 @@ export default function HeiProgramsPage() {
                                     <ol className="space-y-2 rounded-lg border border-amber-100 bg-amber-50/30 p-3 dark:border-amber-900/40 dark:bg-amber-950/10">
                                         {programRows.map((row, programIndex) => (
                                             <li
-                                                key={row.program}
-                                                className={`text-sm ${row.matched ? 'text-green-700 dark:text-green-300 font-medium' : 'text-amber-900 dark:text-amber-100'}`}
+                                                key={`${row.program.programName}-${row.program.major ?? ''}-${programIndex}`}
+                                                className={`text-sm ${row.program.status?.toLowerCase() === 'inactive' ? 'text-red-700 dark:text-red-300 font-medium' : row.matched ? 'text-green-700 dark:text-green-300 font-medium' : 'text-amber-900 dark:text-amber-100'}`}
                                             >
                                                 <span className="mr-2 font-semibold">{programIndex + 1}.</span>
-                                                <span>{row.program}</span>
+                                                <span>{row.program.programName}</span>
+                                                {row.program.major && <span className="ml-2 text-xs text-muted-foreground">(Major: {row.program.major})</span>}
+                                                {row.program.status?.toLowerCase() === 'inactive' && (
+                                                    <Badge className="ml-2 border-red-200 bg-red-100 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                                        Inactive
+                                                    </Badge>
+                                                )}
                                             </li>
                                         ))}
                                     </ol>
