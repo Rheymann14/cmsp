@@ -96,6 +96,55 @@ const EMPTY_VALIDATION_FORM = {
     remarks: '',
 };
 
+const QUALIFIED_REMARK = 'Qualified Applicant';
+const DISQUALIFIED_REMARK = 'Disqualified';
+const DISQUALIFIED_MIN_AVERAGE = 93;
+const DISQUALIFIED_MAX_COMBINED_PARENT_YEARLY_INCOME = 501000;
+
+const toNumberSafe = (value: unknown): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === 'string') {
+        const normalized = value.replace(/[^\d.-]/g, '');
+        if (!normalized) {
+            return 0;
+        }
+
+        const parsed = Number.parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    return 0;
+};
+
+const isDisqualifiedRemarks = (remarks: string | null | undefined): boolean => {
+    return typeof remarks === 'string' && remarks.trim().toLowerCase() === DISQUALIFIED_REMARK.toLowerCase();
+};
+
+const getAutoRemarksForRow = (row: {
+    father_income_yearly_bracket?: unknown;
+    mother_income_yearly_bracket?: unknown;
+    gwa_g12_s1?: unknown;
+    gwa_g12_s2?: unknown;
+} | null | undefined): string => {
+    if (!row) {
+        return QUALIFIED_REMARK;
+    }
+
+    const fatherYearly = toNumberSafe(row.father_income_yearly_bracket);
+    const motherYearly = toNumberSafe(row.mother_income_yearly_bracket);
+    const combinedParentYearlyIncome = fatherYearly + motherYearly;
+
+    const roundedAverage = Math.round((toNumberSafe(row.gwa_g12_s1) + toNumberSafe(row.gwa_g12_s2)) / 2);
+
+    const isIncomeDisqualified = combinedParentYearlyIncome > DISQUALIFIED_MAX_COMBINED_PARENT_YEARLY_INCOME;
+    const isAverageDisqualified = roundedAverage < DISQUALIFIED_MIN_AVERAGE;
+
+    return isIncomeDisqualified || isAverageDisqualified ? DISQUALIFIED_REMARK : QUALIFIED_REMARK;
+};
+
 const InDialogPopoverContent = React.forwardRef<
     HTMLDivElement,
     PopoverPrimitive.PopoverContentProps & { container?: HTMLElement | null }
@@ -244,7 +293,6 @@ export default function RawList() {
 
     const selectedAcademicYear = selectedDeadline?.academic_year ?? null;
     const selectedDeadlineDate = selectedDeadline?.deadline ?? null;
-
     const handleSpecialCounts = useCallback((counts: SpecialGroupCounts) => {
         setSpecialCounts({ ...counts });
     }, []);
@@ -1162,7 +1210,7 @@ function CmspsTable({
             document_status: row.latest_validation?.document_status ?? '',
             no_siblings: row.latest_validation?.no_siblings ? String(row.latest_validation.no_siblings) : '',
             initial_rank: row.latest_validation?.initial_rank ?? '',
-            remarks: row.latest_validation?.remarks ?? '',
+            remarks: getAutoRemarksForRow(row),
         });
         setValidationErrors({});
         setValidationSubmitting(false);
@@ -1171,6 +1219,23 @@ function CmspsTable({
         setRankPopoverOpen(false);
         setValidationDialogOpen(true);
     };
+
+    const autoRemarks = useMemo(() => getAutoRemarksForRow(validationRow), [validationRow]);
+
+    useEffect(() => {
+        if (!validationDialogOpen) {
+            return;
+        }
+
+        setValidationForm((prev) =>
+            prev.remarks === autoRemarks
+                ? prev
+                : {
+                    ...prev,
+                    remarks: autoRemarks,
+                }
+        );
+    }, [autoRemarks, validationDialogOpen]);
 
     const handleValidationDialogChange = (open: boolean) => {
         setValidationDialogOpen(open);
@@ -1204,7 +1269,7 @@ function CmspsTable({
                 document_status: validationForm.document_status.trim(),
                 no_siblings: Number(validationForm.no_siblings),
                 initial_rank: validationForm.initial_rank,
-                remarks: validationForm.remarks.trim() ? validationForm.remarks.trim() : null,
+                remarks: autoRemarks,
             };
 
             const res = await fetch(getValidationStoreUrl(), {
@@ -1751,10 +1816,14 @@ function CmspsTable({
                                         }}
                                         className={cn(
                                             'group border-t border-zinc-100 dark:border-zinc-800 cursor-auto transition-all',
-                                            'hover:bg-zinc-50 dark:hover:bg-zinc-900/40',
+                                            isDisqualifiedRemarks(r.latest_validation?.remarks)
+                                                ? 'bg-red-100/70 dark:bg-red-900/25 hover:bg-red-100 dark:hover:bg-red-900/35'
+                                                : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/40',
                                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
                                             selectedId === r.id &&
-                                            'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
+                                            (isDisqualifiedRemarks(r.latest_validation?.remarks)
+                                                ? 'bg-red-200/80 dark:bg-red-900/45 ring-2 ring-inset ring-red-400/60 dark:ring-red-700/60'
+                                                : 'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60')
                                         )}
                                     >
                                         <td
@@ -1954,8 +2023,12 @@ function CmspsTable({
                                             className={cn(
                                                 'px-3 py-2 sticky right-0 z-20 border-l border-zinc-200 dark:border-zinc-800',
                                                 selectedId === r.id
-                                                    ? 'bg-blue-100 dark:bg-blue-900'
-                                                    : 'bg-white dark:bg-zinc-950 group-hover:bg-zinc-50 dark:group-hover:bg-zinc-900/40'
+                                                    ? (isDisqualifiedRemarks(r.latest_validation?.remarks)
+                                                        ? 'bg-red-200 dark:bg-red-900/70'
+                                                        : 'bg-blue-100 dark:bg-blue-900')
+                                                    : (isDisqualifiedRemarks(r.latest_validation?.remarks)
+                                                        ? 'bg-red-100/70 dark:bg-red-900/25 group-hover:bg-red-100 dark:group-hover:bg-red-900/35'
+                                                        : 'bg-white dark:bg-zinc-950 group-hover:bg-zinc-50 dark:group-hover:bg-zinc-900/40')
                                             )}
                                         >
                                             <Button
@@ -2193,12 +2266,9 @@ function CmspsTable({
                                     id="validation-remarks"
                                     className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200"
                                     value={validationForm.remarks}
-                                    onChange={(event) => {
-                                        const value = event.target.value;
-                                        setValidationForm((prev) => ({ ...prev, remarks: value }));
-                                    }}
+                                    readOnly
                                     maxLength={2000}
-                                    placeholder="Add remarks (optional)"
+                                    placeholder="Remarks are automatically computed"
                                 />
                             </div>
                         </div>
