@@ -26,6 +26,24 @@ type ProgramItem = {
     programName: string;
     major?: string | null;
     status?: number | null;
+    programStatus?: string | null;
+    statusLabel?: string | null;
+};
+
+const isInactiveProgram = (program: ProgramItem): boolean => {
+    if (program.status === 0) return true;
+
+    const normalizedStatuses = [program.programStatus, program.statusLabel]
+        .map((value) => String(value ?? '').trim().toLowerCase())
+        .filter(Boolean);
+
+    return normalizedStatuses.some((value) =>
+        value === '0' ||
+        value === 'inactive' ||
+        value.includes('discontinued') ||
+        value.includes('inactive') ||
+        value.includes('closed'),
+    );
 };
 
 const normalizeText = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -184,6 +202,8 @@ export default function HeiProgramsPage() {
                                 programName: item,
                                 major: null,
                                 status: null,
+                                programStatus: null,
+                                statusLabel: null,
                             };
                         }
 
@@ -193,6 +213,16 @@ export default function HeiProgramsPage() {
                         return {
                             programName: String(typedItem.programName ?? '').trim(),
                             major: typedItem.major ? String(typedItem.major).trim() : null,
+                            programStatus: typedItem.program_status
+                                ? String(typedItem.program_status).trim()
+                                : typedItem.programStatus
+                                    ? String(typedItem.programStatus).trim()
+                                    : null,
+                            statusLabel: typedItem.status_label
+                                ? String(typedItem.status_label).trim()
+                                : typedItem.programStatusLabel
+                                    ? String(typedItem.programStatusLabel).trim()
+                                    : null,
                             status:
                                 typedItem.status === 0 || typedItem.status === '0'
                                     ? 0
@@ -371,7 +401,7 @@ export default function HeiProgramsPage() {
                                         "
                                     >
                                         {programRows.map((row, programIndex) => {
-                                            const inactive = row.program.status === 0;
+                                            const inactive = isInactiveProgram(row.program);
                                             const matched = row.matched;
 
                                             // Inactive should "win" over matched highlight
