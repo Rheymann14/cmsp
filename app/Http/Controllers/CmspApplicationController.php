@@ -711,6 +711,50 @@ public function indexJson(\Illuminate\Http\Request $request)
     }
 
 
+
+    private function resolveValidationRemarksForExport(CmspApplication $app): string
+    {
+        $storedRemarks = trim((string) ($app->validation_remarks ?? ''));
+        if ($storedRemarks !== '') {
+            return $storedRemarks;
+        }
+
+        $validatorNotes = trim((string) ($app->validation_validator_notes ?? ''));
+        if ($validatorNotes !== '') {
+            $normalizedNotes = mb_strtolower($validatorNotes);
+            if (str_contains($normalizedNotes, 'disqualif')) {
+                return 'Disqualified Applicant';
+            }
+
+            if (str_contains($normalizedNotes, 'qualif')) {
+                return 'Qualified Applicant';
+            }
+        }
+
+        $fatherIncome = is_numeric($app->father_income_monthly) ? (float) $app->father_income_monthly : 0.0;
+        $motherIncome = is_numeric($app->mother_income_monthly) ? (float) $app->mother_income_monthly : 0.0;
+        $combinedIncome = $fatherIncome + $motherIncome;
+
+        $gwaS1 = is_numeric($app->gwa_g12_s1) ? (float) $app->gwa_g12_s1 : 0.0;
+        $gwaS2 = is_numeric($app->gwa_g12_s2) ? (float) $app->gwa_g12_s2 : 0.0;
+        $gwaAverage = ($gwaS1 + $gwaS2) / 2;
+
+        if ($combinedIncome > 501000 || $gwaAverage < 92.5) {
+            return 'Disqualified Applicant';
+        }
+
+        $hasValidationRow = !is_null($app->validation_document_status)
+            || !is_null($app->validation_no_siblings)
+            || !is_null($app->validation_initial_rank)
+            || !is_null($app->validation_validator_notes);
+
+        if (!$hasValidationRow) {
+            return 'Pending Validation';
+        }
+
+        return 'Qualified Applicant';
+    }
+
     /**
      * @param array<int, array{model: CmspApplication, rank: int} & array<string, mixed>> $entries
      */
@@ -994,7 +1038,7 @@ public function indexJson(\Illuminate\Http\Request $request)
             $sheet->setCellValue("AI{$row}", $app->validation_validator_notes ?? '');
             $sheet->setCellValue("AJ{$row}", $app->validation_no_siblings ?? '');
             $sheet->setCellValue("AK{$row}", $app->validation_initial_rank ?? '');
-            $sheet->setCellValue("AL{$row}", $app->validation_remarks ?? '');
+            $sheet->setCellValue("AL{$row}", $this->resolveValidationRemarksForExport($app));
         }
 
         $lastRow = $startRow + count($entries) - 1;
@@ -1017,7 +1061,7 @@ public function indexJson(\Illuminate\Http\Request $request)
             foreach ($entries as $index => $entry) {
                 /** @var CmspApplication $app */
                 $app = $entry['model'];
-                $remarks = (string) ($app->validation_remarks ?? '');
+                $remarks = $this->resolveValidationRemarksForExport($app);
 
                 if (stripos($remarks, 'disqualified') !== false) {
                     $row = $startRow + $index;
