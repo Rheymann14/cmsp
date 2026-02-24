@@ -714,6 +714,16 @@ public function indexJson(\Illuminate\Http\Request $request)
 
     private function resolveValidationRemarksForExport(CmspApplication $app): string
     {
+        $hasValidationRow = !is_null($app->validation_document_status)
+            || !is_null($app->validation_no_siblings)
+            || !is_null($app->validation_initial_rank)
+            || !is_null($app->validation_validator_notes)
+            || !is_null($app->validation_remarks);
+
+        if (!$hasValidationRow) {
+            return 'Pending Validation';
+        }
+
         $storedRemarks = trim((string) ($app->validation_remarks ?? ''));
         if ($storedRemarks !== '') {
             return $storedRemarks;
@@ -741,15 +751,6 @@ public function indexJson(\Illuminate\Http\Request $request)
 
         if ($combinedIncome > 501000 || $gwaAverage < 92.5) {
             return 'Disqualified Applicant';
-        }
-
-        $hasValidationRow = !is_null($app->validation_document_status)
-            || !is_null($app->validation_no_siblings)
-            || !is_null($app->validation_initial_rank)
-            || !is_null($app->validation_validator_notes);
-
-        if (!$hasValidationRow) {
-            return '';
         }
 
         return 'Qualified Applicant';
