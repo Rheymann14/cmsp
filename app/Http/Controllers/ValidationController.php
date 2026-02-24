@@ -23,6 +23,7 @@ class ValidationController extends Controller
                 'document_status' => $data['document_status'],
                 'no_siblings' => $data['no_siblings'],
                 'initial_rank' => $data['initial_rank'],
+                'validator_notes' => $data['validator_notes'] ?? null,
                 'remarks' => $data['remarks'] ?? null,
                 'checked_by' => $request->user()->id,
             ]
