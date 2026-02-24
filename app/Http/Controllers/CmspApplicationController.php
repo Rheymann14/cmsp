@@ -749,7 +749,7 @@ public function indexJson(\Illuminate\Http\Request $request)
             || !is_null($app->validation_validator_notes);
 
         if (!$hasValidationRow) {
-            return 'Pending Validation';
+            return '';
         }
 
         return 'Qualified Applicant';
