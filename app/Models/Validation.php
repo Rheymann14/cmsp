@@ -15,6 +15,7 @@ class Validation extends Model
         'document_status',
         'no_siblings',
         'initial_rank',
+        'validator_notes',
         'remarks',
         'checked_by',
     ];

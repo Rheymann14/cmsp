@@ -20,6 +20,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -308,6 +309,7 @@ public function exportXlsx(Request $request)
                 DB::raw('l.municipality as municipality_name'),
                 DB::raw('l.province as province_name'),
                 DB::raw('v.document_status as validation_document_status'),
+                DB::raw('v.validator_notes as validation_validator_notes'),
                 DB::raw('v.remarks as validation_remarks'),
                 DB::raw('v.no_siblings as validation_no_siblings'),
                 DB::raw('v.initial_rank as validation_initial_rank'),
@@ -709,6 +711,50 @@ public function indexJson(\Illuminate\Http\Request $request)
     }
 
 
+
+    private function resolveValidationRemarksForExport(CmspApplication $app): string
+    {
+        $storedRemarks = trim((string) ($app->validation_remarks ?? ''));
+        if ($storedRemarks !== '') {
+            return $storedRemarks;
+        }
+
+        $validatorNotes = trim((string) ($app->validation_validator_notes ?? ''));
+        if ($validatorNotes !== '') {
+            $normalizedNotes = mb_strtolower($validatorNotes);
+            if (str_contains($normalizedNotes, 'disqualif')) {
+                return 'Disqualified Applicant';
+            }
+
+            if (str_contains($normalizedNotes, 'qualif')) {
+                return 'Qualified Applicant';
+            }
+        }
+
+        $fatherIncome = is_numeric($app->father_income_monthly) ? (float) $app->father_income_monthly : 0.0;
+        $motherIncome = is_numeric($app->mother_income_monthly) ? (float) $app->mother_income_monthly : 0.0;
+        $combinedIncome = $fatherIncome + $motherIncome;
+
+        $gwaS1 = is_numeric($app->gwa_g12_s1) ? (float) $app->gwa_g12_s1 : 0.0;
+        $gwaS2 = is_numeric($app->gwa_g12_s2) ? (float) $app->gwa_g12_s2 : 0.0;
+        $gwaAverage = ($gwaS1 + $gwaS2) / 2;
+
+        if ($combinedIncome > 501000 || $gwaAverage < 92.5) {
+            return 'Disqualified Applicant';
+        }
+
+        $hasValidationRow = !is_null($app->validation_document_status)
+            || !is_null($app->validation_no_siblings)
+            || !is_null($app->validation_initial_rank)
+            || !is_null($app->validation_validator_notes);
+
+        if (!$hasValidationRow) {
+            return '';
+        }
+
+        return 'Qualified Applicant';
+    }
+
     /**
      * @param array<int, array{model: CmspApplication, rank: int} & array<string, mixed>> $entries
      */
@@ -726,23 +772,23 @@ public function indexJson(\Illuminate\Http\Request $request)
         $sheet->getStyle('A2:B2')->getFont()->setItalic(true)->setSize(10);
         $sheet->getStyle('A2:B2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->mergeCells('A3:AK3');
+        $sheet->mergeCells('A3:AL3');
         $sheet->setCellValue('A3', 'COMMISSION ON HIGHER EDUCATION');
-        $sheet->mergeCells('A4:AK4');
+        $sheet->mergeCells('A4:AL4');
         $sheet->setCellValue('A4', 'REGIONAL OFFICE XII');
-        $sheet->getStyle('A3:AK4')->getFont()->setBold(true)->setSize(12);
-        $sheet->getStyle('A3:AK4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A3:AL4')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A3:AL4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->mergeCells('A6:AK6');
+        $sheet->mergeCells('A6:AL6');
         $heading = 'CMSP RANKLIST';
         if ($headingSuffix) {
             $heading .= ' - ' . $headingSuffix;
         }
         $sheet->setCellValue('A6', $heading);
-        $sheet->mergeCells('A7:AK7');
+        $sheet->mergeCells('A7:AL7');
         $sheet->setCellValue('A7', $ayLabel ? 'AY ' . $ayLabel : 'AY');
-        $sheet->getStyle('A6:AK7')->getFont()->setBold(true)->setSize(16);
-        $sheet->getStyle('A6:AK7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A6:AL7')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A6:AL7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->mergeCells('A9:A11');
         $sheet->setCellValue('A9', 'SEQ');
@@ -843,7 +889,7 @@ public function indexJson(\Illuminate\Http\Request $request)
         $sheet->setCellValue('AH9', 'STATUS OF DOCUMENTARY REQUIREMENTS');
 
         $sheet->mergeCells('AI9:AI11');
-        $sheet->setCellValue('AI9', 'REMARKS');
+        $sheet->setCellValue('AI9', 'VALIDATOR NOTES');
 
         $sheet->mergeCells('AJ9:AJ11');
         $sheet->setCellValue('AJ9', 'NO. OF SIBLINGS');
@@ -851,8 +897,11 @@ public function indexJson(\Illuminate\Http\Request $request)
         $sheet->mergeCells('AK9:AK11');
         $sheet->setCellValue('AK9', 'INITIAL RANK');
 
-        $sheet->getStyle('A9:AK11')->getFont()->setBold(true);
-        $sheet->getStyle('A9:AK11')->getAlignment()
+        $sheet->mergeCells('AL9:AL11');
+        $sheet->setCellValue('AL9', 'REMARKS');
+
+        $sheet->getStyle('A9:AL11')->getFont()->setBold(true);
+        $sheet->getStyle('A9:AL11')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
@@ -895,6 +944,7 @@ public function indexJson(\Illuminate\Http\Request $request)
             'AI' => 20,
             'AJ' => 16,
             'AK' => 14,
+            'AL' => 28,
         ];
 
         foreach ($columnWidths as $column => $width) {
@@ -985,9 +1035,10 @@ public function indexJson(\Illuminate\Http\Request $request)
             $sheet->setCellValue("AF{$row}", $entry['final_points']);
             $sheet->setCellValue("AG{$row}", $entry['rank'] ?? $seq);
             $sheet->setCellValue("AH{$row}", $app->validation_document_status ?? '');
-            $sheet->setCellValue("AI{$row}", $app->validation_remarks ?? '');
+            $sheet->setCellValue("AI{$row}", $app->validation_validator_notes ?? '');
             $sheet->setCellValue("AJ{$row}", $app->validation_no_siblings ?? '');
             $sheet->setCellValue("AK{$row}", $app->validation_initial_rank ?? '');
+            $sheet->setCellValue("AL{$row}", $this->resolveValidationRemarksForExport($app));
         }
 
         $lastRow = $startRow + count($entries) - 1;
@@ -995,7 +1046,7 @@ public function indexJson(\Illuminate\Http\Request $request)
             $lastRow = 11;
         }
 
-        $sheet->getStyle("A9:AK{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle("A9:AL{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         if ($lastRow >= $startRow) {
             $sheet->getStyle("V{$startRow}:AF{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
@@ -1005,7 +1056,21 @@ public function indexJson(\Illuminate\Http\Request $request)
         }
 
         if ($lastRow >= $startRow) {
-            $sheet->getStyle("B{$startRow}:AD{$lastRow}")->getAlignment()->setWrapText(true);
+            $sheet->getStyle("B{$startRow}:AL{$lastRow}")->getAlignment()->setWrapText(true);
+
+            foreach ($entries as $index => $entry) {
+                /** @var CmspApplication $app */
+                $app = $entry['model'];
+                $remarks = $this->resolveValidationRemarksForExport($app);
+
+                if (stripos($remarks, 'disqualified') !== false) {
+                    $row = $startRow + $index;
+                    $sheet->getStyle("A{$row}:AL{$row}")->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()
+                        ->setARGB('FFFFC7CE');
+                }
+            }
         }
     }
 
