@@ -2111,7 +2111,7 @@ function CmspsTable({
                 <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogChange}>
                     <DialogContent
                         ref={dialogContentRef}
-                        className="w-[92vw] overflow-visible rounded-2xl border border-zinc-200/70 bg-white/95 shadow-2xl ring-1 ring-[#1e3c73]/10 backdrop-blur-md sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800/70 dark:bg-zinc-950/80"
+                        className="w-[92vw] max-h-[90vh] overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-2xl ring-1 ring-[#1e3c73]/10 backdrop-blur-md sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800/70 dark:bg-zinc-950/80"
                         onInteractOutside={(e) => {
                             e.preventDefault();
                         }}
@@ -2127,7 +2127,7 @@ function CmspsTable({
                                 Review the applicant details and record the validation outcome.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-5">
+                        <div className="max-h-[calc(90vh-9rem)] space-y-5 overflow-y-auto pr-1">
                             <div className={cn('rounded-lg border px-4 py-3 text-sm transition-colors', validationStatusTone.container)}>
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="grid gap-2">
