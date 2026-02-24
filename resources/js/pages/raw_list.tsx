@@ -1,24 +1,49 @@
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Popover, PopoverTrigger } from '@/components/ui/popover';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, UserX, Accessibility, Baby, Globe, Tent, FileSpreadsheet, CalendarRange, ChevronDown, ChevronUp, Loader2, SquarePen, GraduationCap, Check, Copy, ChevronsUpDown } from 'lucide-react';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import {
+    Accessibility,
+    Baby,
+    CalendarRange,
+    Check,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    ChevronsUpDown,
+    Copy,
+    FileSpreadsheet,
+    GraduationCap,
+    Loader2,
+    Search,
+    SquarePen,
+    Tent,
+    UserX,
+    X,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Toaster, toast } from 'sonner';
-import React from "react";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { Badge } from "@/components/ui/badge";
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Raw List', href: '/raw_list' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Raw List', href: '/raw_list' }];
 
 type SpecialGroupCounts = {
     pwd: number;
@@ -46,6 +71,39 @@ const toStringOrEmpty = (value: unknown): string => {
     return String(value);
 };
 
+type HeiItem = {
+    instCode: string;
+    instName: string;
+};
+
+type HeiProgramItem = {
+    programName: string;
+    status?: number | null;
+    programStatus?: string | null;
+    statusLabel?: string | null;
+};
+
+const normalizeText = (value: string): string =>
+    value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+
+const isInactiveProgram = (program: HeiProgramItem): boolean => {
+    if (program.status === 0) return true;
+
+    const normalizedStatuses = [program.programStatus, program.statusLabel]
+        .map((value) =>
+            String(value ?? '')
+                .trim()
+                .toLowerCase(),
+        )
+        .filter(Boolean);
+
+    return normalizedStatuses.some(
+        (value) => value === '0' || value === 'inactive' || value.includes('discontinued') || value.includes('inactive') || value.includes('closed'),
+    );
+};
 type AyDeadlineOption = {
     id: number;
     academic_year: string;
@@ -66,10 +124,7 @@ const parseAyDeadlines = (input: unknown): AyDeadlineOption[] => {
 
         const raw = item as Record<string, unknown>;
         const rawId = raw.id;
-        const parsedId =
-            typeof rawId === 'number'
-                ? rawId
-                : Number.parseInt(typeof rawId === 'string' ? rawId : toStringOrEmpty(rawId), 10);
+        const parsedId = typeof rawId === 'number' ? rawId : Number.parseInt(typeof rawId === 'string' ? rawId : toStringOrEmpty(rawId), 10);
 
         if (!Number.isFinite(parsedId)) {
             return acc;
@@ -93,29 +148,28 @@ const EMPTY_VALIDATION_FORM = {
     document_status: '',
     no_siblings: '',
     initial_rank: '',
+    validator_notes: '',
     remarks: '',
 };
 
-const InDialogPopoverContent = React.forwardRef<
-    HTMLDivElement,
-    PopoverPrimitive.PopoverContentProps & { container?: HTMLElement | null }
->(({ container, sideOffset = 8, className, ...props }, ref) => {
-    return (
-        <PopoverPrimitive.Portal container={container ?? undefined}>
-            <PopoverPrimitive.Content
-                ref={ref}
-                sideOffset={sideOffset}
-                className={cn(
-                    "z-[1000] w-[var(--radix-popover-trigger-width)] rounded-md border bg-popover p-0 text-popover-foreground shadow-md outline-none",
-                    className
-                )}
-                {...props}
-            />
-        </PopoverPrimitive.Portal>
-    );
-});
-InDialogPopoverContent.displayName = "InDialogPopoverContent";
-
+const InDialogPopoverContent = React.forwardRef<HTMLDivElement, PopoverPrimitive.PopoverContentProps & { container?: HTMLElement | null }>(
+    ({ container, sideOffset = 8, className, ...props }, ref) => {
+        return (
+            <PopoverPrimitive.Portal container={container ?? undefined}>
+                <PopoverPrimitive.Content
+                    ref={ref}
+                    sideOffset={sideOffset}
+                    className={cn(
+                        'z-[1000] w-[var(--radix-popover-trigger-width)] rounded-md border bg-popover p-0 text-popover-foreground shadow-md outline-none',
+                        className,
+                    )}
+                    {...props}
+                />
+            </PopoverPrimitive.Portal>
+        );
+    },
+);
+InDialogPopoverContent.displayName = 'InDialogPopoverContent';
 
 const parseSpecialGroupCounts = (input: unknown): SpecialGroupCounts => {
     const toNumber = (value: unknown): number => {
@@ -239,7 +293,7 @@ export default function RawList() {
 
     const selectedDeadline = useMemo(
         () => ayDeadlines.find((deadline) => deadline.id === selectedDeadlineId) ?? null,
-        [ayDeadlines, selectedDeadlineId]
+        [ayDeadlines, selectedDeadlineId],
     );
 
     const selectedAcademicYear = selectedDeadline?.academic_year ?? null;
@@ -252,51 +306,39 @@ export default function RawList() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Raw List" />
-            <Toaster
-                richColors
-                position="top-right"
-                closeButton
-                duration={4000}
-            />
-            <div className="text-center mt-2 mb-6">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1e3c73] dark:text-zinc-100">
+            <Toaster richColors position="top-right" closeButton duration={4000} />
+            <div className="mt-2 mb-6 text-center">
+                <h1 className="text-xl font-medium tracking-tight text-[#1e3c73] sm:text-2xl md:text-3xl dark:text-zinc-100">
                     CHED Merit Scholarship Program (CMSP)
                 </h1>
             </div>
 
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 sm:p-6 lg:p-8 overflow-x-visible">
-
+            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-visible rounded-xl p-4 sm:p-6 lg:p-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
                         <DialogTrigger asChild>
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "self-start sm:self-auto gap-2",
+                                    'gap-2 self-start sm:self-auto',
                                     selectedAcademicYear
-                                        ? "border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700/60 dark:text-blue-300 dark:hover:bg-blue-900/20"
-                                        : "border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10 dark:border-[#1e3c73] dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20"
+                                        ? 'border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700/60 dark:text-blue-300 dark:hover:bg-blue-900/20'
+                                        : 'border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10 dark:border-[#1e3c73] dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20',
                                 )}
                             >
                                 <CalendarRange className="h-4 w-4" />
-                                {selectedAcademicYear ? "Change academic year" : "Select academic year"}
+                                {selectedAcademicYear ? 'Change academic year' : 'Select academic year'}
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[800px]">
                             <DialogHeader>
                                 <DialogTitle>Select academic year</DialogTitle>
-                                <DialogDescription>
-                                    Choose an academic year deadline to filter the raw list data.
-                                </DialogDescription>
+                                <DialogDescription>Choose an academic year deadline to filter the raw list data.</DialogDescription>
                             </DialogHeader>
                             <Command>
                                 <CommandInput placeholder="Search academic year..." />
                                 <CommandList>
-                                    <CommandEmpty>
-                                        {deadlinesLoading
-                                            ? 'Loading deadlines...'
-                                            : 'No academic year deadlines found.'}
-                                    </CommandEmpty>
+                                    <CommandEmpty>{deadlinesLoading ? 'Loading deadlines...' : 'No academic year deadlines found.'}</CommandEmpty>
                                     {ayDeadlines.length > 0 ? (
                                         <CommandGroup heading="Academic year deadlines">
                                             {ayDeadlines.map((deadline) => (
@@ -309,9 +351,7 @@ export default function RawList() {
                                                     }}
                                                 >
                                                     <div className="flex flex-1 flex-col">
-                                                        <span className="font-medium">
-                                                            AY {deadline.academic_year}
-                                                        </span>
+                                                        <span className="font-medium">AY {deadline.academic_year}</span>
                                                         <span className="text-xs text-muted-foreground">
                                                             {deadline.deadline_formatted
                                                                 ? `Deadline: ${deadline.deadline_formatted}`
@@ -324,9 +364,7 @@ export default function RawList() {
                                                                 Enabled
                                                             </Badge>
                                                         ) : null}
-                                                        {selectedDeadlineId === deadline.id ? (
-                                                            <Check className="h-4 w-4 text-[#1e3c73]" />
-                                                        ) : null}
+                                                        {selectedDeadlineId === deadline.id ? <Check className="h-4 w-4 text-[#1e3c73]" /> : null}
                                                     </div>
                                                 </CommandItem>
                                             ))}
@@ -337,30 +375,25 @@ export default function RawList() {
                         </DialogContent>
                     </Dialog>
 
-                    <div className="w-full flex flex-col   gap-1">
-                        <div className="inline-flex  gap-2">
+                    <div className="flex w-full flex-col gap-1">
+                        <div className="inline-flex gap-2">
                             <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
                                 {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
                             </span>
-
                         </div>
 
                         <span className="text-xs text-muted-foreground">
-                            {selectedDeadline?.deadline_formatted
-                                ? `Deadline: ${selectedDeadline.deadline_formatted}`
-                                : 'No deadline date selected'}
+                            {selectedDeadline?.deadline_formatted ? `Deadline: ${selectedDeadline.deadline_formatted}` : 'No deadline date selected'}
                         </span>
                     </div>
-
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
                     {/* PWD */}
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">PWD</CardTitle>
-                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
                                 <Accessibility className="h-5 w-5 text-[#1e3c73]" />
                             </div>
                         </CardHeader>
@@ -374,7 +407,7 @@ export default function RawList() {
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Solo Parent</CardTitle>
-                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
                                 <Baby className="h-5 w-5 text-[#1e3c73]" />
                             </div>
                         </CardHeader>
@@ -388,7 +421,7 @@ export default function RawList() {
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">First Generation Students</CardTitle>
-                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
                                 <GraduationCap className="h-5 w-5 text-[#1e3c73]" />
                             </div>
                         </CardHeader>
@@ -402,7 +435,7 @@ export default function RawList() {
                     <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Indigenous People (IP)</CardTitle>
-                            <div className="rounded-full p-2 bg-zinc-100 dark:bg-zinc-900">
+                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
                                 <Tent className="h-5 w-5 text-[#1e3c73]" />
                             </div>
                         </CardHeader>
@@ -426,20 +459,13 @@ export default function RawList() {
                         </div>
                     </div>
                 </div>
-
             </div>
         </AppLayout>
     );
 }
 
 /* ---------- Reusable truncation cell ---------- */
-function TruncateCell({
-    value,
-    max = 32,
-}: {
-    value: string | number | null | undefined;
-    max?: number;
-}) {
+function TruncateCell({ value, max = 32 }: { value: string | number | null | undefined; max?: number }) {
     const [expanded, setExpanded] = useState(false);
     const raw = value === null || value === undefined || value === '' ? '—' : String(value);
     const isLong = raw.length > max;
@@ -447,7 +473,7 @@ function TruncateCell({
 
     return (
         <div className="inline-flex max-w-full flex-wrap items-start gap-1">
-            <span className="whitespace-pre-wrap break-words leading-snug min-w-0">{shown}</span>
+            <span className="min-w-0 leading-snug break-words whitespace-pre-wrap">{shown}</span>
             {isLong && (
                 <button
                     type="button"
@@ -456,11 +482,12 @@ function TruncateCell({
                     title={expanded ? 'Hide' : 'Show more'}
                     onClick={() => setExpanded((s) => !s)}
                     onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded((s) => !s); }
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setExpanded((s) => !s);
+                        }
                     }}
-                    className="inline-flex items-center gap-1 shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium
-                     text-[#1e3c73] hover:text-[#1a3565] hover:bg-zinc-100 dark:hover:bg-zinc-800
-                     focus:outline-none focus:ring-1 focus:ring-[#1e3c73] transition-colors"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-[#1e3c73] transition-colors hover:bg-zinc-100 hover:text-[#1a3565] focus:ring-1 focus:ring-[#1e3c73] focus:outline-none dark:hover:bg-zinc-800"
                 >
                     {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     {expanded ? 'Hide' : 'Show'}
@@ -504,12 +531,18 @@ function CmspsTable({
         age: number | null;
         sex: 'male' | 'female';
 
-        ethnicity_id: number; ethnicity_name?: string;
-        religion_id: number; religion_name?: string;
-        province_municipality: number; province_municipality_name?: string;
-        district: number; district_name?: string;
-        intended_school: number; intended_school_name?: string;
-        course: number; course_name?: string;
+        ethnicity_id: number;
+        ethnicity_name?: string;
+        religion_id: number;
+        religion_name?: string;
+        province_municipality: number;
+        province_municipality_name?: string;
+        district: number;
+        district_name?: string;
+        intended_school: number;
+        intended_school_name?: string;
+        course: number;
+        course_name?: string;
 
         // address (home)
         barangay: string;
@@ -579,6 +612,7 @@ function CmspsTable({
             document_status: string;
             no_siblings: number;
             initial_rank: string;
+            validator_notes: string | null;
             remarks: string | null;
             checked_by: number;
             created_at: string;
@@ -602,11 +636,11 @@ function CmspsTable({
         { key: 'guardianship_certificate_path', label: 'guardianship' },
     ] as const;
 
-    type AttachmentKey = typeof ATTACHMENTS[number]['key'];
-    type AttachmentLabel = typeof ATTACHMENTS[number]['label'];
+    type AttachmentKey = (typeof ATTACHMENTS)[number]['key'];
+    type AttachmentLabel = (typeof ATTACHMENTS)[number]['label'];
     type AttachmentItem = {
         label: AttachmentLabel;
-        url: string | null;     // allow null so we can render “missing”
+        url: string | null; // allow null so we can render “missing”
         missing: boolean;
     };
 
@@ -630,11 +664,7 @@ function CmspsTable({
                 {items.map(({ label, url, missing }) =>
                     missing ? (
                         // Missing (red)
-                        <span
-                            key={label}
-                            className="inline-flex items-center gap-1 text-red-600 dark:text-red-400"
-                            title="Missing file"
-                        >
+                        <span key={label} className="inline-flex items-center gap-1 text-red-600 dark:text-red-400" title="Missing file">
                             <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
                             <span className="capitalize">{label}</span>
                         </span>
@@ -645,12 +675,12 @@ function CmspsTable({
                             href={url!}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1"
+                            className="inline-flex items-center gap-1 text-emerald-600 transition-colors hover:text-emerald-700 focus:ring-1 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none"
                         >
                             <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
                             <span className="capitalize">{label}</span>
                         </a>
-                    )
+                    ),
                 )}
             </div>
         );
@@ -672,37 +702,33 @@ function CmspsTable({
 
         const base = { ...raw } as ApplicationRow & Record<string, unknown>;
 
-        const ethnicityLabel = raw.ethnicity && typeof raw.ethnicity === 'object' && typeof raw.ethnicity.label === 'string'
-            ? raw.ethnicity.label.trim()
-            : '';
+        const ethnicityLabel =
+            raw.ethnicity && typeof raw.ethnicity === 'object' && typeof raw.ethnicity.label === 'string' ? raw.ethnicity.label.trim() : '';
         if (ethnicityLabel) {
             base.ethnicity_name = ethnicityLabel;
         }
 
-        const religionLabel = raw.religion && typeof raw.religion === 'object' && typeof raw.religion.label === 'string'
-            ? raw.religion.label.trim()
-            : '';
+        const religionLabel =
+            raw.religion && typeof raw.religion === 'object' && typeof raw.religion.label === 'string' ? raw.religion.label.trim() : '';
         if (religionLabel) {
             base.religion_name = religionLabel;
         }
 
-        const districtName = raw.district_model && typeof raw.district_model === 'object' && typeof raw.district_model.name === 'string'
-            ? raw.district_model.name.trim()
-            : '';
+        const districtName =
+            raw.district_model && typeof raw.district_model === 'object' && typeof raw.district_model.name === 'string'
+                ? raw.district_model.name.trim()
+                : '';
         if (districtName) {
             base.district_name = districtName;
         }
 
-        const schoolName = raw.school && typeof raw.school === 'object' && typeof raw.school.name === 'string'
-            ? raw.school.name.trim()
-            : '';
+        const schoolName = raw.school && typeof raw.school === 'object' && typeof raw.school.name === 'string' ? raw.school.name.trim() : '';
         if (schoolName) {
             base.intended_school_name = schoolName;
         }
 
-        const courseName = raw.course_model && typeof raw.course_model === 'object' && typeof raw.course_model.name === 'string'
-            ? raw.course_model.name.trim()
-            : '';
+        const courseName =
+            raw.course_model && typeof raw.course_model === 'object' && typeof raw.course_model.name === 'string' ? raw.course_model.name.trim() : '';
         if (courseName) {
             base.course_name = courseName;
         }
@@ -765,6 +791,8 @@ function CmspsTable({
     const [validationForm, setValidationForm] = useState({ ...EMPTY_VALIDATION_FORM });
     const [validationErrors, setValidationErrors] = useState<{ document_status?: string; no_siblings?: string; initial_rank?: string }>({});
     const [validationSubmitting, setValidationSubmitting] = useState(false);
+    const [heiItems, setHeiItems] = useState<HeiItem[]>([]);
+    const [heiProgramsLoading, setHeiProgramsLoading] = useState(false);
     const [clearingValidation, setClearingValidation] = useState(false);
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
     const [rankPopoverOpen, setRankPopoverOpen] = useState(false);
@@ -779,89 +807,220 @@ function CmspsTable({
     }, [academicYear, deadline]);
 
     // AFTER
-    const buildUrl = useCallback((p: number, s: string, pp: number) => {
-        const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
-        const u = new URL(basePath, window.location.origin);
-        u.searchParams.set('page', String(p));
-        u.searchParams.set('per_page', String(pp));
-        u.searchParams.set('full', '1');
-        const trimmedSearch = s.trim();
-        if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
-        const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
-        if (trimmedAcademicYear) {
-            u.searchParams.set('academic_year', trimmedAcademicYear);
-        }
-        const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
-        if (trimmedDeadline) {
-            u.searchParams.set('deadline', trimmedDeadline);
-        }
-        // return a same-origin path
-        return u.pathname + u.search + u.hash;
-    }, [academicYear, deadline]);
+    const buildUrl = useCallback(
+        (p: number, s: string, pp: number) => {
+            const basePath = toPath(resolveRoute('cmsp-applications.index.json', undefined, '/cmsp-applications/json'));
+            const u = new URL(basePath, window.location.origin);
+            u.searchParams.set('page', String(p));
+            u.searchParams.set('per_page', String(pp));
+            u.searchParams.set('full', '1');
+            const trimmedSearch = s.trim();
+            if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
+            const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
+            if (trimmedAcademicYear) {
+                u.searchParams.set('academic_year', trimmedAcademicYear);
+            }
+            const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
+            if (trimmedDeadline) {
+                u.searchParams.set('deadline', trimmedDeadline);
+            }
+            // return a same-origin path
+            return u.pathname + u.search + u.hash;
+        },
+        [academicYear, deadline],
+    );
 
-    const buildExportUrl = useCallback((s: string) => {
-        const basePath = toPath(resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export'));
-        const u = new URL(basePath, window.location.origin);
-        const trimmedSearch = s.trim();
-        if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
-        const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
-        if (trimmedAcademicYear) {
-            u.searchParams.set('academic_year', trimmedAcademicYear);
-        }
-        const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
-        if (trimmedDeadline) {
-            u.searchParams.set('deadline', trimmedDeadline);
-        }
-        return u.pathname + u.search + u.hash;
-    }, [academicYear, deadline]);
+    const buildExportUrl = useCallback(
+        (s: string) => {
+            const basePath = toPath(resolveRoute('cmsp-applications.export', undefined, '/cmsp-applications/export'));
+            const u = new URL(basePath, window.location.origin);
+            const trimmedSearch = s.trim();
+            if (trimmedSearch) u.searchParams.set('search', trimmedSearch);
+            const trimmedAcademicYear = typeof academicYear === 'string' ? academicYear.trim() : '';
+            if (trimmedAcademicYear) {
+                u.searchParams.set('academic_year', trimmedAcademicYear);
+            }
+            const trimmedDeadline = typeof deadline === 'string' ? deadline.trim() : '';
+            if (trimmedDeadline) {
+                u.searchParams.set('deadline', trimmedDeadline);
+            }
+            return u.pathname + u.search + u.hash;
+        },
+        [academicYear, deadline],
+    );
 
-    const getValidationStoreUrl = () =>
-        toPath((window as any).route ? (window as any).route('validations.store') : '/validations');
+    const getValidationStoreUrl = () => toPath((window as any).route ? (window as any).route('validations.store') : '/validations');
 
     const getValidationDestroyUrl = (id: number) =>
         toPath((window as any).route ? (window as any).route('validations.destroy', id) : `/validations/${id}`);
 
+    useEffect(() => {
+        let cancelled = false;
 
-    const fetchData = useCallback(async (p = page, s = search, pp = perPage) => {
-        setLoading(true);
-        try {
-            const res = await fetch(buildUrl(p, s, pp), {
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
-            });
-            if (!res.ok) throw new Error('Failed to load');
-            const json = await res.json();
-            const rawData: unknown[] = Array.isArray(json.data) ? json.data : [];
-            const normalized = rawData
-                .map((item) => normalizeRow(item))
-                .filter((item): item is ApplicationRow => item !== null);
-            setRows(normalized);
-            setTotal(json.meta?.total ?? 0);
-            setLastPage(json.meta?.last_page ?? 1);
-            setPage(json.meta?.current_page ?? p);
-            if (onSpecialCounts) {
-                onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
+        const loadHeiItems = async () => {
+            try {
+                const res = await fetch('/api/hei_programs', {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+
+                if (!res.ok) throw new Error('Failed to fetch HEI list');
+                const json = await res.json();
+                if (cancelled) return;
+
+                const items = Array.isArray(json?.items) ? json.items : [];
+                setHeiItems(
+                    items
+                        .map((item: Record<string, unknown>) => ({
+                            instCode: String(item.instCode ?? '').trim(),
+                            instName: String(item.instName ?? '').trim(),
+                        }))
+                        .filter((item: HeiItem) => item.instCode.length > 0 && item.instName.length > 0),
+                );
+            } catch {
+                if (!cancelled) {
+                    setHeiItems([]);
+                }
             }
-            setSelectedId(null);
-        } catch (e) {
-            setRows([]);
-            setTotal(0);
-            setLastPage(1);
-            if (onSpecialCounts) {
-                onSpecialCounts({ ...EMPTY_SPECIAL_COUNTS });
+        };
+
+        void loadHeiItems();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const evaluateRemarks = async () => {
+            if (!validationDialogOpen || !validationRow) {
+                return;
             }
-        } finally {
-            setLoading(false);
-        }
-    }, [buildUrl, normalizeRow, onSpecialCounts]);
+
+            const disqualificationReasons: string[] = [];
+
+            const parentCombinedIncome = Number(validationRow.father_income_monthly ?? 0) + Number(validationRow.mother_income_monthly ?? 0);
+            if (parentCombinedIncome > 501000) {
+                disqualificationReasons.push('Combined parents income is greater than 501,000.');
+            }
+
+            const gwaAverage = (Number(validationRow.gwa_g12_s1 ?? 0) + Number(validationRow.gwa_g12_s2 ?? 0)) / 2;
+            if (gwaAverage < 92.5) {
+                disqualificationReasons.push('GWA average is below 93 (92.5 rounds to 93).');
+            }
+
+            const normalizedSchoolName = normalizeText(validationRow.intended_school_name ?? '');
+            const normalizedCourseName = normalizeText(validationRow.course_name ?? '');
+
+            if (normalizedSchoolName && normalizedCourseName && heiItems.length > 0) {
+                const matchedHei = heiItems.find((hei) => {
+                    const heiName = normalizeText(hei.instName);
+                    return heiName === normalizedSchoolName || heiName.includes(normalizedSchoolName) || normalizedSchoolName.includes(heiName);
+                });
+
+                if (matchedHei?.instCode) {
+                    setHeiProgramsLoading(true);
+                    try {
+                        const res = await fetch(`/api/hei_programs/${encodeURIComponent(matchedHei.instCode)}/programs`, {
+                            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+
+                        if (res.ok) {
+                            const json = await res.json();
+                            const items = Array.isArray(json?.programs) ? json.programs : [];
+                            const programs: HeiProgramItem[] = items
+                                .map((item: Record<string, unknown>) => ({
+                                    programName: String(item?.programName ?? item?.program_name ?? '').trim(),
+                                    status: item?.status === 0 || item?.status === '0' ? 0 : item?.status === 1 || item?.status === '1' ? 1 : null,
+                                    programStatus: item?.program_status ? String(item.program_status).trim() : null,
+                                    statusLabel: item?.status_label ? String(item.status_label).trim() : null,
+                                }))
+                                .filter((program: HeiProgramItem) => program.programName.length > 0);
+
+                            const hasInactiveMatchedProgram = programs.some((program) => {
+                                const normalizedProgram = normalizeText(program.programName);
+                                const isCourseMatch =
+                                    normalizedProgram === normalizedCourseName ||
+                                    normalizedProgram.includes(normalizedCourseName) ||
+                                    normalizedCourseName.includes(normalizedProgram);
+
+                                return isCourseMatch && isInactiveProgram(program);
+                            });
+
+                            if (hasInactiveMatchedProgram) {
+                                disqualificationReasons.push('Priority course in selected HEI is discontinued/inactive.');
+                            }
+                        }
+                    } catch {
+                        // Ignore API matching failures and keep other computed criteria.
+                    } finally {
+                        if (!cancelled) {
+                            setHeiProgramsLoading(false);
+                        }
+                    }
+                }
+            }
+
+            if (cancelled) {
+                return;
+            }
+
+            const computedRemarks =
+                disqualificationReasons.length > 0 ? `Disqualified Applicant - ${disqualificationReasons.join(' ')}` : 'Qualified Applicant';
+
+            setValidationForm((prev) => ({
+                ...prev,
+                remarks: computedRemarks,
+            }));
+        };
+
+        void evaluateRemarks();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [heiItems, validationDialogOpen, validationRow]);
+
+    const fetchData = useCallback(
+        async (p = page, s = search, pp = perPage) => {
+            setLoading(true);
+            try {
+                const res = await fetch(buildUrl(p, s, pp), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                if (!res.ok) throw new Error('Failed to load');
+                const json = await res.json();
+                const rawData: unknown[] = Array.isArray(json.data) ? json.data : [];
+                const normalized = rawData.map((item) => normalizeRow(item)).filter((item): item is ApplicationRow => item !== null);
+                setRows(normalized);
+                setTotal(json.meta?.total ?? 0);
+                setLastPage(json.meta?.last_page ?? 1);
+                setPage(json.meta?.current_page ?? p);
+                if (onSpecialCounts) {
+                    onSpecialCounts(parseSpecialGroupCounts(json.meta?.special_counts));
+                }
+                setSelectedId(null);
+            } catch (e) {
+                setRows([]);
+                setTotal(0);
+                setLastPage(1);
+                if (onSpecialCounts) {
+                    onSpecialCounts({ ...EMPTY_SPECIAL_COUNTS });
+                }
+            } finally {
+                setLoading(false);
+            }
+        },
+        [buildUrl, normalizeRow, onSpecialCounts],
+    );
 
     const toggleActionSort = useCallback(() => {
         setActionSort((prev) => {
-            const next = prev === 'validated'
-                ? 'pending'
-                : prev === 'pending'
-                    ? null
-                    : 'validated';
+            const next = prev === 'validated' ? 'pending' : prev === 'pending' ? null : 'validated';
 
             if (next !== null) {
                 setRankSort(null);
@@ -990,8 +1149,7 @@ function CmspsTable({
             return rows;
         }
 
-        const getComparableRank = (value: ApplicationRow['rank']) =>
-            typeof value === 'number' && Number.isFinite(value) ? value : null;
+        const getComparableRank = (value: ApplicationRow['rank']) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
         const getComparableName = (row: ApplicationRow) => {
             const last = toStringOrEmpty(row.last_name).trim().toLowerCase();
@@ -1125,12 +1283,8 @@ function CmspsTable({
 
     const formatApplicantName = (row?: ApplicationRow | null) => {
         if (!row) return '—';
-        const givenNames = [row.first_name, row.middle_name]
-            .filter((part) => part && String(part).trim() !== '')
-            .join(' ');
-        const base = givenNames
-            ? `${row.last_name.toUpperCase()}, ${givenNames}`
-            : row.last_name.toUpperCase();
+        const givenNames = [row.first_name, row.middle_name].filter((part) => part && String(part).trim() !== '').join(' ');
+        const base = givenNames ? `${row.last_name.toUpperCase()}, ${givenNames}` : row.last_name.toUpperCase();
         const suffix = row.name_extension ? ` ${row.name_extension}` : '';
         return `${base}${suffix}`.trim();
     };
@@ -1162,6 +1316,7 @@ function CmspsTable({
             document_status: row.latest_validation?.document_status ?? '',
             no_siblings: row.latest_validation?.no_siblings ? String(row.latest_validation.no_siblings) : '',
             initial_rank: row.latest_validation?.initial_rank ?? '',
+            validator_notes: row.latest_validation?.validator_notes ?? '',
             remarks: row.latest_validation?.remarks ?? '',
         });
         setValidationErrors({});
@@ -1204,6 +1359,7 @@ function CmspsTable({
                 document_status: validationForm.document_status.trim(),
                 no_siblings: Number(validationForm.no_siblings),
                 initial_rank: validationForm.initial_rank,
+                validator_notes: validationForm.validator_notes.trim() ? validationForm.validator_notes.trim() : null,
                 remarks: validationForm.remarks.trim() ? validationForm.remarks.trim() : null,
             };
 
@@ -1213,7 +1369,7 @@ function CmspsTable({
                 headers: {
                     Accept: 'application/json',
                     'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': getXsrfToken(),      // ← use cookie token
+                    'X-XSRF-TOKEN': getXsrfToken(), // ← use cookie token
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
@@ -1264,20 +1420,18 @@ function CmspsTable({
                     prevRows.map((row) =>
                         row.id === targetRowId
                             ? {
-                                ...row,
-                                latest_validation: savedValidation,
-                            }
+                                  ...row,
+                                  latest_validation: savedValidation,
+                              }
                             : row,
                     ),
                 );
 
                 setValidationForm({
                     document_status: savedValidation.document_status ?? '',
-                    no_siblings:
-                        typeof savedValidation.no_siblings === 'number'
-                            ? String(savedValidation.no_siblings)
-                            : '',
+                    no_siblings: typeof savedValidation.no_siblings === 'number' ? String(savedValidation.no_siblings) : '',
                     initial_rank: savedValidation.initial_rank ?? '',
+                    validator_notes: savedValidation.validator_notes ?? '',
                     remarks: savedValidation.remarks ?? '',
                 });
             } else {
@@ -1285,6 +1439,7 @@ function CmspsTable({
                     document_status: payload.document_status,
                     no_siblings: String(payload.no_siblings),
                     initial_rank: payload.initial_rank,
+                    validator_notes: payload.validator_notes ?? '',
                     remarks: payload.remarks ?? '',
                 });
             }
@@ -1313,11 +1468,10 @@ function CmspsTable({
                 // AFTER
                 headers: {
                     Accept: 'application/json',
-                    'X-XSRF-TOKEN': getXsrfToken(),      // ← use cookie token
+                    'X-XSRF-TOKEN': getXsrfToken(), // ← use cookie token
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
-
             });
 
             let json: any = null;
@@ -1339,9 +1493,9 @@ function CmspsTable({
                 prevRows.map((row) =>
                     row.id === targetRowId
                         ? {
-                            ...row,
-                            latest_validation: null,
-                        }
+                              ...row,
+                              latest_validation: null,
+                          }
                         : row,
                 ),
             );
@@ -1368,15 +1522,13 @@ function CmspsTable({
     const latestValidation = validationRow?.latest_validation ?? null;
     const validationStatusTone = latestValidation
         ? {
-            container:
-                'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-300',
-            badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300',
-        }
+              container: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-300',
+              badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300',
+          }
         : {
-            container:
-                'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200',
-            badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
-        };
+              container: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200',
+              badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
+          };
     const checkedByLabel = latestValidation?.checker?.name ?? '—';
     const dateCheckedLabel = latestValidation?.created_at ? fmtDate(latestValidation.created_at) : '—';
 
@@ -1426,21 +1578,16 @@ function CmspsTable({
     }, [buildExportUrl, search]);
 
     return (
-
-        <div className="mt-5 px-4 py-4 w-full max-w-full min-w-0">
-
+        <div className="mt-5 w-full max-w-full min-w-0 px-4 py-4">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
                 {/* Left: search */}
                 <div className="flex items-center gap-2">
-
-
                     <div className="relative">
-                        <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                        <Search className="pointer-events-none absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                         <input
                             type="text"
                             placeholder="Search by name, tracking no, LRN, or email…"
-                            className="h-9 w-72 rounded-md border border-zinc-300 bg-white pl-8 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                            className="h-9 w-72 rounded-md border border-zinc-300 bg-white pr-10 pl-8 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900"
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -1454,7 +1601,7 @@ function CmspsTable({
                             <button
                                 type="button"
                                 aria-label="Clear search"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:hover:bg-zinc-800"
+                                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 focus:ring-2 focus:ring-blue-200 focus:outline-none dark:hover:bg-zinc-800"
                                 onClick={() => {
                                     setSearchInput('');
                                     commitSearch('');
@@ -1465,46 +1612,36 @@ function CmspsTable({
                         )}
                     </div>
 
-
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="group relative overflow-hidden bg-[#1e3c73] hover:bg-[#1a3565] text-white px-3 py-1.5 rounded-md transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-[#1e3c73]"
+                        className="group relative overflow-hidden rounded-md bg-[#1e3c73] px-3 py-1.5 text-white transition-all duration-300 hover:bg-[#1a3565] focus:ring-1 focus:ring-[#1e3c73] focus:outline-none"
                         onClick={() => commitSearch(searchInput)}
                     >
-                        <Search className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
+                        <Search className="h-3.5 w-3.5 text-white transition-transform group-hover:scale-110" />
                     </Button>
-          
                 </div>
-
-
 
                 {/* Right: per-page */}
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Rows per page</span>
                     <select
-                        className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                        className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900"
                         value={perPage}
                         onChange={(e) => setPerPage(Number(e.target.value))}
                     >
                         {[10, 20, 50].map((n) => (
-                            <option key={n} value={n}>{n}</option>
+                            <option key={n} value={n}>
+                                {n}
+                            </option>
                         ))}
                     </select>
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="
-              group relative overflow-hidden
-              bg-[#1e3c73] hover:bg-[#1a3565]
-              text-white hover:text-white
-              px-3 py-1.5 rounded-md
-              transition-all duration-300
-              focus:outline-none focus:ring-1 focus:ring-[#1e3c73]
-              flex items-center gap-1.5
-            "
+                        className="group relative flex items-center gap-1.5 overflow-hidden rounded-md bg-[#1e3c73] px-3 py-1.5 text-white transition-all duration-300 hover:bg-[#1a3565] hover:text-white focus:ring-1 focus:ring-[#1e3c73] focus:outline-none"
                         onClick={handleExport}
                         disabled={exporting}
                         aria-busy={exporting}
@@ -1512,39 +1649,35 @@ function CmspsTable({
                         {exporting ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
                         ) : (
-                            <FileSpreadsheet className="h-3.5 w-3.5 transition-transform group-hover:scale-110 text-white" />
+                            <FileSpreadsheet className="h-3.5 w-3.5 text-white transition-transform group-hover:scale-110" />
                         )}
                         <span className="text-white group-hover:text-white">{exporting ? 'Exporting…' : 'Export'}</span>
                     </Button>
                 </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 w-full max-w-full">
-                <div className="overflow-x-auto w-full max-w-full min-w-0">
-                    <table className="min-w-full w-max table-auto text-left text-sm
-                        [&>tbody>tr>td]:break-words
-                        [&>tbody>tr>td]:align-top
-                        [&>tbody>tr>td]:max-w-[240px]">
-                        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300
-                          [&>tr>th]:whitespace-normal [&>tr>th]:break-words">
+            <div className="w-full max-w-full rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="w-full max-w-full min-w-0 overflow-x-auto">
+                    <table className="w-max min-w-full table-auto text-left text-sm [&>tbody>tr>td]:max-w-[240px] [&>tbody>tr>td]:align-top [&>tbody>tr>td]:break-words">
+                        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 [&>tr>th]:break-words [&>tr>th]:whitespace-normal">
                             <tr className="[&>th]:whitespace-nowrap">
                                 <th className="px-3 py-2 font-semibold">No</th>
-                                <th className="px-3 py-2 font-semibold min-w-[160px]">Tracking No</th>
+                                <th className="min-w-[160px] px-3 py-2 font-semibold">Tracking No</th>
                                 <th className="px-3 py-2 font-semibold">LRN</th>
-                                <th className="px-3 py-2 font-semibold min-w-[240px]">Email</th>
+                                <th className="min-w-[240px] px-3 py-2 font-semibold">Email</th>
                                 <th className="px-3 py-2 font-semibold">Contact #</th>
-                                <th className="px-3 py-2 font-semibold min-w-[160px]">
+                                <th className="min-w-[160px] px-3 py-2 font-semibold">
                                     <button
                                         type="button"
                                         onClick={toggleNameSort}
-                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        className="flex items-center gap-2 rounded text-sm font-semibold text-zinc-700 hover:text-[#1e3c73] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 dark:text-zinc-300 dark:hover:text-blue-300"
                                         aria-pressed={nameSort !== null}
                                         title={
                                             nameSort === 'asc'
                                                 ? 'Sorting by name (A to Z). Click to show Z to A.'
                                                 : nameSort === 'desc'
-                                                    ? 'Sorting by name (Z to A). Click to reset ordering.'
-                                                    : 'Sort by name. Click to show A to Z.'
+                                                  ? 'Sorting by name (Z to A). Click to reset ordering.'
+                                                  : 'Sort by name. Click to show A to Z.'
                                         }
                                     >
                                         <span>Name</span>
@@ -1565,8 +1698,8 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold">Ethnicity</th>
                                 <th className="px-3 py-2 font-semibold">Religion</th>
 
-                                <th className="px-3 py-2 font-semibold  min-w-[300px]">Province/Municipality</th>
-                                <th className="px-3 py-2 font-semibold  min-w-[200px]">District</th>
+                                <th className="min-w-[300px] px-3 py-2 font-semibold">Province/Municipality</th>
+                                <th className="min-w-[200px] px-3 py-2 font-semibold">District</th>
                                 <th className="px-3 py-2 font-semibold">Barangay</th>
                                 <th className="px-3 py-2 font-semibold">Purok/Street</th>
                                 <th className="px-3 py-2 font-semibold">ZIP</th>
@@ -1577,14 +1710,14 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold">BARMM Street</th>
                                 <th className="px-3 py-2 font-semibold">BARMM ZIP</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[400px]">Intended School</th>
+                                <th className="min-w-[400px] px-3 py-2 font-semibold">Intended School</th>
                                 <th className="px-3 py-2 font-semibold">School Type</th>
                                 <th className="px-3 py-2 font-semibold">Other School</th>
                                 <th className="px-3 py-2 font-semibold">Year Level</th>
-                                <th className="px-3 py-2 font-semibold min-w-[400px]">Course</th>
-                                <th className="px-3 py-2 font-semibold min-w-[300px]">GAD StuFAPs</th>
+                                <th className="min-w-[400px] px-3 py-2 font-semibold">Course</th>
+                                <th className="min-w-[300px] px-3 py-2 font-semibold">GAD StuFAPs</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[400px]">SHS School Name</th>
+                                <th className="min-w-[400px] px-3 py-2 font-semibold">SHS School Name</th>
                                 <th className="px-3 py-2 font-semibold">SHS School Address</th>
                                 <th className="px-3 py-2 font-semibold">SHS School Type</th>
 
@@ -1598,31 +1731,31 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold">Mother Income (monthly)</th>
                                 <th className="px-3 py-2 font-semibold">Mother Income (yearly)</th>
 
-                                <th className="px-3 py-2 font-semibold  min-w-[200px]">Guardian</th>
+                                <th className="min-w-[200px] px-3 py-2 font-semibold">Guardian</th>
                                 <th className="px-3 py-2 font-semibold">Guardian Occupation</th>
                                 <th className="px-3 py-2 font-semibold">Guardian Income (monthly)</th>
 
                                 <th className="px-3 py-2 font-semibold">GWA G12 S1</th>
                                 <th className="px-3 py-2 font-semibold">GWA G12 S2</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[300px]">Special Groups</th>
+                                <th className="min-w-[300px] px-3 py-2 font-semibold">Special Groups</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[300px]">Files</th>
+                                <th className="min-w-[300px] px-3 py-2 font-semibold">Files</th>
 
-                                <th className="px-3 py-2 font-semibold min-w-[140px]">AY</th>
+                                <th className="min-w-[140px] px-3 py-2 font-semibold">AY</th>
                                 <th className="px-3 py-2 font-semibold">Deadline</th>
-                                <th className="px-3 py-2 font-semibold min-w-[180px]">
+                                <th className="min-w-[180px] px-3 py-2 font-semibold">
                                     <button
                                         type="button"
                                         onClick={togglePointsSort}
-                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        className="flex items-center gap-2 rounded text-sm font-semibold text-zinc-700 hover:text-[#1e3c73] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 dark:text-zinc-300 dark:hover:text-blue-300"
                                         aria-pressed={pointsSort !== null}
                                         title={
                                             pointsSort === 'asc'
                                                 ? 'Sorting by final total points (lowest first). Click to show highest first.'
                                                 : pointsSort === 'desc'
-                                                    ? 'Sorting by final total points (highest first). Click to reset ordering.'
-                                                    : 'Sort by final total points. Click to show lowest first.'
+                                                  ? 'Sorting by final total points (highest first). Click to reset ordering.'
+                                                  : 'Sort by final total points. Click to show lowest first.'
                                         }
                                     >
                                         <span>Final Total Points</span>
@@ -1639,14 +1772,14 @@ function CmspsTable({
                                     <button
                                         type="button"
                                         onClick={toggleRankSort}
-                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        className="flex items-center gap-2 rounded text-sm font-semibold text-zinc-700 hover:text-[#1e3c73] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 dark:text-zinc-300 dark:hover:text-blue-300"
                                         aria-pressed={rankSort !== null}
                                         title={
                                             rankSort === 'asc'
                                                 ? 'Sorting by rank (lowest number first). Click to show highest rank first.'
                                                 : rankSort === 'desc'
-                                                    ? 'Sorting by rank (highest number first). Click to reset ordering.'
-                                                    : 'Sort by rank. Click to show lowest rank first.'
+                                                  ? 'Sorting by rank (highest number first). Click to reset ordering.'
+                                                  : 'Sort by rank. Click to show lowest rank first.'
                                         }
                                     >
                                         <span>Rank</span>
@@ -1659,18 +1792,18 @@ function CmspsTable({
                                         )}
                                     </button>
                                 </th>
-                                <th className="px-3 py-2 font-semibold min-w-[190px]">
+                                <th className="min-w-[190px] px-3 py-2 font-semibold">
                                     <button
                                         type="button"
                                         onClick={toggleSubmittedSort}
-                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        className="flex items-center gap-2 rounded text-sm font-semibold text-zinc-700 hover:text-[#1e3c73] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 dark:text-zinc-300 dark:hover:text-blue-300"
                                         aria-pressed={submittedSort !== null}
                                         title={
                                             submittedSort === 'asc'
                                                 ? 'Sorting by submission date (oldest first). Click to show newest first.'
                                                 : submittedSort === 'desc'
-                                                    ? 'Sorting by submission date (newest first). Click to reset ordering.'
-                                                    : 'Sort by submission date. Click to show oldest submissions first.'
+                                                  ? 'Sorting by submission date (newest first). Click to reset ordering.'
+                                                  : 'Sort by submission date. Click to show oldest submissions first.'
                                         }
                                     >
                                         <span>Submitted</span>
@@ -1683,18 +1816,18 @@ function CmspsTable({
                                         )}
                                     </button>
                                 </th>
-                                <th className="px-3 py-2 font-semibold sticky right-0 z-20 bg-zinc-50 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800">
+                                <th className="sticky right-0 z-20 border-l border-zinc-200 bg-zinc-50 px-3 py-2 font-semibold dark:border-zinc-800 dark:bg-zinc-900">
                                     <button
                                         type="button"
                                         onClick={toggleActionSort}
-                                        className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-[#1e3c73] dark:hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 rounded"
+                                        className="flex items-center gap-2 rounded text-sm font-semibold text-zinc-700 hover:text-[#1e3c73] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 dark:text-zinc-300 dark:hover:text-blue-300"
                                         aria-pressed={actionSort !== null}
                                         title={
                                             actionSort === 'validated'
                                                 ? 'Sorting by validation status (validated first). Click to show pending first.'
                                                 : actionSort === 'pending'
-                                                    ? 'Sorting by validation status (pending first). Click to reset ordering.'
-                                                    : 'Sort by validation status. Click to show validated applications first.'
+                                                  ? 'Sorting by validation status (pending first). Click to reset ordering.'
+                                                  : 'Sort by validation status. Click to show validated applications first.'
                                         }
                                     >
                                         <span>Action</span>
@@ -1725,11 +1858,11 @@ function CmspsTable({
                                 <tr className="border-t border-zinc-100 dark:border-zinc-800">
                                     <td className="px-3 py-6 text-left text-zinc-600 dark:text-zinc-300" colSpan={COLS}>
                                         <div className="flex flex-col items-start gap-3">
-                                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                                                <UserX className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" />
+                                            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
+                                                <UserX className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" />
                                             </div>
                                             <div className="text-left">
-                                                <p className="text-gray-500 dark:text-gray-400 font-medium">No applications found.</p>
+                                                <p className="font-medium text-gray-500 dark:text-gray-400">No applications found.</p>
                                                 <p className="text-sm text-gray-400 dark:text-gray-500">Try adjusting your search criteria</p>
                                             </div>
                                         </div>
@@ -1742,26 +1875,23 @@ function CmspsTable({
                                         tabIndex={0}
                                         role="row"
                                         aria-selected={selectedId === r.id}
-                                        onClick={() => setSelectedId(prev => (prev === r.id ? null : r.id))}
+                                        onClick={() => setSelectedId((prev) => (prev === r.id ? null : r.id))}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' || e.key === ' ') {
                                                 e.preventDefault();
-                                                setSelectedId(prev => (prev === r.id ? null : r.id));
+                                                setSelectedId((prev) => (prev === r.id ? null : r.id));
                                             }
                                         }}
                                         className={cn(
-                                            'group border-t border-zinc-100 dark:border-zinc-800 cursor-auto transition-all',
+                                            'group cursor-auto border-t border-zinc-100 transition-all dark:border-zinc-800',
                                             'hover:bg-zinc-50 dark:hover:bg-zinc-900/40',
-                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
+                                            'focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none focus-visible:ring-inset',
                                             selectedId === r.id &&
-                                            'bg-blue-100/80 dark:bg-blue-900/50 ring-2 ring-inset ring-blue-400/60 dark:ring-blue-700/60'
+                                                'bg-blue-100/80 ring-2 ring-blue-400/60 ring-inset dark:bg-blue-900/50 dark:ring-blue-700/60',
                                         )}
                                     >
                                         <td
-                                            className={cn(
-                                                'px-3 py-2',
-                                                selectedId === r.id && 'border-l-4 border-blue-500 pl-2 dark:border-blue-600'
-                                            )}
+                                            className={cn('px-3 py-2', selectedId === r.id && 'border-l-4 border-blue-500 pl-2 dark:border-blue-600')}
                                         >
                                             {idx + 1 + (page - 1) * perPage}
                                         </td>
@@ -1770,10 +1900,10 @@ function CmspsTable({
                                             <div className="flex items-center gap-2">
                                                 <span
                                                     className={cn(
-                                                        'inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 ',
+                                                        'inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800',
                                                         r.latest_validation
-                                                            ? 'bg-emerald-100 text-emerald-700  dark:bg-emerald-900/40 dark:text-emerald-300'
-                                                            : 'text-amber-600'
+                                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                                            : 'text-amber-600',
                                                     )}
                                                 >
                                                     {r.tracking_no}
@@ -1783,7 +1913,7 @@ function CmspsTable({
                                                         type="button"
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-7 w-7 text-amber-700 transition-colors hover:text-amber-900 hover:bg-amber-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 dark:text-amber-200 dark:hover:text-amber-100 dark:hover:bg-amber-900/40"
+                                                        className="h-7 w-7 text-amber-700 transition-colors hover:bg-amber-100/70 hover:text-amber-900 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:outline-none dark:text-amber-200 dark:hover:bg-amber-900/40 dark:hover:text-amber-100"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             void handleCopyTracking(r.tracking_no);
@@ -1799,8 +1929,8 @@ function CmspsTable({
 
                                         <td className="px-3 py-2">{r.lrn}</td>
 
-                                        <td className="px-3 py-2 relative" title={r.email}>
-                                            <div className="flex items-center gap-2 max-w-[280px]">
+                                        <td className="relative px-3 py-2" title={r.email}>
+                                            <div className="flex max-w-[280px] items-center gap-2">
                                                 <TruncateCell value={r.email} max={20} />
                                             </div>
                                         </td>
@@ -1849,12 +1979,13 @@ function CmspsTable({
 
                                         <td className="px-3 py-2">
                                             <span
-                                                className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${r.school_type === 'Public'
-                                                    ? 'bg-blue-100 text-blue-800'
-                                                    : r.school_type === 'LUC'
-                                                        ? 'bg-amber-100 text-amber-800'
-                                                        : 'bg-purple-100 text-purple-800'
-                                                    }`}
+                                                className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
+                                                    r.school_type === 'Public'
+                                                        ? 'bg-blue-100 text-blue-800'
+                                                        : r.school_type === 'LUC'
+                                                          ? 'bg-amber-100 text-amber-800'
+                                                          : 'bg-purple-100 text-purple-800'
+                                                }`}
                                             >
                                                 {r.school_type}
                                             </span>
@@ -1927,7 +2058,7 @@ function CmspsTable({
                                             <TruncateCell value={r.special_groups?.length ? r.special_groups.join(', ') : '—'} max={40} />
                                         </td>
 
-                                        <td className="px-3 py-2 align-top max-w-[260px]" title="Application attachments">
+                                        <td className="max-w-[260px] px-3 py-2 align-top" title="Application attachments">
                                             {renderAttachments(r)}
                                         </td>
 
@@ -1942,65 +2073,53 @@ function CmspsTable({
                                             </span>
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                            {typeof r.final_total_points === 'number'
-                                                ? r.final_total_points.toFixed(2)
-                                                : '—'}
+                                            {typeof r.final_total_points === 'number' ? r.final_total_points.toFixed(2) : '—'}
                                         </td>
-                                        <td className="px-3 py-2 text-center">
-                                            {typeof r.rank === 'number' ? r.rank : '—'}
-                                        </td>
+                                        <td className="px-3 py-2 text-center">{typeof r.rank === 'number' ? r.rank : '—'}</td>
                                         <td className="px-3 py-2">{fmtDate(r.created_at)}</td>
                                         <td
                                             className={cn(
-                                                'px-3 py-2 sticky right-0 z-20 border-l border-zinc-200 dark:border-zinc-800',
+                                                'sticky right-0 z-20 border-l border-zinc-200 px-3 py-2 dark:border-zinc-800',
                                                 selectedId === r.id
                                                     ? 'bg-blue-100 dark:bg-blue-900'
-                                                    : 'bg-white dark:bg-zinc-950 group-hover:bg-zinc-50 dark:group-hover:bg-zinc-900/40'
+                                                    : 'bg-white group-hover:bg-zinc-50 dark:bg-zinc-950 dark:group-hover:bg-zinc-900/40',
                                             )}
                                         >
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 className={cn(
-                                                    'px-3 py-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 flex items-center justify-center',
+                                                    'flex items-center justify-center rounded-md px-3 py-1 transition-colors focus-visible:ring-2 focus-visible:ring-[#1e3c73]/40 focus-visible:outline-none',
                                                     r.latest_validation
                                                         ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60'
-                                                        : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30'
+                                                        : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30',
                                                 )}
                                                 onClick={() => openValidationDialog(r)}
                                                 title={r.latest_validation ? 'View validation' : 'Validate application'}
                                             >
-                                                {r.latest_validation ? (
-                                                    <Check className="h-4 w-4" />
-                                                ) : (
-                                                    <SquarePen className="h-4 w-4" />
-                                                )}
-                                                <span className="sr-only">
-                                                    {r.latest_validation ? 'View validation' : 'Validate application'}
-                                                </span>
+                                                {r.latest_validation ? <Check className="h-4 w-4" /> : <SquarePen className="h-4 w-4" />}
+                                                <span className="sr-only">{r.latest_validation ? 'View validation' : 'Validate application'}</span>
                                             </Button>
                                         </td>
-
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
-
                 </div>
 
                 <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogChange}>
                     <DialogContent
                         ref={dialogContentRef}
-                        className="w-[92vw] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl overflow-visible rounded-2xl border border-zinc-200/70 dark:border-zinc-800/70 bg-white/95 dark:bg-zinc-950/80 backdrop-blur-md shadow-2xl ring-1 ring-[#1e3c73]/10"
+                        className="w-[92vw] overflow-visible rounded-2xl border border-zinc-200/70 bg-white/95 shadow-2xl ring-1 ring-[#1e3c73]/10 backdrop-blur-md sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800/70 dark:bg-zinc-950/80"
                         onInteractOutside={(e) => {
                             e.preventDefault();
                         }}
                     >
-                        <DialogHeader className="space-y-2 pb-4 border-b border-zinc-200/70 dark:border-zinc-800/70">
-                            <div className=" py-1 text-[22px] font-semibold tracking-wide text-[#1e3c73]">
-                                Validate Application {" "}
-                                <span className="rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 px-2.5 py-1 text-xs font-medium">
+                        <DialogHeader className="space-y-2 border-b border-zinc-200/70 pb-4 dark:border-zinc-800/70">
+                            <div className="py-1 text-[22px] font-semibold tracking-wide text-[#1e3c73]">
+                                Validate Application{' '}
+                                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
                                     Tracking: {validationRow?.tracking_no ?? '—'}
                                 </span>
                             </div>
@@ -2009,19 +2128,10 @@ function CmspsTable({
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-5">
-
-
-                            <div
-                                className={cn(
-                                    'rounded-lg border px-4 py-3 text-sm transition-colors',
-                                    validationStatusTone.container,
-                                )}
-                            >
+                            <div className={cn('rounded-lg border px-4 py-3 text-sm transition-colors', validationStatusTone.container)}>
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="grid gap-2">
-                                        <span className="text-xs font-semibold uppercase tracking-wide opacity-80">
-                                            Validation status
-                                        </span>
+                                        <span className="text-xs font-semibold tracking-wide uppercase opacity-80">Validation status</span>
                                         <span
                                             className={cn(
                                                 'inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold',
@@ -2033,27 +2143,18 @@ function CmspsTable({
                                     </div>
                                     <div className="grid gap-3 text-xs sm:text-right">
                                         <div className="grid gap-1">
-                                            <span className="font-semibold uppercase tracking-wide opacity-80">
-                                                Checked by
-                                            </span>
-                                            <span className="text-sm font-semibold">
-                                                {checkedByLabel}
-                                            </span>
+                                            <span className="font-semibold tracking-wide uppercase opacity-80">Checked by</span>
+                                            <span className="text-sm font-semibold">{checkedByLabel}</span>
                                         </div>
                                         <div className="grid gap-1">
-                                            <span className="font-semibold uppercase tracking-wide opacity-80">
-                                                Date checked
-                                            </span>
-                                            <span className="text-sm font-semibold">
-                                                {dateCheckedLabel}
-                                            </span>
+                                            <span className="font-semibold tracking-wide uppercase opacity-80">Date checked</span>
+                                            <span className="text-sm font-semibold">{dateCheckedLabel}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex flex-wrap  gap-2">
-
-                                <span className=" uppercase  dark:text-zinc-200  py-1 text-[18px] text-xs text-[#1e3c73] font-medium">
+                            <div className="flex flex-wrap gap-2">
+                                <span className="py-1 text-xs text-[18px] font-medium text-[#1e3c73] uppercase dark:text-zinc-200">
                                     {formatApplicantName(validationRow)}
                                 </span>
                             </div>
@@ -2073,23 +2174,18 @@ function CmspsTable({
                                     placeholder="e.g. Complete"
                                     aria-invalid={validationErrors.document_status ? 'true' : 'false'}
                                 />
-                                {validationErrors.document_status && (
-                                    <p className="text-xs text-red-600">{validationErrors.document_status}</p>
-                                )}
+                                {validationErrors.document_status && <p className="text-xs text-red-600">{validationErrors.document_status}</p>}
                             </div>
                             <div className="grid gap-2">
                                 <Label>No. of Siblings</Label>
-                                <Popover open={siblingsPopoverOpen} onOpenChange={setSiblingsPopoverOpen} modal={false} >
+                                <Popover open={siblingsPopoverOpen} onOpenChange={setSiblingsPopoverOpen} modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             type="button"
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={siblingsPopoverOpen}
-                                            className={cn(
-                                                'justify-between',
-                                                !validationForm.no_siblings && 'text-muted-foreground'
-                                            )}
+                                            className={cn('justify-between', !validationForm.no_siblings && 'text-muted-foreground')}
                                         >
                                             {validationForm.no_siblings
                                                 ? `${validationForm.no_siblings} ${Number(validationForm.no_siblings) === 1 ? 'sibling' : 'siblings'}`
@@ -2097,11 +2193,7 @@ function CmspsTable({
                                             <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <InDialogPopoverContent
-                                        container={dialogContentRef.current}
-                                        align="start"
-                                        sideOffset={8}
-                                    >
+                                    <InDialogPopoverContent container={dialogContentRef.current} align="start" sideOffset={8}>
                                         <Command>
                                             <CommandInput placeholder="Search count..." />
                                             <CommandList>
@@ -2119,7 +2211,12 @@ function CmspsTable({
                                                                     setSiblingsPopoverOpen(false);
                                                                 }}
                                                             >
-                                                                <Check className={cn('mr-2 h-4 w-4', validationForm.no_siblings === value ? 'opacity-100' : 'opacity-0')} />
+                                                                <Check
+                                                                    className={cn(
+                                                                        'mr-2 h-4 w-4',
+                                                                        validationForm.no_siblings === value ? 'opacity-100' : 'opacity-0',
+                                                                    )}
+                                                                />
                                                                 {value}
                                                             </CommandItem>
                                                         );
@@ -2129,33 +2226,24 @@ function CmspsTable({
                                         </Command>
                                     </InDialogPopoverContent>
                                 </Popover>
-                                {validationErrors.no_siblings && (
-                                    <p className="text-xs text-red-600">{validationErrors.no_siblings}</p>
-                                )}
+                                {validationErrors.no_siblings && <p className="text-xs text-red-600">{validationErrors.no_siblings}</p>}
                             </div>
                             <div className="grid gap-2">
                                 <Label>Initial Rank</Label>
-                                <Popover open={rankPopoverOpen} onOpenChange={setRankPopoverOpen} modal={false} >
+                                <Popover open={rankPopoverOpen} onOpenChange={setRankPopoverOpen} modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             type="button"
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={rankPopoverOpen}
-                                            className={cn(
-                                                'justify-between',
-                                                !validationForm.initial_rank && 'text-muted-foreground'
-                                            )}
+                                            className={cn('justify-between', !validationForm.initial_rank && 'text-muted-foreground')}
                                         >
                                             {validationForm.initial_rank || 'Select initial rank'}
                                             <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <InDialogPopoverContent
-                                        container={dialogContentRef.current}
-                                        align="start"
-                                        sideOffset={8}
-                                    >
+                                    <InDialogPopoverContent container={dialogContentRef.current} align="start" sideOffset={8}>
                                         <Command>
                                             <CommandInput placeholder="Search rank..." />
                                             <CommandList>
@@ -2173,7 +2261,12 @@ function CmspsTable({
                                                                     setRankPopoverOpen(false);
                                                                 }}
                                                             >
-                                                                <Check className={cn('mr-2 h-4 w-4', validationForm.initial_rank === value ? 'opacity-100' : 'opacity-0')} />
+                                                                <Check
+                                                                    className={cn(
+                                                                        'mr-2 h-4 w-4',
+                                                                        validationForm.initial_rank === value ? 'opacity-100' : 'opacity-0',
+                                                                    )}
+                                                                />
                                                                 {value}
                                                             </CommandItem>
                                                         );
@@ -2183,23 +2276,29 @@ function CmspsTable({
                                         </Command>
                                     </InDialogPopoverContent>
                                 </Popover>
-                                {validationErrors.initial_rank && (
-                                    <p className="text-xs text-red-600">{validationErrors.initial_rank}</p>
-                                )}
+                                {validationErrors.initial_rank && <p className="text-xs text-red-600">{validationErrors.initial_rank}</p>}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="validation-validator-notes">Validator Notes</Label>
+                                <textarea
+                                    id="validation-validator-notes"
+                                    className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-gray-200 focus-visible:outline-none"
+                                    value={validationForm.validator_notes}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setValidationForm((prev) => ({ ...prev, validator_notes: value }));
+                                    }}
+                                    maxLength={2000}
+                                    placeholder="Add validator notes (optional)"
+                                />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="validation-remarks">Remarks</Label>
-                                <textarea
-                                    id="validation-remarks"
-                                    className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200"
-                                    value={validationForm.remarks}
-                                    onChange={(event) => {
-                                        const value = event.target.value;
-                                        setValidationForm((prev) => ({ ...prev, remarks: value }));
-                                    }}
-                                    maxLength={2000}
-                                    placeholder="Add remarks (optional)"
-                                />
+                                <Input id="validation-remarks" value={validationForm.remarks} readOnly className="font-semibold" />
+                                <p className="text-xs text-muted-foreground">
+                                    Automatically computed as Qualified/Disqualified based on criteria.{' '}
+                                    {heiProgramsLoading ? 'Checking HEI program status…' : ''}
+                                </p>
                             </div>
                         </div>
                         <DialogFooter className="gap-2 sm:justify-between">
@@ -2209,7 +2308,7 @@ function CmspsTable({
                                     variant="outline"
                                     onClick={handleClearValidation}
                                     disabled={validationSubmitting || clearingValidation}
-                                    className="border-red-300 text-red-700 bg-red-50/60 hover:text-red-900 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:bg-red-900/20"
+                                    className="border-red-300 bg-red-50/60 text-red-700 hover:bg-red-100 hover:text-red-900 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
                                 >
                                     {clearingValidation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Clear Validation
@@ -2217,11 +2316,7 @@ function CmspsTable({
                             )}
                             <div className="flex flex-1 items-center justify-end gap-2">
                                 <DialogClose asChild>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        disabled={validationSubmitting || clearingValidation}
-                                    >
+                                    <Button type="button" variant="ghost" disabled={validationSubmitting || clearingValidation}>
                                         Cancel
                                     </Button>
                                 </DialogClose>
@@ -2229,7 +2324,7 @@ function CmspsTable({
                                     type="button"
                                     onClick={handleValidationSubmit}
                                     disabled={validationSubmitting || clearingValidation}
-                                    className="bg-[#1e3c73] hover:bg-[#1a3565] text-white shadow-sm"
+                                    className="bg-[#1e3c73] text-white shadow-sm hover:bg-[#1a3565]"
                                 >
                                     {validationSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Save Validation
@@ -2242,7 +2337,8 @@ function CmspsTable({
                 {/* Pagination bar */}
                 <div className="flex items-center justify-between border-t border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
                     <div className="text-zinc-600 dark:text-zinc-400">
-                        Page <span className="font-medium">{page}</span> of <span className="font-medium">{lastPage}</span> • {total.toLocaleString()} total
+                        Page <span className="font-medium">{page}</span> of <span className="font-medium">{lastPage}</span> • {total.toLocaleString()}{' '}
+                        total
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
@@ -2268,6 +2364,6 @@ function CmspsTable({
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 }
