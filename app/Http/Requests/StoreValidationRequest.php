@@ -19,7 +19,8 @@ class StoreValidationRequest extends FormRequest
             'document_status' => ['required', 'string', 'max:255'],
             'no_siblings' => ['required', 'integer', 'between:1,20'],
             'initial_rank' => ['required', 'string', Rule::in(['FPESFA', 'FPESFA-GAD', 'FSSP', 'HPESFA', 'HPGAD', 'HSSP'])],
-            'remarks' => ['nullable', 'string', 'max:2000'],
+            'validator_notes' => ['nullable', 'string', 'max:2000'],
+            'remarks' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

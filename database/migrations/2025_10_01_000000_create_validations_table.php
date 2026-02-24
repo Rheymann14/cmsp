@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->string('document_status');
             $table->unsignedTinyInteger('no_siblings');
             $table->string('initial_rank', 40);
+            $table->text('validator_notes')->nullable();
             $table->text('remarks')->nullable();
             $table->foreignId('checked_by')->constrained('users')->restrictOnDelete();
             $table->timestamps();
