@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\AyDeadline;
 use App\Models\CmspApplication;
 use App\Models\ReferencePoint;
+use App\Services\PortalService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\UploadedFile;
@@ -28,6 +29,14 @@ class CmspApplicationController extends Controller
 {
     private ?Collection $gradeReferencePoints = null;
     private ?Collection $incomeReferencePoints = null;
+    private ?array $portalHeiItems = null;
+
+    /** @var array<string, array<int, array<string, mixed>>> */
+    private array $portalProgramsByInstCode = [];
+
+    public function __construct(private readonly PortalService $portalService)
+    {
+    }
 
     /** Store to public/attachments with ULID + original filename; returns relative path */
     private function putAttachment(UploadedFile $file, string $dir = 'attachments'): string
@@ -711,6 +720,127 @@ public function indexJson(\Illuminate\Http\Request $request)
     }
 
 
+    private function normalizeText(string $value): string
+    {
+        $normalized = mb_strtolower($value);
+        $normalized = preg_replace('/[^a-z0-9]+/', " ", $normalized) ?? "";
+
+        return trim($normalized);
+    }
+
+    private function compactText(string $value): string
+    {
+        return str_replace(" ", "", $this->normalizeText($value));
+    }
+
+    private function extractAcronym(string $value): string
+    {
+        $stopWords = ['bachelor', 'science', 'arts', 'in', 'of', 'and', 'the', 'major', 'related', 'fields', 'education'];
+
+        $parts = preg_split('/\s+/', $this->normalizeText($value)) ?: [];
+
+        $letters = array_map(
+            static fn (string $word): string => $word[0],
+            array_values(array_filter($parts, static fn (string $word): bool => $word !== "" && !in_array($word, $stopWords, true))),
+        );
+
+        return mb_strtoupper(implode("", $letters));
+    }
+
+    private function isPriorityCourseMatch(string $programName, string $courseName): bool
+    {
+        $normalizedProgram = $this->normalizeText($programName);
+        $compactProgram = $this->compactText($programName);
+        $acronymProgram = $this->extractAcronym($programName);
+
+        $normalizedCourse = $this->normalizeText($courseName);
+        $compactCourse = $this->compactText($courseName);
+        $acronymCourse = $this->extractAcronym($courseName);
+
+        return $normalizedProgram === $normalizedCourse
+            || $compactProgram === $compactCourse
+            || str_contains($normalizedProgram, $normalizedCourse)
+            || str_contains($normalizedCourse, $normalizedProgram)
+            || (strlen($acronymProgram) >= 3 && $acronymProgram === $acronymCourse)
+            || (strlen($acronymCourse) >= 3 && str_contains($compactProgram, mb_strtolower($acronymCourse)));
+    }
+
+    private function isInactiveProgram(array $program): bool
+    {
+        if (($program['status'] ?? null) === 0 || ($program['status'] ?? null) === "0") {
+            return true;
+        }
+
+        $statuses = array_filter([
+            mb_strtolower(trim((string) ($program['program_status'] ?? ""))),
+            mb_strtolower(trim((string) ($program['status_label'] ?? ""))),
+        ]);
+
+        foreach ($statuses as $status) {
+            if ($status === "0" || $status === "inactive" || str_contains($status, "discontinued") || str_contains($status, "closed")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasInactiveMatchedProgram(CmspApplication $app): bool
+    {
+        $schoolName = trim((string) ($app->intended_school_name ?? ''));
+        $courseName = trim((string) ($app->course_name ?? ''));
+
+        if ($schoolName === "" || $courseName === "") {
+            return false;
+        }
+
+        if ($this->portalHeiItems === null) {
+            $this->portalHeiItems = $this->portalService->fetchAllHEI();
+        }
+
+        $normalizedSchoolName = $this->normalizeText($schoolName);
+        $compactSchoolName = $this->compactText($schoolName);
+
+        $matchedHei = collect($this->portalHeiItems)->first(function ($hei) use ($normalizedSchoolName, $compactSchoolName) {
+            $heiName = $this->normalizeText((string) ($hei['instName'] ?? ''));
+            $heiCompactName = $this->compactText((string) ($hei['instName'] ?? ''));
+
+            return $heiName !== ""
+                && ($heiName === $normalizedSchoolName
+                    || str_contains($heiName, $normalizedSchoolName)
+                    || str_contains($normalizedSchoolName, $heiName)
+                    || $heiCompactName === $compactSchoolName
+                    || str_contains($heiCompactName, $compactSchoolName)
+                    || str_contains($compactSchoolName, $heiCompactName));
+        });
+
+        $instCode = trim((string) ($matchedHei['instCode'] ?? ''));
+        if ($instCode === "") {
+            return false;
+        }
+
+        if (!array_key_exists($instCode, $this->portalProgramsByInstCode)) {
+            $this->portalProgramsByInstCode[$instCode] = $this->portalService->fetchPrograms($instCode);
+        }
+
+        foreach ($this->portalProgramsByInstCode[$instCode] as $program) {
+            $programName = trim((string) ($program['programName'] ?? ''));
+            $majorName = trim((string) ($program['major'] ?? ''));
+            if ($programName === "") {
+                continue;
+            }
+
+            $isMatch = $this->isPriorityCourseMatch($programName, $courseName)
+                || ($majorName !== '' && $this->isPriorityCourseMatch($majorName, $courseName));
+
+            if ($isMatch && $this->isInactiveProgram($program)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
     private function resolveValidationRemarksForExport(CmspApplication $app): string
     {
@@ -751,6 +881,10 @@ public function indexJson(\Illuminate\Http\Request $request)
 
         if ($combinedIncome > 501000 || $gwaAverage < 92.5) {
             return 'Disqualified Applicant';
+        }
+
+        if ($this->hasInactiveMatchedProgram($app)) {
+            return 'Disqualified Applicant - Priority course in selected HEI is discontinued/inactive.';
         }
 
         return 'Qualified Applicant';
