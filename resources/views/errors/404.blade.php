@@ -5,8 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Page Not Found | {{ config('app.name', 'CHED') }}</title>
         <style>
-            :root {
-                color-scheme: light dark;
+            * {
+                box-sizing: border-box;
             }
 
             body {
@@ -14,94 +14,81 @@
                 min-height: 100vh;
                 display: grid;
                 place-items: center;
-                background: #f4f7fb;
-                font-family: "Instrument Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-                color: #0f172a;
+                padding: 2rem 1.25rem;
+                background:
+                    radial-gradient(circle at 10% 10%, #e8f1ff 0%, transparent 45%),
+                    radial-gradient(circle at 90% 90%, #fdf2e9 0%, transparent 40%),
+                    #f8fbff;
+                color: #1e293b;
+                font-family: "Instrument Sans", "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+                line-height: 1.5;
             }
 
-            .container {
-                width: min(92vw, 560px);
-                background: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 16px;
-                padding: 2rem;
+            main {
+                max-width: 620px;
                 text-align: center;
-                box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
             }
 
             .logo {
-                width: 88px;
-                height: 88px;
+                width: 94px;
+                height: 94px;
                 object-fit: contain;
-                margin-bottom: 1rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .code {
+                margin: 0;
+                font-size: clamp(3rem, 8vw, 5rem);
+                line-height: 1;
+                letter-spacing: -0.04em;
+                color: #0f172a;
             }
 
             h1 {
-                margin: 0;
-                font-size: 3rem;
-                line-height: 1;
-                letter-spacing: -0.04em;
-            }
-
-            h2 {
-                margin: 0.75rem 0 0;
-                font-size: 1.25rem;
-                font-weight: 600;
+                margin: 0.5rem 0 0;
+                font-size: clamp(1.35rem, 3.4vw, 1.9rem);
+                font-weight: 700;
+                color: #0f172a;
             }
 
             p {
-                margin: 0.9rem 0 1.4rem;
+                margin: 0.9rem auto 1.5rem;
+                font-size: clamp(1rem, 2.5vw, 1.08rem);
                 color: #475569;
+                max-width: 48ch;
             }
 
             a {
-                display: inline-block;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
                 text-decoration: none;
-                background: #0f172a;
-                color: #fff;
-                padding: 0.7rem 1.1rem;
-                border-radius: 10px;
+                background: #2563eb;
+                color: #ffffff;
+                border-radius: 999px;
+                padding: 0.7rem 1.2rem;
                 font-weight: 600;
+                transition: background-color 0.2s ease, transform 0.2s ease;
             }
 
             a:hover {
-                background: #1e293b;
+                background: #1d4ed8;
+                transform: translateY(-1px);
             }
 
-            @media (prefers-color-scheme: dark) {
-                body {
-                    background: #020617;
-                    color: #e2e8f0;
-                }
-
-                .container {
-                    background: #0f172a;
-                    border-color: #1e293b;
-                    box-shadow: none;
-                }
-
-                p {
-                    color: #94a3b8;
-                }
-
-                a {
-                    background: #e2e8f0;
-                    color: #0f172a;
-                }
-
-                a:hover {
-                    background: #cbd5e1;
-                }
+            a:focus-visible {
+                outline: 3px solid #93c5fd;
+                outline-offset: 2px;
             }
         </style>
     </head>
     <body>
-        <main class="container">
+        <main>
             <img class="logo" src="{{ asset('ched_logo.png') }}" alt="CHED logo">
-            <h1>404</h1>
-            <h2>Page Not Found</h2>
-            <p>The page you are looking for may have been moved, deleted, or never existed.</p>
-            <a href="{{ url('/') }}">Back to Home</a>
+            <p class="code">404</p>
+            <h1>We can’t find that page.</h1>
+            <p>The link might be broken, or the page may have been moved. Let’s get you back to somewhere familiar.</p>
+            <a href="{{ url('/') }}">Go to Home</a>
         </main>
     </body>
 </html>
