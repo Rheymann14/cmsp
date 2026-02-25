@@ -75,17 +75,37 @@ class PortalService
             $data = $this->postToPortal($instCode);
 
             return collect($data)
-                ->map(fn ($item) => [
-                    'programName' => isset($item['programName']) ? trim((string) $item['programName']) : null,
-                    'major' => isset($item['majorName']) ? trim((string) $item['majorName']) : (isset($item['major']) ? trim((string) $item['major']) : null),
-                    'program_status' => isset($item['program_status'])
-                        ? trim((string) $item['program_status'])
-                        : null,
+                ->map(function ($item) {
+                    $statusTexts = collect(is_array($item) ? $item : [])
+                        ->filter(fn ($value, $key) => is_string($key) && preg_match('/status/i', $key))
+                        ->filter(fn ($value) => is_scalar($value) || (is_object($value) && method_exists($value, '__toString')))
+                        ->map(fn ($value) => trim((string) $value))
+                        ->filter(fn (string $value) => $value !== '')
+                        ->values()
+                        ->all();
 
-                    'status' => isset($item['status'])
-                        ? (int) $item['status']
-                        : null,
-                ])
+                    return [
+                        'programName' => isset($item['programName']) ? trim((string) $item['programName']) : null,
+                        'major' => isset($item['majorName']) ? trim((string) $item['majorName']) : (isset($item['major']) ? trim((string) $item['major']) : null),
+                        'program_status' => isset($item['program_status'])
+                            ? trim((string) $item['program_status'])
+                            : (isset($item['programStatus']) ? trim((string) $item['programStatus']) : null),
+
+                        'status_label' => isset($item['status_label'])
+                            ? trim((string) $item['status_label'])
+                            : (isset($item['programStatusLabel']) ? trim((string) $item['programStatusLabel']) : null),
+
+                        'programStatusLabel' => isset($item['programStatusLabel'])
+                            ? trim((string) $item['programStatusLabel'])
+                            : null,
+
+                        'status_texts' => $statusTexts,
+
+                        'status' => isset($item['status'])
+                            ? (int) $item['status']
+                            : null,
+                    ];
+                })
                 ->filter(fn ($program) => filled($program['programName']))
                 ->unique(fn ($program) => implode('|', [
                     $program['programName'] ?? '',
