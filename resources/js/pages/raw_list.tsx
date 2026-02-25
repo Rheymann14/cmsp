@@ -78,6 +78,7 @@ type HeiItem = {
 
 type HeiProgramItem = {
     programName: string;
+    major?: string | null;
     status?: number | null;
     programStatus?: string | null;
     statusLabel?: string | null;
@@ -118,6 +119,19 @@ const isPriorityCourseMatch = (programName: string, courseName: string): boolean
         (acronymProgram.length >= 3 && acronymProgram === acronymCourse) ||
         (acronymCourse.length >= 3 && compactProgram.includes(acronymCourse.toLowerCase()))
     );
+};
+
+const isHeiMatch = (heiName: string, selectedSchoolName: string): boolean => {
+    const normalizedHei = normalizeText(heiName);
+    const normalizedSchool = normalizeText(selectedSchoolName);
+
+    if (!normalizedHei || !normalizedSchool) return false;
+    if (normalizedHei === normalizedSchool || normalizedHei.includes(normalizedSchool) || normalizedSchool.includes(normalizedHei)) return true;
+
+    const compactHei = compactText(heiName);
+    const compactSchool = compactText(selectedSchoolName);
+
+    return compactHei === compactSchool || compactHei.includes(compactSchool) || compactSchool.includes(compactHei);
 };
 
 const isInactiveProgram = (program: HeiProgramItem): boolean => {
@@ -947,8 +961,7 @@ function CmspsTable({
 
             if (normalizedSchoolName && normalizedCourseName && heiItems.length > 0) {
                 const matchedHei = heiItems.find((hei) => {
-                    const heiName = normalizeText(hei.instName);
-                    return heiName === normalizedSchoolName || heiName.includes(normalizedSchoolName) || normalizedSchoolName.includes(heiName);
+                    return isHeiMatch(hei.instName, validationRow.intended_school_name ?? '');
                 });
 
                 if (matchedHei?.instCode) {
@@ -965,14 +978,17 @@ function CmspsTable({
                             const programs: HeiProgramItem[] = items
                                 .map((item: Record<string, unknown>) => ({
                                     programName: String(item?.programName ?? item?.program_name ?? '').trim(),
+                                    major: item?.major ? String(item.major).trim() : item?.majorName ? String(item.majorName).trim() : null,
                                     status: item?.status === 0 || item?.status === '0' ? 0 : item?.status === 1 || item?.status === '1' ? 1 : null,
-                                    programStatus: item?.program_status ? String(item.program_status).trim() : null,
-                                    statusLabel: item?.status_label ? String(item.status_label).trim() : null,
+                                    programStatus: item?.program_status ? String(item.program_status).trim() : item?.programStatus ? String(item.programStatus).trim() : null,
+                                    statusLabel: item?.status_label ? String(item.status_label).trim() : item?.programStatusLabel ? String(item.programStatusLabel).trim() : null,
                                 }))
                                 .filter((program: HeiProgramItem) => program.programName.length > 0);
 
                             const hasInactiveMatchedProgram = programs.some((program) => {
-                                const isCourseMatch = isPriorityCourseMatch(program.programName, validationRow.course_name ?? '');
+                                const isCourseMatch =
+                                    isPriorityCourseMatch(program.programName, validationRow.course_name ?? '') ||
+                                    (program.major ? isPriorityCourseMatch(program.major, validationRow.course_name ?? '') : false);
 
                                 return isCourseMatch && isInactiveProgram(program);
                             });

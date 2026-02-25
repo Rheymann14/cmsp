@@ -799,14 +799,19 @@ public function indexJson(\Illuminate\Http\Request $request)
         }
 
         $normalizedSchoolName = $this->normalizeText($schoolName);
+        $compactSchoolName = $this->compactText($schoolName);
 
-        $matchedHei = collect($this->portalHeiItems)->first(function ($hei) use ($normalizedSchoolName) {
+        $matchedHei = collect($this->portalHeiItems)->first(function ($hei) use ($normalizedSchoolName, $compactSchoolName) {
             $heiName = $this->normalizeText((string) ($hei['instName'] ?? ''));
+            $heiCompactName = $this->compactText((string) ($hei['instName'] ?? ''));
 
             return $heiName !== ""
                 && ($heiName === $normalizedSchoolName
                     || str_contains($heiName, $normalizedSchoolName)
-                    || str_contains($normalizedSchoolName, $heiName));
+                    || str_contains($normalizedSchoolName, $heiName)
+                    || $heiCompactName === $compactSchoolName
+                    || str_contains($heiCompactName, $compactSchoolName)
+                    || str_contains($compactSchoolName, $heiCompactName));
         });
 
         $instCode = trim((string) ($matchedHei['instCode'] ?? ''));
@@ -820,11 +825,15 @@ public function indexJson(\Illuminate\Http\Request $request)
 
         foreach ($this->portalProgramsByInstCode[$instCode] as $program) {
             $programName = trim((string) ($program['programName'] ?? ''));
+            $majorName = trim((string) ($program['major'] ?? ''));
             if ($programName === "") {
                 continue;
             }
 
-            if ($this->isPriorityCourseMatch($programName, $courseName) && $this->isInactiveProgram($program)) {
+            $isMatch = $this->isPriorityCourseMatch($programName, $courseName)
+                || ($majorName !== '' && $this->isPriorityCourseMatch($majorName, $courseName));
+
+            if ($isMatch && $this->isInactiveProgram($program)) {
                 return true;
             }
         }

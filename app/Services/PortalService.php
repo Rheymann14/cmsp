@@ -80,6 +80,14 @@ class PortalService
                     'major' => isset($item['majorName']) ? trim((string) $item['majorName']) : (isset($item['major']) ? trim((string) $item['major']) : null),
                     'program_status' => isset($item['program_status'])
                         ? trim((string) $item['program_status'])
+                        : (isset($item['programStatus']) ? trim((string) $item['programStatus']) : null),
+
+                    'status_label' => isset($item['status_label'])
+                        ? trim((string) $item['status_label'])
+                        : (isset($item['programStatusLabel']) ? trim((string) $item['programStatusLabel']) : null),
+
+                    'programStatusLabel' => isset($item['programStatusLabel'])
+                        ? trim((string) $item['programStatusLabel'])
                         : null,
 
                     'status' => isset($item['status'])
