@@ -89,6 +89,37 @@ const normalizeText = (value: string): string =>
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
 
+const compactText = (value: string): string => normalizeText(value).replace(/\s+/g, '');
+
+const stopWords = new Set(['bachelor', 'science', 'arts', 'in', 'of', 'and', 'the', 'major', 'related', 'fields', 'education']);
+
+const extractAcronym = (value: string): string =>
+    normalizeText(value)
+        .split(' ')
+        .filter((word) => word && !stopWords.has(word))
+        .map((word) => word[0])
+        .join('')
+        .toUpperCase();
+
+const isPriorityCourseMatch = (programName: string, courseName: string): boolean => {
+    const normalizedProgram = normalizeText(programName);
+    const compactProgram = compactText(programName);
+    const acronymProgram = extractAcronym(programName);
+
+    const normalizedCourse = normalizeText(courseName);
+    const compactCourse = compactText(courseName);
+    const acronymCourse = extractAcronym(courseName);
+
+    return (
+        normalizedProgram === normalizedCourse ||
+        compactProgram === compactCourse ||
+        normalizedProgram.includes(normalizedCourse) ||
+        normalizedCourse.includes(normalizedProgram) ||
+        (acronymProgram.length >= 3 && acronymProgram === acronymCourse) ||
+        (acronymCourse.length >= 3 && compactProgram.includes(acronymCourse.toLowerCase()))
+    );
+};
+
 const isInactiveProgram = (program: HeiProgramItem): boolean => {
     if (program.status === 0) return true;
 
@@ -941,11 +972,7 @@ function CmspsTable({
                                 .filter((program: HeiProgramItem) => program.programName.length > 0);
 
                             const hasInactiveMatchedProgram = programs.some((program) => {
-                                const normalizedProgram = normalizeText(program.programName);
-                                const isCourseMatch =
-                                    normalizedProgram === normalizedCourseName ||
-                                    normalizedProgram.includes(normalizedCourseName) ||
-                                    normalizedCourseName.includes(normalizedProgram);
+                                const isCourseMatch = isPriorityCourseMatch(program.programName, validationRow.course_name ?? '');
 
                                 return isCourseMatch && isInactiveProgram(program);
                             });
