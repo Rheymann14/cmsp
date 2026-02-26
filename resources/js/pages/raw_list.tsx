@@ -2111,12 +2111,12 @@ function CmspsTable({
                 <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogChange}>
                     <DialogContent
                         ref={dialogContentRef}
-                        className="w-[92vw] max-h-[90vh] overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-2xl ring-1 ring-[#1e3c73]/10 backdrop-blur-md sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800/70 dark:bg-zinc-950/80"
+                        className="flex w-[92vw] max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 p-0 shadow-2xl ring-1 ring-[#1e3c73]/10 backdrop-blur-md sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800/70 dark:bg-zinc-950/80"
                         onInteractOutside={(e) => {
                             e.preventDefault();
                         }}
                     >
-                        <DialogHeader className="space-y-2 border-b border-zinc-200/70 pb-4 dark:border-zinc-800/70">
+                        <DialogHeader className="shrink-0 space-y-2 border-b border-zinc-200/70 px-6 pb-4 pt-6 dark:border-zinc-800/70">
                             <div className="py-1 text-[22px] font-semibold tracking-wide text-[#1e3c73]">
                                 Validate Application{' '}
                                 <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
@@ -2127,7 +2127,7 @@ function CmspsTable({
                                 Review the applicant details and record the validation outcome.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="max-h-[calc(90vh-9rem)] space-y-5 overflow-y-auto pr-1">
+                        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
                             <div className={cn('rounded-lg border px-4 py-3 text-sm transition-colors', validationStatusTone.container)}>
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="grid gap-2">
@@ -2301,7 +2301,7 @@ function CmspsTable({
                                 </p>
                             </div>
                         </div>
-                        <DialogFooter className="gap-2 sm:justify-between">
+                        <DialogFooter className="shrink-0 gap-2 border-t border-zinc-200/70 px-6 py-4 sm:justify-between dark:border-zinc-800/70">
                             {validationRow?.latest_validation && (
                                 <Button
                                     type="button"
