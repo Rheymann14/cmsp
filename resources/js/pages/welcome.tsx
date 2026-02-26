@@ -1655,7 +1655,7 @@ export default function Welcome() {
                         <DialogContent
                             className="
       p-0 rounded-3xl
-      w-[95vw] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl
+      w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:w-[95vw] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl
       max-h-[90vh] overflow-y-auto
       bg-white dark:bg-zinc-950
       border border-zinc-200/80 dark:border-zinc-800
@@ -1680,8 +1680,8 @@ export default function Welcome() {
                                 </button>
                             </DialogClose>
 
-                            <div className="p-4 sm:p-6">
-                                <DialogHeader className="space-y-1">
+                            <div className="p-3 sm:p-6">
+                                <DialogHeader className="space-y-1 text-center sm:text-left">
                                     <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight">
                                         Track Application Status
                                     </DialogTitle>
@@ -1692,7 +1692,7 @@ export default function Welcome() {
 
                                 {/* OTP INPUT */}
                                 <div className="mt-4 space-y-3">
-                                    <div id="trackingCode" className="flex justify-center flex-wrap gap-1 sm:gap-2">
+                                    <div id="trackingCode" className="flex justify-center overflow-x-auto pb-1">
                                         <InputOTP
                                             data-input-otp
                                             maxLength={9}
@@ -1708,15 +1708,15 @@ export default function Welcome() {
                                                 setTrackingCode(normalizeTrackingInput(text));
                                                 if (trackError) setTrackError(null);
                                             }}
-                                            className="gap-1 sm:gap-2 justify-center"
+                                            className="min-w-max justify-center"
                                         >
-                                            <InputOTPGroup className="gap-1 sm:gap-2">
+                                            <InputOTPGroup className="gap-0.5 sm:gap-2">
                                                 {[...Array(5)].map((_, i) => (
                                                     <InputOTPSlot
                                                         key={i}
                                                         index={i}
                                                         className="
-                    h-10 w-9 sm:h-12 sm:w-11 text-base sm:text-lg font-medium
+                    h-9 w-[1.65rem] sm:h-12 sm:w-11 text-sm sm:text-lg font-medium
                     rounded-xl border-2 border-zinc-300 dark:border-zinc-700
                     bg-white dark:bg-zinc-900 shadow-sm
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
@@ -1726,15 +1726,15 @@ export default function Welcome() {
                                                 ))}
                                             </InputOTPGroup>
 
-                                            <InputOTPSeparator className="px-1 sm:px-2 text-zinc-400">–</InputOTPSeparator>
+                                            <InputOTPSeparator className="px-0.5 sm:px-2 text-xs sm:text-base text-zinc-400">�</InputOTPSeparator>
 
-                                            <InputOTPGroup className="gap-1 sm:gap-2">
+                                            <InputOTPGroup className="gap-0.5 sm:gap-2">
                                                 {[...Array(4)].map((_, i) => (
                                                     <InputOTPSlot
                                                         key={i + 5}
                                                         index={i + 5}
                                                         className="
-                    h-10 w-9 sm:h-12 sm:w-11 text-base sm:text-lg font-medium
+                    h-9 w-[1.65rem] sm:h-12 sm:w-11 text-sm sm:text-lg font-medium
                     rounded-xl border-2 border-zinc-300 dark:border-zinc-700
                     bg-white dark:bg-zinc-900 shadow-sm
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
@@ -3586,14 +3586,14 @@ export default function Welcome() {
                dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200"
                                                     >
                                                         {/* Instruction row */}
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex items-center gap-2 shrink-0">
+                                                        <div className="flex flex-col gap-2 sm:gap-3">
+                                                            <div className="flex items-center gap-2">
                                                                 <FileText className="h-4 w-4" />
                                                                 <span className="font-medium">Application Form:</span>
                                                             </div>
 
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="leading-tight">
+                                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                                <p className="leading-tight sm:flex-1">
 
                                                                     Download the form
 
@@ -3604,7 +3604,7 @@ export default function Welcome() {
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
 
-                                                                    className="inline-flex items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                                    className="inline-flex w-full justify-center sm:w-auto sm:shrink-0 items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                                                 >
                                                                     <FileText className="mr-2 h-4 w-4" />
                                                                     Download Form
@@ -4397,3 +4397,4 @@ export default function Welcome() {
         </>
     );
 }
+
