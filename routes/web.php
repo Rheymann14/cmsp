@@ -24,8 +24,9 @@ use App\Http\Controllers\HeiProgramController;
 
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
-
-
+// Route::get('/phpinfo', function () {
+//     phpinfo();
+// });
 
 Route::get('/api/locations', [LocationController::class, 'index']);
 Route::get('/api/districts', [DistrictController::class, 'index']);
