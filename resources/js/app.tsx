@@ -9,23 +9,29 @@ import { LayoutProvider } from '@/contexts/layout-context';
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
-    
+
     title: (title) => title ? `${title} - ${appName}` : appName,
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
+    defaults: {
+        visitOptions: () => {
+            return { viewTransition: true };
+        },
+    },
     setup({ el, App, props }) {
         const root = createRoot(el);
 
-        
+
         root.render(
             <LayoutProvider>
                 <App {...props} />
             </LayoutProvider>
         );
-        
+
         // to disable inspect elements long app code
         delete el.dataset.page;
-        
+
     },
+
     progress: {
         color: '#db3545',
     },
