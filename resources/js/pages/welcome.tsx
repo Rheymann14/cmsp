@@ -1,58 +1,30 @@
 // resources/js/Pages/welcome.tsx
+import StatusCard from '@/components/StatusCard';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAppearance } from '@/hooks/use-appearance';
 import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Skeleton } from "@/components/ui/skeleton";
-import { useAppearance } from '@/hooks/use-appearance';
-import { Moon, Sun, ChevronDown, X, ChevronDownIcon, FileText, ShieldCheck, CheckCircle2, FileClock, Search, School, BookOpen, MapPin, Copy, CalendarDays } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Toaster, toast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import StatusCard from '@/components/StatusCard';
+import { CalendarDays, CheckCircle2, ChevronDown, Copy, FileClock, FileText, Moon, Search, ShieldCheck, Sun, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Toaster, toast } from 'sonner';
 
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp';
+import { router } from '@inertiajs/react';
+import Confetti from 'react-confetti';
 
-import {
-    InputOTP,
-    InputOTPGroup,
-    InputOTPSlot,
-    InputOTPSeparator,
-} from "@/components/ui/input-otp";
-import { router } from '@inertiajs/react'; import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-    DialogDescription, DialogFooter, DialogClose
-} from "@/components/ui/dialog";
-import Confetti from "react-confetti";
-import { Checkbox } from "@/components/ui/checkbox";
-
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs"
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar"
-
-
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import BackToTopButton from '@/components/BackToTopButton';
-import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 
 type AyDeadline = {
     id: number;
@@ -75,7 +47,7 @@ type TrackData = {
     applicant: {
         name: string | null;
         birthdate: string | null;
-        sex: "male" | "female" | string;
+        sex: 'male' | 'female' | string;
         ethnicity?: string | null;
         religion?: string | null;
     };
@@ -89,7 +61,7 @@ type TrackData = {
         gwa?: { g12_s1?: number; g12_s2?: number };
     };
     address: {
-        scope: "Region XII" | "BARMM" | string;
+        scope: 'Region XII' | 'BARMM' | string;
         province?: string | null;
         municipality?: string | null;
         barangay?: string | null;
@@ -149,33 +121,29 @@ const ApplicationInfoCard = ({ ayDeadline, formattedDeadline, onTrackClick }: Ap
                     <img src="/ched_logo.png" alt="CHED Logo" className="h-10 w-auto p-1" />
                     <img src="/bagong_pilipinas.png" alt="Bagong Pilipinas Logo" className="h-14 w-auto p-1" />
                     <div className="ml-3">
-                        <CardTitle className="text-xl font-semibold tracking-tight">
-                            CHED Merit Scholarship Program (CMSP)
-                        </CardTitle>
-                        <CardDescription className="text-sm text-zinc-600 dark:text-zinc-400">
-                            CHED Regional Office XII
-                        </CardDescription>
+                        <CardTitle className="text-xl font-semibold tracking-tight">CHED Merit Scholarship Program (CMSP)</CardTitle>
+                        <CardDescription className="text-sm text-zinc-600 dark:text-zinc-400">CHED Regional Office XII</CardDescription>
                     </div>
                 </div>
 
                 {/* right: compact track section */}
-                <div className="sm:ml-4 flex flex-col items-end">
+                <div className="flex flex-col items-end sm:ml-4">
                     <motion.div
-                        className="flex items-center gap-2 bg-gradient-to-r from-blue-50 via-white to-blue-100 dark:from-[#1e293b] dark:via-[#0a0a0a] dark:to-[#1e293b] rounded-xl px-3 py-2 shadow-sm border border-blue-100 dark:border-zinc-800"
+                        className="flex items-center gap-2 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-blue-100 px-3 py-2 shadow-sm dark:border-zinc-800 dark:from-[#1e293b] dark:via-[#0a0a0a] dark:to-[#1e293b]"
                         initial={{ scale: 1 }}
                         animate={{ scale: [1, 1.05, 1] }}
                         transition={{
                             duration: 1.5,
                             repeat: Infinity,
-                            repeatType: "reverse",
+                            repeatType: 'reverse',
                         }}
                         onClick={onTrackClick}
                     >
-                        <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
+                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                             Already applied? <strong>Click here!</strong>
                         </span>
                         <Button
-                            className="h-8 px-3 text-xs font-semibold rounded-full bg-gradient-to-r from-[#1e3c73] to-[#25468a] hover:from-[#25468a] hover:to-[#1e3c73] text-white shadow transition-all duration-200"
+                            className="h-8 rounded-full bg-gradient-to-r from-[#1e3c73] to-[#25468a] px-3 text-xs font-semibold text-white shadow transition-all duration-200 hover:from-[#25468a] hover:to-[#1e3c73]"
                             onClick={onTrackClick}
                             aria-label="Track Application Status"
                         >
@@ -189,11 +157,11 @@ const ApplicationInfoCard = ({ ayDeadline, formattedDeadline, onTrackClick }: Ap
 
         <CardContent className="space-y-4 text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-200">
             <p className="text-justify">
-                CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline?.academic_year}.
-                Please be advised that this scholarship application is
+                CHED Merit Scholarship Program (CMSP) Application of CHED Regional Office 12 for the Academic Year {ayDeadline?.academic_year}. Please
+                be advised that this scholarship application is
                 <span className="ml-1 font-bold"> intended only for all incoming first year college students.</span>
-                Earned units and already in the college level are discouraged to apply. Please read the CHED Memorandum Order
-                below before proceeding to fill out the form.
+                Earned units and already in the college level are discouraged to apply. Please read the CHED Memorandum Order below before proceeding
+                to fill out the form.
             </p>
 
             {/* NOTE card — amber */}
@@ -206,7 +174,8 @@ const ApplicationInfoCard = ({ ayDeadline, formattedDeadline, onTrackClick }: Ap
                         </p>
                         <p className="text-justify text-zinc-700 dark:text-zinc-300">
                             Additionally, check the completeness of your documents because only those with complete documents with at least{' '}
-                            <span className="font-semibold">93% General Weighted Average (GWA)</span> are allowed to proceed to the Online Application.
+                            <span className="font-semibold">93% General Weighted Average (GWA)</span> are allowed to proceed to the Online
+                            Application.
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2 pt-1.5">
@@ -219,9 +188,7 @@ const ApplicationInfoCard = ({ ayDeadline, formattedDeadline, onTrackClick }: Ap
                                 </Badge>
                             )}
 
-                            <span className="text-[12px] text-zinc-600 dark:text-zinc-400">
-                                Late submissions will not be entertained.
-                            </span>
+                            <span className="text-[12px] text-zinc-600 dark:text-zinc-400">Late submissions will not be entertained.</span>
                         </div>
                     </div>
                 </div>
@@ -245,29 +212,26 @@ type WelcomePageProps = {
 };
 
 const normalizeTrackingInput = (value: string) => {
-    const up = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const up = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const left = up.slice(0, 5);
-    const right = up.slice(5).replace(/\D/g, "");
+    const right = up.slice(5).replace(/\D/g, '');
     return (left + right.slice(0, 4)).slice(0, 9);
 };
 
 const isValidTrackingRaw = (raw: string) => TRACKING_RAW_REGEX.test(raw);
 
-const toHyphenatedTracking = (raw: string) =>
-    raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5, 9)}` : raw;
-
+const toHyphenatedTracking = (raw: string) => (raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5, 9)}` : raw);
 
 export default function Welcome() {
-
     const { auth, ayDeadline, flash } = usePage<WelcomePageProps>().props;
     const isApplicationOpen = ayDeadline?.is_enabled ?? true;
     const formattedDeadline = ayDeadline
-        ? new Date(ayDeadline.deadline).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        })
-        : "";
+        ? new Date(ayDeadline.deadline).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+          })
+        : '';
 
     const deadlineDate = useMemo(() => {
         if (!ayDeadline?.deadline) return null;
@@ -283,31 +247,46 @@ export default function Welcome() {
         return differenceInCalendarDays(deadlineDate, new Date());
     }, [deadlineDate]);
 
-    const isDeadlinePast = typeof daysRemaining === "number" && daysRemaining < 0;
+    const isDeadlinePast = typeof daysRemaining === 'number' && daysRemaining < 0;
     const isDeadlineToday = daysRemaining === 0;
-    const friendlyDeadline = deadlineDate ? format(deadlineDate, "MMMM d, yyyy") : formattedDeadline;
+    const friendlyDeadline = deadlineDate ? format(deadlineDate, 'MMMM d, yyyy') : formattedDeadline;
+
+    useEffect(() => {
+        if (isApplicationOpen || typeof document === 'undefined') {
+            return;
+        }
+
+        const previousHtmlOverflow = document.documentElement.style.overflow;
+        const previousBodyOverflow = document.body.style.overflow;
+
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.documentElement.style.overflow = previousHtmlOverflow;
+            document.body.style.overflow = previousBodyOverflow;
+        };
+    }, [isApplicationOpen]);
 
     const deadlineStatusLabel = useMemo(() => {
         if (daysRemaining == null) return null;
         if (isDeadlinePast) {
             const daysAgo = Math.abs(daysRemaining);
-            return daysAgo === 0
-                ? "Deadline just passed"
-                : `Closed ${daysAgo} day${daysAgo === 1 ? "" : "s"} ago`;
+            return daysAgo === 0 ? 'Deadline just passed' : `Closed ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
         }
         if (isDeadlineToday) {
-            return "Deadline is today";
+            return 'Deadline is today';
         }
         if (daysRemaining === 1) {
-            return "1 day left to apply";
+            return '1 day left to apply';
         }
         return `${daysRemaining} days left to apply`;
     }, [daysRemaining, isDeadlinePast, isDeadlineToday]);
     const closedWindowLabel = ayDeadline?.academic_year
         ? `Academic Year ${ayDeadline.academic_year}`
         : formattedDeadline
-            ? `the deadline of ${formattedDeadline}`
-            : "this cycle";
+          ? `the deadline of ${formattedDeadline}`
+          : 'this cycle';
 
     const { appearance, updateAppearance } = useAppearance();
     const isDark = appearance === 'dark';
@@ -317,22 +296,21 @@ export default function Welcome() {
     const initialTracking = resolveTrackingFromFlash(flash);
 
     const [successOpen, setSuccessOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<"form" | "req">("form");
+    const [activeTab, setActiveTab] = useState<'form' | 'req'>('form');
     const [generatedTrackingNo, setGeneratedTrackingNo] = useState<string | null>(initialTracking);
     const lastHandledTrackingRef = useRef<string | null>(initialTracking);
 
     const [trackOpen, setTrackOpen] = useState(false);
-    const [trackingCode, setTrackingCode] = useState("");
+    const [trackingCode, setTrackingCode] = useState('');
     const [loadingTrack, setLoadingTrack] = useState(false);
     const [trackResult, setTrackResult] = useState<TrackData | null>(null);
     const [trackError, setTrackError] = useState<string | null>(null);
-
 
     const handleCheckStatus = async () => {
         const normalized = normalizeTrackingInput(trackingCode);
 
         if (!isValidTrackingRaw(normalized)) {
-            setTrackError("Please enter a valid tracking number, e.g., ABCDE-1234.");
+            setTrackError('Please enter a valid tracking number, e.g., ABCDE-1234.');
             setTrackResult(null);
             return;
         }
@@ -349,8 +327,8 @@ export default function Welcome() {
 
             const res = await fetch(`/cmsp/track/${formatted}`, {
                 headers: {
-                    Accept: "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
             });
 
@@ -359,19 +337,13 @@ export default function Welcome() {
 
                 try {
                     const errorBody = await res.json();
-                    errorMessage =
-                        errorBody?.message ??
-                        errorBody?.errors?.tracking_no?.[0] ??
-                        errorBody?.errors?.trackingNo?.[0] ??
-                        null;
+                    errorMessage = errorBody?.message ?? errorBody?.errors?.tracking_no?.[0] ?? errorBody?.errors?.trackingNo?.[0] ?? null;
                 } catch (parseError) {
                     errorMessage = null;
                 }
 
                 if (!errorMessage) {
-                    errorMessage = res.status === 404
-                        ? "Tracking number not found."
-                        : "Unable to fetch status. Please try again.";
+                    errorMessage = res.status === 404 ? 'Tracking number not found.' : 'Unable to fetch status. Please try again.';
                 }
 
                 setTrackError(errorMessage);
@@ -381,7 +353,7 @@ export default function Welcome() {
             const json = await res.json(); // { data: ... }
             setTrackResult(json.data as TrackData);
         } catch (e) {
-            setTrackError("Network error. Please try again.");
+            setTrackError('Network error. Please try again.');
         } finally {
             setLoadingTrack(false);
         }
@@ -391,7 +363,7 @@ export default function Welcome() {
         setSuccessOpen(open);
         if (!open) {
             setGeneratedTrackingNo(null);
-            setActiveTab("req");
+            setActiveTab('req');
             lastHandledTrackingRef.current = null;
         }
     };
@@ -406,8 +378,6 @@ export default function Welcome() {
             toast.error('Unable to copy the tracking number. Please copy it manually.');
         }
     };
-
-
 
     // focus the first OTP cell when dialog opens
     useEffect(() => {
@@ -425,16 +395,12 @@ export default function Welcome() {
             lastHandledTrackingRef.current = flashTrackingNo;
             setGeneratedTrackingNo(flashTrackingNo);
             setSuccessOpen(true);
-            const successMessage =
-                typeof flash?.success === 'string'
-                    ? flash.success
-                    : 'Application submitted successfully!';
+            const successMessage = typeof flash?.success === 'string' ? flash.success : 'Application submitted successfully!';
             toast.success(successMessage, { id: 'cmsp-submit' });
         } else if (!flashTrackingNo) {
             lastHandledTrackingRef.current = null;
         }
     }, [flashTrackingNo, flash?.success]);
-
 
     // confetti viewport size
     const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -445,8 +411,8 @@ export default function Welcome() {
     useEffect(() => {
         const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
         onResize();
-        window.addEventListener("resize", onResize, { passive: true });
-        return () => window.removeEventListener("resize", onResize);
+        window.addEventListener('resize', onResize, { passive: true });
+        return () => window.removeEventListener('resize', onResize);
     }, []);
 
     // trigger confetti whenever the success dialog opens
@@ -491,23 +457,25 @@ export default function Welcome() {
 
     // helpers
     const clearFatherInputs = () => {
-        if (fatherNameRef.current) fatherNameRef.current.value = "";
-        if (fatherOccRef.current) fatherOccRef.current.value = "";
-        if (fatherMonthlyRef.current) fatherMonthlyRef.current.value = "";
-        setFatherMonthly(""); // you already have this state
+        if (fatherNameRef.current) fatherNameRef.current.value = '';
+        if (fatherOccRef.current) fatherOccRef.current.value = '';
+        if (fatherMonthlyRef.current) fatherMonthlyRef.current.value = '';
+        setFatherMonthly(''); // you already have this state
     };
     const clearMotherInputs = () => {
-        if (motherNameRef.current) motherNameRef.current.value = "";
-        if (motherOccRef.current) motherOccRef.current.value = "";
-        if (motherMonthlyRef.current) motherMonthlyRef.current.value = "";
-        setMotherMonthly(""); // you already have this state
+        if (motherNameRef.current) motherNameRef.current.value = '';
+        if (motherOccRef.current) motherOccRef.current.value = '';
+        if (motherMonthlyRef.current) motherMonthlyRef.current.value = '';
+        setMotherMonthly(''); // you already have this state
     };
 
     // effects: clear only when N/A is turned on
-    useEffect(() => { if (fatherNA) clearFatherInputs(); }, [fatherNA]);
-    useEffect(() => { if (motherNA) clearMotherInputs(); }, [motherNA]);
-
-
+    useEffect(() => {
+        if (fatherNA) clearFatherInputs();
+    }, [fatherNA]);
+    useEffect(() => {
+        if (motherNA) clearMotherInputs();
+    }, [motherNA]);
 
     // Father N/A
     const onFatherNAChange = (v: boolean | 'indeterminate') => {
@@ -574,34 +542,29 @@ export default function Welcome() {
         if (val) persistDraft('mother_na', 0);
     };
 
-
     const guardianshipRef = useRef<HTMLInputElement | null>(null);
     const [hasGuardianship, setHasGuardianship] = useState(false);
 
     const [naSelected, setNaSelected] = useState(false);
 
     // === error highlighting helpers ===
-    const INVALID_CLASS =
-        "ring-2 ring-red-500/40 border-red-500 focus:ring-red-300 focus:border-red-500";
-    const GROUP_INVALID_CLASS =
-        "ring-2 ring-red-500/40 border border-red-500 rounded-md";
+    const INVALID_CLASS = 'ring-2 ring-red-500/40 border-red-500 focus:ring-red-300 focus:border-red-500';
+    const GROUP_INVALID_CLASS = 'ring-2 ring-red-500/40 border border-red-500 rounded-md';
 
-    const cssEscape = (v: string) =>
-        (window as any).CSS?.escape ? (window as any).CSS.escape(v) : v.replace(/"/g, '\\"');
+    const cssEscape = (v: string) => ((window as any).CSS?.escape ? (window as any).CSS.escape(v) : v.replace(/"/g, '\\"'));
 
-    const formEl = () =>
-        document.getElementById("cmspForm") as HTMLFormElement | null;
+    const formEl = () => document.getElementById('cmspForm') as HTMLFormElement | null;
 
     const clearInvalidMarks = () => {
         const f = formEl();
         if (!f) return;
         // remove on regular controls
         f.querySelectorAll<HTMLElement>("[data-invalid='true']").forEach((el) => {
-            el.dataset.invalid = "false";
-            el.classList.remove(...INVALID_CLASS.split(" "));
-            el.classList.remove(...GROUP_INVALID_CLASS.split(" "));
-            el.removeAttribute("aria-invalid");
-            el.removeAttribute("title");
+            el.dataset.invalid = 'false';
+            el.classList.remove(...INVALID_CLASS.split(' '));
+            el.classList.remove(...GROUP_INVALID_CLASS.split(' '));
+            el.removeAttribute('aria-invalid');
+            el.removeAttribute('title');
         });
     };
 
@@ -614,7 +577,7 @@ export default function Welcome() {
         if (el) {
             // radio/checkbox groups should highlight the group container instead
             const input = el as HTMLInputElement;
-            if (input.type === "radio" || input.type === "checkbox") {
+            if (input.type === 'radio' || input.type === 'checkbox') {
                 const group = f.querySelector<HTMLElement>(`[data-group="${cssEscape(name)}"]`);
                 if (group) return group;
             }
@@ -635,13 +598,13 @@ export default function Welcome() {
     const markInvalid = (name: string, message?: string) => {
         const el = findTargetEl(name);
         if (!el) return;
-        el.dataset.invalid = "true";
-        el.setAttribute("aria-invalid", "true");
-        if (message) el.setAttribute("title", message);
+        el.dataset.invalid = 'true';
+        el.setAttribute('aria-invalid', 'true');
+        if (message) el.setAttribute('title', message);
 
         // choose class based on element kind
-        const isGroup = el.hasAttribute("data-group");
-        el.classList.add(...(isGroup ? GROUP_INVALID_CLASS : INVALID_CLASS).split(" "));
+        const isGroup = el.hasAttribute('data-group');
+        el.classList.add(...(isGroup ? GROUP_INVALID_CLASS : INVALID_CLASS).split(' '));
     };
 
     const scrollToFirstError = () => {
@@ -649,7 +612,7 @@ export default function Welcome() {
         if (!f) return;
         const first = f.querySelector<HTMLElement>("[data-invalid='true']");
         if (first) {
-            first.scrollIntoView({ behavior: "smooth", block: "center" });
+            first.scrollIntoView({ behavior: 'smooth', block: 'center' });
             (first as HTMLElement).focus?.();
         }
     };
@@ -658,86 +621,59 @@ export default function Welcome() {
     const buildClientRequiredErrors = (fd: FormData, region: string) => {
         // keep base rules
         const BASE_REQUIRED = [
-            "incoming",
-            "lrn",
-            "email",
-            "contact_number",
-            "last_name",
-            "first_name",
-            "middle_name",
-            "birthdate",
-            "sex",
+            'incoming',
+            'lrn',
+            'email',
+            'contact_number',
+            'last_name',
+            'first_name',
+            'middle_name',
+            'birthdate',
+            'sex',
 
-
-            "ethnicity",
-            "religion",
+            'ethnicity',
+            'religion',
             // address fields are added per region below
-            "intended_school",
-            "school_type",
-            "year_level",
-            "course",
-            "shs_name",
-            "shs_address",
-            "shs_school_type",
+            'intended_school',
+            'school_type',
+            'year_level',
+            'course',
+            'shs_name',
+            'shs_address',
+            'shs_school_type',
 
-            "gwa_g12_s1",
-            "gwa_g12_s2",
-            "special_groups[]",
-            "consent",
+            'gwa_g12_s1',
+            'gwa_g12_s2',
+            'special_groups[]',
+            'consent',
             // files
-            "application_form",
-            "grades_g12_s1",
-            "grades_g12_s2",
-            "birth_certificate",
-            "proof_of_income",
+            'application_form',
+            'grades_g12_s1',
+            'grades_g12_s2',
+            'birth_certificate',
+            'proof_of_income',
         ] as const;
 
-        const REGION_XII_REQUIRED = [
-            "province_municipality",
-            "barangay",
-            "purok_street",
-            "zip_code",
-            "district",
-        ] as const;
+        const REGION_XII_REQUIRED = ['province_municipality', 'barangay', 'purok_street', 'zip_code', 'district'] as const;
 
-        const BARMM_REQUIRED = [
-            "barmm_province",
-            "barmm_municipality",
-            "barmm_barangay",
-            "barmm_purok_street",
-            "barmm_zip_code",
-        ] as const;
+        const BARMM_REQUIRED = ['barmm_province', 'barmm_municipality', 'barmm_barangay', 'barmm_purok_street', 'barmm_zip_code'] as const;
 
-        const fatherFieldsDisabled = fd.get("father_na") === "1";
-        const motherFieldsDisabled = fd.get("mother_na") === "1";
-        const fatherUnavailable = fatherFieldsDisabled || (fd.get("father_deceased") === "1");
-        const motherUnavailable = motherFieldsDisabled || (fd.get("mother_deceased") === "1");
+        const fatherFieldsDisabled = fd.get('father_na') === '1';
+        const motherFieldsDisabled = fd.get('mother_na') === '1';
+        const fatherUnavailable = fatherFieldsDisabled || fd.get('father_deceased') === '1';
+        const motherUnavailable = motherFieldsDisabled || fd.get('mother_deceased') === '1';
         const showGuardian = fatherUnavailable && motherUnavailable;
 
-        const FATHER_REQUIRED = [
-            "father_name",
-            "father_occupation",
-            "father_income_monthly",
-            "father_income_yearly_bracket",
-        ] as const;
+        const FATHER_REQUIRED = ['father_name', 'father_occupation', 'father_income_monthly', 'father_income_yearly_bracket'] as const;
 
-        const MOTHER_REQUIRED = [
-            "mother_name",
-            "mother_occupation",
-            "mother_income_monthly",
-            "mother_income_yearly_bracket",
-        ] as const;
+        const MOTHER_REQUIRED = ['mother_name', 'mother_occupation', 'mother_income_monthly', 'mother_income_yearly_bracket'] as const;
 
-        const GUARDIAN_REQUIRED = [
-            "guardian_name",
-            "guardian_occupation",
-            "guardian_income_monthly",
-        ] as const;
+        const GUARDIAN_REQUIRED = ['guardian_name', 'guardian_occupation', 'guardian_income_monthly'] as const;
 
         const REQUIRED = [
             ...BASE_REQUIRED,
-            ...(region === "Region XII" ? REGION_XII_REQUIRED : []),
-            ...(region === "BARMM" ? BARMM_REQUIRED : []),
+            ...(region === 'Region XII' ? REGION_XII_REQUIRED : []),
+            ...(region === 'BARMM' ? BARMM_REQUIRED : []),
             ...(!fatherFieldsDisabled ? FATHER_REQUIRED : []),
             ...(!motherFieldsDisabled ? MOTHER_REQUIRED : []),
             ...(showGuardian ? GUARDIAN_REQUIRED : []),
@@ -746,36 +682,34 @@ export default function Welcome() {
         const errs: Record<string, string> = {};
 
         for (const name of REQUIRED) {
-            if (name.endsWith("[]")) {
+            if (name.endsWith('[]')) {
                 const vals = fd.getAll(name);
-                if (!vals.length) errs[name] = "This field is required.";
+                if (!vals.length) errs[name] = 'This field is required.';
                 continue;
             }
             const val = fd.get(name);
             if (val instanceof File) {
-                if (!val || val.size === 0) errs[name] = "Please upload a PDF.";
+                if (!val || val.size === 0) errs[name] = 'Please upload a PDF.';
             } else {
-                const s = (val ?? "").toString().trim();
-                if (!s) errs[name] = "This field is required.";
+                const s = (val ?? '').toString().trim();
+                if (!s) errs[name] = 'This field is required.';
             }
         }
 
-        const sexVal = String(fd.get("sex") ?? "").toLowerCase();
-        if (sexVal === "female") {
-            const mv = (fd.get("maiden_name") ?? "").toString().trim();
-            if (!mv) errs["maiden_name"] = "This field is required.";
+        const sexVal = String(fd.get('sex') ?? '').toLowerCase();
+        if (sexVal === 'female') {
+            const mv = (fd.get('maiden_name') ?? '').toString().trim();
+            if (!mv) errs['maiden_name'] = 'This field is required.';
         }
 
         return errs;
     };
-
 
     const highlightInvalidFields = (errorMap: Record<string, string>) => {
         clearInvalidMarks();
         Object.entries(errorMap).forEach(([name, msg]) => markInvalid(name, msg));
         scrollToFirstError();
     };
-
 
     // --- PERSIST DRAFT (all non-file fields) ---
     const STORAGE_KEY = 'cmspFormDraft';
@@ -794,7 +728,7 @@ export default function Welcome() {
         draftRef.current = { ...draftRef.current, [name]: value };
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(draftRef.current));
-        } catch { }
+        } catch {}
     };
 
     // Apply saved values to the DOM inputs that are NOT controlled by React
@@ -815,8 +749,7 @@ export default function Welcome() {
                 // ✅ single boolean checkbox (e.g., father_na)
                 if (checkboxes.length === 1) {
                     const c = checkboxes[0];
-                    const truthy =
-                        value === true || value === 1 || value === '1' || value === 'true' || value === 'on';
+                    const truthy = value === true || value === 1 || value === '1' || value === 'true' || value === 'on';
                     c.checked = !!truthy;
                     return;
                 }
@@ -828,19 +761,19 @@ export default function Welcome() {
             }
 
             if (radios.length) {
-                radios.forEach(r => (r.checked = r.value === String(value)));
+                radios.forEach((r) => (r.checked = r.value === String(value)));
                 return;
             }
             if (checkboxes.length) {
                 const arr = Array.isArray(value) ? value.map(String) : [String(value)];
-                checkboxes.forEach(c => (c.checked = arr.includes(c.value)));
+                checkboxes.forEach((c) => (c.checked = arr.includes(c.value)));
                 return;
             }
             if (field) {
                 if (field.tagName === 'SELECT') {
                     const sel = field as HTMLSelectElement;
                     if (sel.multiple && Array.isArray(value)) {
-                        Array.from(sel.options).forEach(opt => (opt.selected = value.includes(opt.value)));
+                        Array.from(sel.options).forEach((opt) => (opt.selected = value.includes(opt.value)));
                     } else {
                         sel.value = value ?? '';
                     }
@@ -851,74 +784,68 @@ export default function Welcome() {
         });
     };
 
-
-
     // Toggle for the compact requirements section (shown by default)
     const [showReqs, setShowReqs] = useState(true);
     const [incoming, setIncoming] = useState<string | null>(null);
 
     // States for dropdowns
-    const [nameExt, setNameExt] = useState<string>("");
+    const [nameExt, setNameExt] = useState<string>('');
     const [openNameExt, setOpenNameExt] = useState(false);
-    const [nameRegion, setRegion] = useState<string>("");
+    const [nameRegion, setRegion] = useState<string>('');
     const [openRegion, setOpenRegion] = useState(false);
 
     // --- Ethnicity
     const [ethnicityId, setEthnicityId] = useState<number | null>(null);
-    const [ethnicityLabel, setEthnicityLabel] = useState<string>("");
+    const [ethnicityLabel, setEthnicityLabel] = useState<string>('');
     const [openEthnicity, setOpenEthnicity] = useState(false);
     const [ethnicities, setEthnicities] = useState<{ id: number; label: string }[]>([]);
     const [loadingEthnicities, setLoadingEthnicities] = useState(true);
 
     // --- Religion
     const [religionId, setReligionId] = useState<number | null>(null);
-    const [religionLabel, setReligionLabel] = useState<string>("");
+    const [religionLabel, setReligionLabel] = useState<string>('');
     const [openReligion, setOpenReligion] = useState(false);
     const [religions, setReligions] = useState<{ id: number; label: string }[]>([]);
     const [loadingReligions, setLoadingReligions] = useState(true);
 
     const [provinceId, setProvinceId] = useState<number | null>(null);
-    const [provinceLabel, setProvinceLabel] = useState<string>("");
+    const [provinceLabel, setProvinceLabel] = useState<string>('');
     const [openProvince, setOpenProvince] = useState(false);
     const [districtId, setDistrictId] = useState<number | null>(null);
-    const [districtLabel, setDistrictLabel] = useState<string>("");
+    const [districtLabel, setDistrictLabel] = useState<string>('');
     const [openDistrict, setOpenDistrict] = useState(false);
     const [schoolId, setSchoolId] = useState<number | null>(null);
-    const [schoolLabel, setSchoolLabel] = useState<string>("");
+    const [schoolLabel, setSchoolLabel] = useState<string>('');
     const [openSchool, setOpenSchool] = useState(false);
-    const [schoolQuery, setSchoolQuery] = useState("");
-    const OTHERS_LABEL = "OTHERS";
-    const [yearLevel, setYearLevel] = useState<string>("Incoming First Year");
+    const [schoolQuery, setSchoolQuery] = useState('');
+    const OTHERS_LABEL = 'OTHERS';
+    const [yearLevel, setYearLevel] = useState<string>('Incoming First Year');
     const [openYearLevel, setOpenYearLevel] = useState(false);
     const [sex, setSex] = useState<'' | 'male' | 'female'>('');
     const [courseId, setCourseId] = useState<number | null>(null);
-    const [courseLabel, setCourseLabel] = useState<string>("");
+    const [courseLabel, setCourseLabel] = useState<string>('');
     const [openCourse, setOpenCourse] = useState(false);
     const [locations, setLocations] = useState<{ id: number; label: string }[]>([]);
     const [loadingLocations, setLoadingLocations] = useState(true);
 
     // --- Parents income helpers ---
-    const [fatherMonthly, setFatherMonthly] = useState<string>("");
-    const [motherMonthly, setMotherMonthly] = useState<string>("");
+    const [fatherMonthly, setFatherMonthly] = useState<string>('');
+    const [motherMonthly, setMotherMonthly] = useState<string>('');
 
     const getYearly = (m: string) => {
-        const v = Number((m || "").replace(/\D/g, ""));
+        const v = Number((m || '').replace(/\D/g, ''));
         return Number.isFinite(v) ? v * 12 : 0;
     };
-    const fmt = (n: number) => n.toLocaleString("en-PH");
-
+    const fmt = (n: number) => n.toLocaleString('en-PH');
 
     const formLocked = false;
 
-    function clearFile(
-        input: HTMLInputElement | null | undefined,
-        onCleared?: () => void
-    ) {
+    function clearFile(input: HTMLInputElement | null | undefined, onCleared?: () => void) {
         if (!input) return;
         // clear the file input
-        input.value = "";
+        input.value = '';
         // make sure any listeners update their state
-        input.dispatchEvent(new Event("change", { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
         // optional callback to flip local state (e.g., hasFileMap[name] = false)
         onCleared?.();
         // return focus for accessibility
@@ -927,35 +854,27 @@ export default function Welcome() {
 
     const SPECIAL_GROUP_NAME = 'special_groups[]';
 
-
-
     const enforceSpecialGroupRule = () => {
         const form = document.getElementById('cmspForm') as HTMLFormElement | null;
         if (!form) return;
 
-        const boxes = Array.from(
-            form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${SPECIAL_GROUP_NAME}"]`)
-        );
+        const boxes = Array.from(form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${SPECIAL_GROUP_NAME}"]`));
         const na = boxes.find((b) => b.value === 'N/A');
 
         const naChecked = !!na?.checked;
-        if (na) na.disabled = false;        // N/A itself always clickable
-        boxes.forEach((b) => {              // Others disabled only when N/A is checked
+        if (na) na.disabled = false; // N/A itself always clickable
+        boxes.forEach((b) => {
+            // Others disabled only when N/A is checked
             if (b !== na) b.disabled = naChecked;
         });
     };
-
 
     const handleSpecialGroupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (formLocked) return;
         const form = document.getElementById('cmspForm') as HTMLFormElement | null;
         if (!form) return;
 
-        const boxes = Array.from(
-            form.querySelectorAll<HTMLInputElement>(
-                `input[type="checkbox"][name="${SPECIAL_GROUP_NAME}"]`
-            )
-        );
+        const boxes = Array.from(form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${SPECIAL_GROUP_NAME}"]`));
         const na = boxes.find((b) => b.value === 'N/A');
         const clicked = e.currentTarget;
 
@@ -967,29 +886,26 @@ export default function Welcome() {
                     b.disabled = true;
                 }
             });
-
         } else {
             // Any other selection -> ensure N/A is off, enable others + proof uploader
             if (na) na.checked = false;
             boxes.forEach((b) => {
                 if (b !== na) b.disabled = false;
             });
-
         }
 
         // Persist after enforcing the rule
         const selected = boxes.filter((b) => b.checked).map((b) => b.value);
         persistDraft(SPECIAL_GROUP_NAME, selected);
-        setNaSelected(selected.includes("N/A"));
+        setNaSelected(selected.includes('N/A'));
     };
 
     useEffect(() => {
         if (naSelected && proofSpecialRef.current) {
-            proofSpecialRef.current.value = "";
+            proofSpecialRef.current.value = '';
             if (hasProofSpecial) setHasProofSpecial(false);
         }
     }, [naSelected, hasProofSpecial]);
-
 
     useEffect(() => {
         const onScroll = () => setOpen(false);
@@ -998,10 +914,10 @@ export default function Welcome() {
     }, []);
 
     useEffect(() => {
-        fetch("/api/locations", {
+        fetch('/api/locations', {
             headers: {
-                Accept: "application/json",
-                "X-Requested-With": "XMLHttpRequest", // 👈 makes Laravel see it as AJAX
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest', // 👈 makes Laravel see it as AJAX
             },
         })
             .then((res) => res.json())
@@ -1009,7 +925,6 @@ export default function Welcome() {
             .catch(() => setLocations([]))
             .finally(() => setLoadingLocations(false));
     }, []);
-
 
     const [districts, setDistricts] = useState<{ id: number; label: string }[]>([]);
     const [loadingDistricts, setLoadingDistricts] = useState(false);
@@ -1025,8 +940,8 @@ export default function Welcome() {
 
         fetch(`/api/districts?location_id=${provinceId}`, {
             headers: {
-                Accept: "application/json",
-                "X-Requested-With": "XMLHttpRequest", // 👈 tell Laravel it's AJAX
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest', // 👈 tell Laravel it's AJAX
             },
         })
             .then((res) => res.json())
@@ -1041,9 +956,9 @@ export default function Welcome() {
         const exists = districts.some((d) => d.id === districtId);
         if (!exists) {
             setDistrictId(null);
-            setDistrictLabel("");
-            persistDraft("district", "");
-            persistDraft("district_label", "");
+            setDistrictLabel('');
+            persistDraft('district', '');
+            persistDraft('district_label', '');
         }
     }, [districts, districtId]);
 
@@ -1053,21 +968,19 @@ export default function Welcome() {
         const only = districts[0];
         setDistrictId(only.id);
         setDistrictLabel(only.label);
-        persistDraft("district", String(only.id));
-        persistDraft("district_label", only.label);
+        persistDraft('district', String(only.id));
+        persistDraft('district_label', only.label);
     }, [districts, districtId]);
-
 
     const [schools, setSchools] = useState<{ id: number; label: string }[]>([]);
     const [loadingSchools, setLoadingSchools] = useState(true);
     const [showDeadlineBanner, setShowDeadlineBanner] = useState(true);
 
-
     useEffect(() => {
-        fetch("/api/schools", {
+        fetch('/api/schools', {
             headers: {
-                Accept: "application/json",
-                "X-Requested-With": "XMLHttpRequest", // 👈 required
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest', // 👈 required
             },
         })
             .then((res) => res.json())
@@ -1078,8 +991,8 @@ export default function Welcome() {
 
     // Ethnicities
     useEffect(() => {
-        fetch("/api/ethnicities", {
-            headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+        fetch('/api/ethnicities', {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
             .then((res) => res.json())
             .then((data) => setEthnicities(data.data || []))
@@ -1089,8 +1002,8 @@ export default function Welcome() {
 
     // Religions
     useEffect(() => {
-        fetch("/api/religions", {
-            headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+        fetch('/api/religions', {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
             .then((res) => res.json())
             .then((data) => setReligions(data.data || []))
@@ -1098,25 +1011,21 @@ export default function Welcome() {
             .finally(() => setLoadingReligions(false));
     }, []);
 
-
     const sortedSchools = useMemo(() => {
         return [...schools].sort((a, b) => {
-            const aIsOthers = a.label?.trim().toLowerCase() === "others";
-            const bIsOthers = b.label?.trim().toLowerCase() === "others";
+            const aIsOthers = a.label?.trim().toLowerCase() === 'others';
+            const bIsOthers = b.label?.trim().toLowerCase() === 'others';
             if (aIsOthers && !bIsOthers) return 1;
             if (!aIsOthers && bIsOthers) return -1;
-            return (a.label || "").localeCompare(b.label || "");
+            return (a.label || '').localeCompare(b.label || '');
         });
     }, [schools]);
 
-    const othersId = useMemo(
-        () => schools.find(s => s.label?.trim().toLowerCase() === "others")?.id ?? null,
-        [schools]
-    );
+    const othersId = useMemo(() => schools.find((s) => s.label?.trim().toLowerCase() === 'others')?.id ?? null, [schools]);
 
     const isOthersSelected = useMemo(() => {
         const byId = othersId !== null && schoolId === othersId;
-        const byLabel = (schoolLabel || "").trim().toLowerCase() === "others";
+        const byLabel = (schoolLabel || '').trim().toLowerCase() === 'others';
         return byId || byLabel;
     }, [othersId, schoolId, schoolLabel]);
 
@@ -1124,22 +1033,21 @@ export default function Welcome() {
         if (!isOthersSelected) {
             const el = document.querySelector<HTMLInputElement>('[name="other_school"]');
             if (el) {
-                el.value = "";
+                el.value = '';
                 // fire a change so your draft persister picks it up
-                el.dispatchEvent(new Event("change", { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
     }, [isOthersSelected]);
-
 
     const [courses, setCourses] = useState<{ id: number; label: string; category?: string }[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
 
     useEffect(() => {
-        fetch("/api/courses", {
+        fetch('/api/courses', {
             headers: {
-                Accept: "application/json",
-                "X-Requested-With": "XMLHttpRequest",
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
             },
         })
             .then((res) => res.json())
@@ -1154,8 +1062,7 @@ export default function Welcome() {
         draftRef.current = saved;
         const sg = saved[SPECIAL_GROUP_NAME];
 
-        const T = (v: any) =>
-            v === true || v === 1 || v === '1' || v === 'true' || v === 'on';
+        const T = (v: any) => v === true || v === 1 || v === '1' || v === 'true' || v === 'on';
 
         // if you already have these states in your component
         setFatherNA(T(saved.father_na));
@@ -1163,23 +1070,23 @@ export default function Welcome() {
         setMotherNA(T(saved.mother_na));
         setMotherDeceased(T(saved.mother_deceased));
 
-        if (Array.isArray(sg)) setNaSelected(sg.includes("N/A"));
+        if (Array.isArray(sg)) setNaSelected(sg.includes('N/A'));
         if (typeof saved.region === 'string') setRegion(saved.region);
         if (typeof saved.sex === 'string') setSex(saved.sex as 'male' | 'female' | '');
         // hydrate controlled pieces
         if (typeof saved.incoming === 'string') setIncoming(saved.incoming);
         if (typeof saved.name_extension === 'string') setNameExt(saved.name_extension);
-        if (typeof saved.ethnicity === "string") {
+        if (typeof saved.ethnicity === 'string') {
             const n = Number(saved.ethnicity);
             setEthnicityId(Number.isFinite(n) ? n : null);
         }
-        if (typeof saved.ethnicity_label === "string") setEthnicityLabel(saved.ethnicity_label);
+        if (typeof saved.ethnicity_label === 'string') setEthnicityLabel(saved.ethnicity_label);
 
-        if (typeof saved.religion === "string") {
+        if (typeof saved.religion === 'string') {
             const n = Number(saved.religion);
             setReligionId(Number.isFinite(n) ? n : null);
         }
-        if (typeof saved.religion_label === "string") setReligionLabel(saved.religion_label);
+        if (typeof saved.religion_label === 'string') setReligionLabel(saved.religion_label);
 
         if (typeof saved.province_municipality === 'string') {
             const n = Number(saved.province_municipality);
@@ -1219,7 +1126,6 @@ export default function Welcome() {
             setMotherMonthly(saved.mother_income_monthly);
         }
 
-
         if (typeof saved.birthdate === 'string') {
             setBirthdate(saved.birthdate);
             if (saved.birthdate) setDate(parseISO(saved.birthdate));
@@ -1242,7 +1148,6 @@ export default function Welcome() {
         }
     }, [sex]);
 
-
     // Form-level change/input listeners: keep draft updated while the user types
     useEffect(() => {
         const form = document.getElementById('cmspForm') as HTMLFormElement | null;
@@ -1259,12 +1164,14 @@ export default function Welcome() {
             }
             if (t instanceof HTMLInputElement && t.type === 'checkbox') {
                 const all = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${t.name}"]`);
-                value = Array.from(all).filter(cb => cb.checked).map(cb => cb.value);
+                value = Array.from(all)
+                    .filter((cb) => cb.checked)
+                    .map((cb) => cb.value);
             } else if (t instanceof HTMLInputElement && t.type === 'radio') {
                 const checked = form.querySelector<HTMLInputElement>(`input[type="radio"][name="${t.name}"]:checked`);
                 value = checked?.value ?? '';
             } else if (t instanceof HTMLSelectElement && t.multiple) {
-                value = Array.from(t.selectedOptions).map(o => o.value);
+                value = Array.from(t.selectedOptions).map((o) => o.value);
             } else {
                 value = (t as any).value ?? '';
             }
@@ -1279,10 +1186,6 @@ export default function Welcome() {
             form.removeEventListener('change', handler);
         };
     }, []);
-
-
-
-
 
     // GWA validation (80–100, integers only)
     const GWA_MIN = 80;
@@ -1311,11 +1214,9 @@ export default function Welcome() {
         }
     };
 
-
-
-    const [open, setOpen] = useState(false)
-    const [date, setDate] = useState<Date | undefined>(undefined)
-    const [birthdate, setBirthdate] = useState<string>(date ? format(date, "yyyy-MM-dd") : "");
+    const [open, setOpen] = useState(false);
+    const [date, setDate] = useState<Date | undefined>(undefined);
+    const [birthdate, setBirthdate] = useState<string>(date ? format(date, 'yyyy-MM-dd') : '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const isSubmittingRef = useRef(false);
 
@@ -1347,7 +1248,7 @@ export default function Welcome() {
         }
 
         if (!ayDeadline?.academic_year || !ayDeadline?.deadline) {
-            toast.error("Missing academic year or deadline. Please reload the page.");
+            toast.error('Missing academic year or deadline. Please reload the page.');
             return;
         }
 
@@ -1358,13 +1259,11 @@ export default function Welcome() {
         fd.set('academic_year', ayDeadline.academic_year);
         fd.set('deadline', deadlineYMD);
 
-
-
         // Bridge UI state (from your Command/Popover, date picker, radios) → FormData
-        fd.set('incoming', incoming ?? '');                 // "yes" | "no"
+        fd.set('incoming', incoming ?? ''); // "yes" | "no"
         fd.set('name_extension', nameExt || '');
-        fd.set("ethnicity", ethnicityId ? String(ethnicityId) : "");
-        fd.set("religion", religionId ? String(religionId) : "");
+        fd.set('ethnicity', ethnicityId ? String(ethnicityId) : '');
+        fd.set('religion', religionId ? String(religionId) : '');
 
         fd.set('province_municipality', provinceId ? String(provinceId) : '');
         fd.set('district', districtId ? String(districtId) : '');
@@ -1374,11 +1273,11 @@ export default function Welcome() {
         fd.set('birthdate', birthdate.trim() ? birthdate.trim() : '');
 
         clearInvalidMarks();
-        const clientErrs = buildClientRequiredErrors(fd, nameRegion || "");
+        const clientErrs = buildClientRequiredErrors(fd, nameRegion || '');
 
         if (Object.keys(clientErrs).length) {
             highlightInvalidFields(clientErrs);
-            toast.error("Please fill all required fields.", { id: "cmsp-submit" });
+            toast.error('Please fill all required fields.', { id: 'cmsp-submit' });
             return;
         }
 
@@ -1410,7 +1309,6 @@ export default function Welcome() {
             return;
         }
 
-
         setIsSubmitting(true);
         toast.loading('Submitting application…', { id: 'cmsp-submit' });
 
@@ -1428,15 +1326,18 @@ export default function Welcome() {
                 // reset controlled state
                 setIncoming(null);
                 setNameExt('');
-                setProvinceId(null); setProvinceLabel('');
-                setDistrictId(null); setDistrictLabel('');
-                setSchoolId(null); setSchoolLabel('');
+                setProvinceId(null);
+                setProvinceLabel('');
+                setDistrictId(null);
+                setDistrictLabel('');
+                setSchoolId(null);
+                setSchoolLabel('');
                 setYearLevel('');
-                setCourseId(null); setCourseLabel('');
+                setCourseId(null);
+                setCourseLabel('');
                 setDate(undefined);
                 setBirthdate('');
                 setSex('');
-
             },
             onError: (errors) => {
                 highlightInvalidFields(errors as Record<string, string>);
@@ -1449,7 +1350,7 @@ export default function Welcome() {
                 toast.dismiss('cmsp-submit');
                 setIsSubmitting(false);
             },
-      
+
             onFinish: (visit) => {
                 setIsSubmitting(false);
                 if (!visit.completed) {
@@ -1459,11 +1360,9 @@ export default function Welcome() {
         });
     };
 
-
     return (
         <>
             <Head title={`AY ${ayDeadline?.academic_year ?? ''}`}>
-
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
@@ -1473,23 +1372,22 @@ export default function Welcome() {
                 {deadlineDate && showDeadlineBanner && (
                     <motion.aside
                         key="deadline-banner"
-                        initial={{ opacity: 0, x: -40 }}   // slide in from left
+                        initial={{ opacity: 0, x: -40 }} // slide in from left
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -40 }}
-                        transition={{ duration: 0.35, ease: "easeOut" }}
-                        className="fixed left-3 right-3 top-[72px] z-[120] sm:left-6 sm:right-auto sm:max-w-sm md:max-w-md" // wider on desktop
+                        transition={{ duration: 0.35, ease: 'easeOut' }}
+                        className="fixed top-[72px] right-3 left-3 z-[120] sm:right-auto sm:left-6 sm:max-w-sm md:max-w-md" // wider on desktop
                     >
                         {/* Container color switches: amber when open, red when closed */}
                         <div
-                            className={`relative rounded-lg border p-2.5 backdrop-blur-sm shadow-md text-white
-          ${isDeadlinePast ? 'border-red-500/30 bg-red-600/90' : 'border-amber-500/30 bg-amber-600/90'}`}
+                            className={`relative rounded-lg border p-2.5 text-white shadow-md backdrop-blur-sm ${isDeadlinePast ? 'border-red-500/30 bg-red-600/90' : 'border-amber-500/30 bg-amber-600/90'}`}
                         >
                             {/* Close Button */}
                             <button
                                 onClick={() => setShowDeadlineBanner(false)}
-                                className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded hover:bg-white/20 transition"
+                                className="absolute top-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded transition hover:bg-white/20"
                             >
-                                <span className="text-xs font-bold leading-none">×</span>
+                                <span className="text-xs leading-none font-bold">×</span>
                             </button>
 
                             <div className="flex items-start gap-2 pr-4">
@@ -1498,15 +1396,9 @@ export default function Welcome() {
                                 </div>
 
                                 <div className="flex-1 leading-tight">
-                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/80">
-                                        Deadline
-                                    </p>
-                                    <p className="text-sm font-semibold">
-                                        {friendlyDeadline || formattedDeadline}
-                                    </p>
-                                    {deadlineStatusLabel && (
-                                        <p className="text-[11px] text-white/90">{deadlineStatusLabel}</p>
-                                    )}
+                                    <p className="text-[10px] font-semibold tracking-widest text-white/80 uppercase">Deadline</p>
+                                    <p className="text-sm font-semibold">{friendlyDeadline || formattedDeadline}</p>
+                                    {deadlineStatusLabel && <p className="text-[11px] text-white/90">{deadlineStatusLabel}</p>}
                                 </div>
                             </div>
 
@@ -1520,14 +1412,12 @@ export default function Welcome() {
                                             }}
                                         />
                                     </div>
-                                    <span className="text-[10px] whitespace-nowrap">
-                                        {isDeadlineToday ? "Today" : `${daysRemaining} d`}
-                                    </span>
+                                    <span className="text-[10px] whitespace-nowrap">{isDeadlineToday ? 'Today' : `${daysRemaining} d`}</span>
                                 </div>
                             )}
 
                             {isDeadlinePast && (
-                                <div className="mt-2 rounded-md border border-white/20 bg-white/10 p-1.5 text-center text-[10px] uppercase tracking-wider">
+                                <div className="mt-2 rounded-md border border-white/20 bg-white/10 p-1.5 text-center text-[10px] tracking-wider uppercase">
                                     Closed
                                 </div>
                             )}
@@ -1536,12 +1426,8 @@ export default function Welcome() {
                 )}
             </AnimatePresence>
 
-
-
-
-
             {/* Offset for fixed navbar */}
-            <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 pt-16 lg:pt-20 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
+            <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 pt-16 text-[#1b1b18] lg:justify-center lg:p-8 lg:pt-20 dark:bg-[#0a0a0a]">
                 <header className="w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
                     {/* Fixed navbar with explicit height */}
 
@@ -1552,29 +1438,20 @@ export default function Welcome() {
                             numberOfPieces={320}
                             recycle={false}
                             gravity={0.5}
-                            style={{ zIndex: 100000, pointerEvents: "none" }} // above overlays, no clicks blocked
+                            style={{ zIndex: 100000, pointerEvents: 'none' }} // above overlays, no clicks blocked
                         />
                     )}
 
                     <Dialog open={successOpen} onOpenChange={handleSuccessOpenChange}>
                         <DialogContent
                             onInteractOutside={(e) => e.preventDefault()}
-                            className="
-                                sm:max-w-2xl lg:max-w-3xl p-0
-                                rounded-3xl border border-zinc-200/70 dark:border-zinc-800/60
-                                bg-white/85 dark:bg-zinc-950/75 backdrop-blur-md shadow-2xl [&>button:last-of-type]:hidden
-                                "
+                            className="rounded-3xl border border-zinc-200/70 bg-white/85 p-0 shadow-2xl backdrop-blur-md sm:max-w-2xl lg:max-w-3xl dark:border-zinc-800/60 dark:bg-zinc-950/75 [&>button:last-of-type]:hidden"
                         >
                             {/* top-right close */}
                             <DialogClose asChild>
                                 <button
                                     aria-label="Close"
-                                    className="
-                                        absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center
-                                        rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800
-                                        dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100
-                                        transition
-                                        "
+                                    className="absolute top-4 right-4 inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                                 >
                                     <X className="h-5 w-5" />
                                 </button>
@@ -1586,15 +1463,14 @@ export default function Welcome() {
                                     initial={{ scale: 0.95, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
                                     transition={{ duration: 0.25 }}
-                                    className="mx-auto mb-6 flex h-16 w-16 items-center justify-center
-                    rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/30"
+                                    className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/30"
                                     aria-hidden
                                 >
                                     <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                                 </motion.div>
 
                                 <DialogHeader className="items-center">
-                                    <DialogTitle className="text-center text-2xl md:text-3xl font-semibold tracking-tight">
+                                    <DialogTitle className="text-center text-2xl font-semibold tracking-tight md:text-3xl">
                                         Congratulations!
                                     </DialogTitle>
                                     <DialogDescription className="mt-2 max-w-2xl text-center text-[15px] text-zinc-600 dark:text-zinc-400">
@@ -1604,7 +1480,7 @@ export default function Welcome() {
 
                                 {generatedTrackingNo && (
                                     <div className="mt-8 flex flex-col items-center gap-4">
-                                        <span className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+                                        <span className="text-sm font-medium tracking-[0.2em] text-zinc-500 uppercase dark:text-zinc-400">
                                             Your tracking number
                                         </span>
                                         <div className="flex flex-col items-center gap-3 sm:flex-row">
@@ -1625,12 +1501,10 @@ export default function Welcome() {
                                         <div className="mt-3 flex flex-col items-center">
                                             <Badge
                                                 variant="outline"
-                                                className="max-w-md px-4 py-2 text-center text-xs leading-relaxed whitespace-normal break-words
-                                                             border-blue-200 bg-blue-50/80 text-blue-700
-                                                             dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
+                                                className="max-w-md border-blue-200 bg-blue-50/80 px-4 py-2 text-center text-xs leading-relaxed break-words whitespace-normal text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
                                             >
-                                                💡 Save this code to track your application status anytime.
-                                                Go to "Eligibility & Requirements" tab and click "Track Status" to check your application.
+                                                💡 Save this code to track your application status anytime. Go to "Eligibility & Requirements" tab and
+                                                click "Track Status" to check your application.
                                             </Badge>
                                         </div>
                                     </div>
@@ -1641,7 +1515,7 @@ export default function Welcome() {
                                         <Button
                                             type="button"
                                             autoFocus
-                                            className="h-11 rounded-xl px-6 bg-[#1e3c73] hover:bg-[#25468a] text-white shadow-sm"
+                                            className="h-11 rounded-xl bg-[#1e3c73] px-6 text-white shadow-sm hover:bg-[#25468a]"
                                         >
                                             Close
                                         </Button>
@@ -1653,28 +1527,14 @@ export default function Welcome() {
 
                     <Dialog open={trackOpen} onOpenChange={setTrackOpen}>
                         <DialogContent
-                            className="
-      p-0 rounded-3xl
-      w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:w-[95vw] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl
-      max-h-[90vh] overflow-y-auto
-      bg-white dark:bg-zinc-950
-      border border-zinc-200/80 dark:border-zinc-800
-      shadow-2xl
-      [&>button:last-of-type]:hidden
-    "
+                            className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-3xl border border-zinc-200/80 bg-white p-0 shadow-2xl sm:w-[95vw] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800 dark:bg-zinc-950 [&>button:last-of-type]:hidden"
                             onInteractOutside={(e) => e.preventDefault()}
                         >
                             {/* single top-right close */}
                             <DialogClose asChild>
                                 <button
                                     aria-label="Close"
-                                    className="
-          absolute right-3 top-3 sm:right-4 sm:top-4 inline-flex h-8 w-8 sm:h-9 sm:w-9
-          items-center justify-center
-          rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800
-          dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100
-          transition
-        "
+                                    className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 sm:top-4 sm:right-4 sm:h-9 sm:w-9 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                                 >
                                     <X className="h-4 w-4 sm:h-5 sm:w-5" />
                                 </button>
@@ -1682,9 +1542,7 @@ export default function Welcome() {
 
                             <div className="p-3 sm:p-6">
                                 <DialogHeader className="space-y-1 text-center sm:text-left">
-                                    <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight">
-                                        Track Application Status
-                                    </DialogTitle>
+                                    <DialogTitle className="text-base font-semibold tracking-tight sm:text-lg">Track Application Status</DialogTitle>
                                     <DialogDescription className="text-sm text-zinc-600 dark:text-zinc-400">
                                         Enter your Tracking Number.
                                     </DialogDescription>
@@ -1715,52 +1573,35 @@ export default function Welcome() {
                                                     <InputOTPSlot
                                                         key={i}
                                                         index={i}
-                                                        className="
-                    h-9 w-[1.65rem] sm:h-12 sm:w-11 text-sm sm:text-lg font-medium
-                    rounded-xl border-2 border-zinc-300 dark:border-zinc-700
-                    bg-white dark:bg-zinc-900 shadow-sm
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
-                    data-[state=selected]:border-[#1e3c73]
-                  "
+                                                        className="h-9 w-[1.65rem] rounded-xl border-2 border-zinc-300 bg-white text-sm font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-[#1e3c73] focus-visible:outline-none data-[state=selected]:border-[#1e3c73] sm:h-12 sm:w-11 sm:text-lg dark:border-zinc-700 dark:bg-zinc-900"
                                                     />
                                                 ))}
                                             </InputOTPGroup>
 
-                                            <InputOTPSeparator className="px-0.5 sm:px-2 text-xs sm:text-base text-zinc-400">�</InputOTPSeparator>
+                                            <InputOTPSeparator className="px-0.5 text-xs text-zinc-400 sm:px-2 sm:text-base">�</InputOTPSeparator>
 
                                             <InputOTPGroup className="gap-0.5 sm:gap-2">
                                                 {[...Array(4)].map((_, i) => (
                                                     <InputOTPSlot
                                                         key={i + 5}
                                                         index={i + 5}
-                                                        className="
-                    h-9 w-[1.65rem] sm:h-12 sm:w-11 text-sm sm:text-lg font-medium
-                    rounded-xl border-2 border-zinc-300 dark:border-zinc-700
-                    bg-white dark:bg-zinc-900 shadow-sm
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]
-                    data-[state=selected]:border-[#1e3c73]
-                  "
+                                                        className="h-9 w-[1.65rem] rounded-xl border-2 border-zinc-300 bg-white text-sm font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-[#1e3c73] focus-visible:outline-none data-[state=selected]:border-[#1e3c73] sm:h-12 sm:w-11 sm:text-lg dark:border-zinc-700 dark:bg-zinc-900"
                                                     />
                                                 ))}
                                             </InputOTPGroup>
                                         </InputOTP>
                                     </div>
 
-                                    <p className="text-[11px] text-center text-zinc-500">
+                                    <p className="text-center text-[11px] text-zinc-500">
                                         Format: <span className="font-mono">AAAAA-YYYY</span>
                                     </p>
-                                    {trackError && (
-                                        <p className="text-xs text-center text-red-600 dark:text-red-400">{trackError}</p>
-                                    )}
+                                    {trackError && <p className="text-center text-xs text-red-600 dark:text-red-400">{trackError}</p>}
                                 </div>
 
                                 {/* STATUS RESULT */}
                                 <div
                                     id="statusResult"
-                                    className="
-          mt-4 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700
-          bg-white dark:bg-zinc-950 p-3 sm:p-5 min-h-[96px]
-        "
+                                    className="mt-4 min-h-[96px] rounded-2xl border-2 border-dashed border-zinc-300 bg-white p-3 sm:p-5 dark:border-zinc-700 dark:bg-zinc-950"
                                 >
                                     {loadingTrack ? (
                                         <div className="space-y-3">
@@ -1773,7 +1614,7 @@ export default function Welcome() {
                                         <StatusCard data={trackResult} />
                                     ) : (
                                         <div className="flex flex-col items-center justify-center text-center text-zinc-500">
-                                            <FileClock className="mb-2 h-7 w-7 sm:h-8 sm:w-8 text-zinc-400 dark:text-zinc-600" />
+                                            <FileClock className="mb-2 h-7 w-7 text-zinc-400 sm:h-8 sm:w-8 dark:text-zinc-600" />
                                             <p className="text-sm">
                                                 Results will appear here after you enter your tracking number and click <b>Check Status</b>.
                                             </p>
@@ -1787,9 +1628,9 @@ export default function Welcome() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="text-xs w-full sm:w-auto"
+                                        className="w-full text-xs sm:w-auto"
                                         onClick={() => {
-                                            setTrackingCode("");
+                                            setTrackingCode('');
                                             setTrackError(null);
                                             setTrackResult(null);
                                         }}
@@ -1799,10 +1640,10 @@ export default function Welcome() {
 
                                     <Button
                                         size="sm"
-                                        className="text-xs w-full sm:w-auto bg-[#1e3c73] hover:bg-[#153159] text-white"
+                                        className="w-full bg-[#1e3c73] text-xs text-white hover:bg-[#153159] sm:w-auto"
                                         onClick={handleCheckStatus}
                                         onKeyDown={(e) => {
-                                            if (e.key === "Enter") handleCheckStatus();
+                                            if (e.key === 'Enter') handleCheckStatus();
                                         }}
                                     >
                                         <Search className="mr-1.5 h-4 w-4" />
@@ -1813,43 +1654,51 @@ export default function Welcome() {
                         </DialogContent>
                     </Dialog>
 
-
                     {!isApplicationOpen && (
-                        <div className="fixed inset-0 z-50">
+                        <div className="fixed inset-0 z-50 h-dvh overflow-hidden overscroll-none">
                             {/* Ambient background */}
-                            <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_-10%,#e6f0ff_0%,transparent_60%),radial-gradient(60%_50%_at_50%_110%,#fff2cc_0%,transparent_60%)]
-                    dark:bg-[radial-gradient(60%_50%_at_50%_-10%,rgba(30,60,115,.25)_0%,transparent_60%),radial-gradient(60%_50%_at_50%_110%,rgba(245,158,11,.15)_0%,transparent_60%)]" />
-                            <div className="absolute inset-0 backdrop-blur-xl bg-white/55 dark:bg-zinc-950/55" />
+                            <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_-10%,#e6f0ff_0%,transparent_60%),radial-gradient(60%_50%_at_50%_110%,#fff2cc_0%,transparent_60%)] dark:bg-[radial-gradient(60%_50%_at_50%_-10%,rgba(30,60,115,.25)_0%,transparent_60%),radial-gradient(60%_50%_at_50%_110%,rgba(245,158,11,.15)_0%,transparent_60%)]" />
+                            <div className="absolute inset-0 bg-white/55 backdrop-blur-xl dark:bg-zinc-950/55" />
 
                             {/* Card with square top, rounded bottom */}
                             <div className="relative mx-auto grid h-full max-w-4xl place-items-center p-6">
                                 <motion.div
                                     initial={{ y: 16, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
-                                    transition={{ duration: 0.3, ease: "easeOut" }}
-                                    className="w-full rounded-b-3xl rounded-tl-none rounded-tr-none border border-zinc-200/70 dark:border-zinc-800/70 bg-white/80 dark:bg-zinc-950/70 shadow-2xl"
+                                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                                    className="w-full rounded-tl-none rounded-tr-none rounded-b-3xl border border-zinc-200/70 bg-white/80 shadow-2xl dark:border-zinc-800/70 dark:bg-zinc-950/70"
                                 >
                                     <div className="relative p-8 sm:p-10">
                                         {/* Accent bar */}
-                                        <div className="absolute -top-px left-0 right-0 h-1 bg-gradient-to-r from-[#1e3c73] via-sky-500 to-emerald-500" />
+                                        <div className="absolute -top-px right-0 left-0 h-1 bg-gradient-to-r from-[#1e3c73] via-sky-500 to-emerald-500" />
 
                                         {/* Header chip */}
                                         <div className="mb-3 flex justify-center">
-                                            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                                            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-1.5 text-xs font-semibold tracking-wide text-red-700 uppercase dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
                                                 Application Closed
                                             </div>
                                         </div>
 
-                                        <h2 className="text-center text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                                        <h2 className="text-center text-2xl font-bold text-zinc-900 sm:text-3xl dark:text-zinc-100">
                                             CMSP Online Application is Closed
                                         </h2>
 
                                         {/* Notice */}
-                                        <div className="mt-6 rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/75 dark:bg-amber-950/20 p-5">
+                                        <div className="mt-6 rounded-2xl border border-amber-200/70 bg-amber-50/75 p-5 dark:border-amber-900/40 dark:bg-amber-950/20">
                                             <div className="flex items-start gap-3">
                                                 <div className="mt-0.5 inline-flex h-8 w-8 flex-none items-center justify-center rounded-full ring-1 ring-amber-400/40 dark:ring-amber-700/50">
-                                                    <svg className="h-5 w-5 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 19.5A7.5 7.5 0 1 0 12 4.5a7.5 7.5 0 0 0 0 15z" />
+                                                    <svg
+                                                        className="h-5 w-5 text-amber-600 dark:text-amber-300"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            d="M12 9v2m0 4h.01M12 19.5A7.5 7.5 0 1 0 12 4.5a7.5 7.5 0 0 0 0 15z"
+                                                        />
                                                     </svg>
                                                 </div>
 
@@ -1859,7 +1708,7 @@ export default function Welcome() {
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <Badge
                                                             variant="secondary"
-                                                            className="rounded-full border border-green-300/70 bg-green-100/80 text-[0.8rem] sm:text-sm font-medium text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300"
+                                                            className="rounded-full border border-green-300/70 bg-green-100/80 text-[0.8rem] font-medium text-green-800 sm:text-sm dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300"
                                                         >
                                                             {closedWindowLabel}
                                                         </Badge>
@@ -1867,16 +1716,16 @@ export default function Welcome() {
                                                         {ayDeadline && (
                                                             <Badge
                                                                 variant="outline"
-                                                                className="rounded-full border border-red-300 bg-red-100/80 text-[0.75rem] sm:text-xs font-medium text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                                                className="rounded-full border border-red-300 bg-red-100/80 text-[0.75rem] font-medium text-red-800 sm:text-xs dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
                                                             >
                                                                 Application Deadline: {formattedDeadline}
                                                             </Badge>
                                                         )}
                                                     </div>
 
-                                                    <p className="text-sm sm:text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
-                                                        The CMSP online application for <strong>{closedWindowLabel}</strong> is no longer accepting new submissions.
-                                                        You may still track your submitted application below.
+                                                    <p className="text-sm leading-relaxed text-zinc-700 sm:text-base dark:text-zinc-300">
+                                                        The CMSP online application for <strong>{closedWindowLabel}</strong> is no longer accepting
+                                                        new submissions. You may still track your submitted application below.
                                                     </p>
                                                 </div>
                                             </div>
@@ -1886,7 +1735,7 @@ export default function Welcome() {
                                         <div className="mt-8 flex justify-center">
                                             <Button
                                                 onClick={() => setTrackOpen(true)}
-                                                className="rounded-full bg-[#1e3c73] hover:bg-[#18325f] px-6 py-2.5 text-white text-sm sm:text-base shadow-sm shadow-[#1e3c73]/10 focus-visible:ring-2 focus-visible:ring-[#1e3c73] focus-visible:ring-offset-2"
+                                                className="rounded-full bg-[#1e3c73] px-6 py-2.5 text-sm text-white shadow-sm shadow-[#1e3c73]/10 hover:bg-[#18325f] focus-visible:ring-2 focus-visible:ring-[#1e3c73] focus-visible:ring-offset-2 sm:text-base"
                                             >
                                                 <FileClock className="mr-2 h-4 w-4" />
                                                 Track Application Status
@@ -1898,34 +1747,21 @@ export default function Welcome() {
                         </div>
                     )}
 
-
-
-
-
-                    <nav
-                        className="
-                                fixed inset-x-0 top-0
-                                z-[80] isolate                  /* keep nav above popovers/dialogs */
-                                h-16 lg:h-20
-                                border-b border-gray-200
-                                bg-[#1e3c72]
-                                dark:border-[#3E3E3A] dark:bg-[#161615]
-                                "
-                    >
-                        <div className="mx-auto h-full max-w-screen-xl grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4">
+                    <nav className="/* keep nav above popovers/dialogs */ fixed inset-x-0 top-0 isolate z-[80] h-16 border-b border-gray-200 bg-[#1e3c72] lg:h-20 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                        <div className="mx-auto grid h-full max-w-screen-xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4">
                             <a href="/" className="flex items-center space-x-3 rtl:space-x-reverse">
                                 <img src="/ched_logo.png" className="h-8" alt="Logo" />
                                 <div className="flex flex-col">
-                                    <span className="hidden lg:block self-center text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
+                                    <span className="text-2xs hidden self-center font-semibold whitespace-nowrap text-white lg:block dark:text-[#EDEDEC]">
                                         COMMISSION ON HIGHER EDUCATION - REGIONAL OFFICE XII
                                     </span>
-                                    <span className="lg:hidden sm:block text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
+                                    <span className="text-2xs font-semibold whitespace-nowrap text-white sm:block lg:hidden dark:text-[#EDEDEC]">
                                         CHEDRO XII
                                     </span>
-                                    <span className="hidden lg:block text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
+                                    <span className="text-2xs hidden font-semibold whitespace-nowrap text-white lg:block dark:text-[#EDEDEC]">
                                         CHED Merit Scholarship Program (CMSP)
                                     </span>
-                                    <span className="lg:hidden sm:block text-2xs font-semibold whitespace-nowrap text-white dark:text-[#EDEDEC]">
+                                    <span className="text-2xs font-semibold whitespace-nowrap text-white sm:block lg:hidden dark:text-[#EDEDEC]">
                                         CMSP
                                     </span>
                                 </div>
@@ -1933,52 +1769,35 @@ export default function Welcome() {
 
                             <div className="hidden sm:block" />
 
-                            <div className="col-start-3 justify-self-end flex items-center gap-2 rtl:space-x-reverse">
+                            <div className="col-start-3 flex items-center gap-2 justify-self-end rtl:space-x-reverse">
                                 <button
                                     onClick={() => updateAppearance(isDark ? 'light' : 'dark')}
                                     className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition-colors duration-300 hover:ring-2 hover:ring-blue-500 dark:bg-gray-800"
                                     aria-label="Toggle dark mode"
                                 >
-                                    <Sun className={`absolute h-4 w-4 text-blue-900 transition-opacity duration-300 ${isDark ? 'opacity-0' : 'opacity-100'}`} />
-                                    <Moon className={`absolute h-4 w-4 text-blue-400 transition-opacity duration-300 ${isDark ? 'opacity-100' : 'opacity-0'}`} />
+                                    <Sun
+                                        className={`absolute h-4 w-4 text-blue-900 transition-opacity duration-300 ${isDark ? 'opacity-0' : 'opacity-100'}`}
+                                    />
+                                    <Moon
+                                        className={`absolute h-4 w-4 text-blue-400 transition-opacity duration-300 ${isDark ? 'opacity-100' : 'opacity-0'}`}
+                                    />
                                 </button>
                             </div>
-
                         </div>
                     </nav>
                 </header>
 
-
-
                 {/* Main */}
                 <div className="flex w-full items-center justify-center opacity-100 transition-opacity duration-700 lg:grow">
-
-                    <main className="mx-auto flex w-full max-w-[380px] sm:max-w-md flex-col gap-6 lg:max-w-7xl">
-
-                        <Tabs
-                            value={activeTab}
-                            onValueChange={(value) => setActiveTab(value as "form" | "req")}
-                            className="w-full mt-4"
-                        >
+                    <main className="mx-auto flex w-full max-w-[380px] flex-col gap-6 sm:max-w-md lg:max-w-7xl">
+                        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'form' | 'req')} className="mt-4 w-full">
                             <TabsList
                                 aria-label="CMSP sections"
-                                className="
-                                    -mx-0 mb-2 pb-6 flex w-full items-center gap-1  bg-transparent px-1
-                                    dark:border-zinc-800
-                                    [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
-                                    "
+                                className="-mx-0 mb-2 flex w-full items-center gap-1 bg-transparent px-1 pb-6 [scrollbar-width:none] dark:border-zinc-800 [&::-webkit-scrollbar]:hidden"
                             >
                                 <TabsTrigger
                                     value="form"
-                                    className="
-                                        group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium
-                                        text-zinc-600 transition-colors hover:text-zinc-900
-                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35
-                                        data-[state=active]:text-[#1e3c73]
-                                        data-[state=active]:bg-[#1e3c73]/10 dark:data-[state=active]:bg-[#1e3c73]/20
-                                        after:absolute after:left-2 after:right-2 after:-bottom-[11px] after:h-[2px] after:rounded-full
-                                        after:bg-transparent data-[state=active]:after:bg-[#1e3c73]
-                                    "
+                                    className="group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors after:absolute after:right-2 after:-bottom-[11px] after:left-2 after:h-[2px] after:rounded-full after:bg-transparent hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35 focus-visible:outline-none data-[state=active]:bg-[#1e3c73]/10 data-[state=active]:text-[#1e3c73] data-[state=active]:after:bg-[#1e3c73] dark:data-[state=active]:bg-[#1e3c73]/20"
                                 >
                                     <FileText className="h-4 w-4" />
                                     <span className="whitespace-nowrap">Application Form</span>
@@ -1986,45 +1805,29 @@ export default function Welcome() {
 
                                 <TabsTrigger
                                     value="req"
-                                    className="
-                                        group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium
-                                        text-zinc-600 transition-colors hover:text-zinc-900
-                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35
-                                        data-[state=active]:text-[#1e3c73]
-                                        data-[state=active]:bg-[#1e3c73]/10 dark:data-[state=active]:bg-[#1e3c73]/20
-                                        after:absolute after:left-2 after:right-2 after:-bottom-[11px] after:h-[2px] after:rounded-full
-                                        after:bg-transparent data-[state=active]:after:bg-[#1e3c73]
-                                    "
+                                    className="group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors after:absolute after:right-2 after:-bottom-[11px] after:left-2 after:h-[2px] after:rounded-full after:bg-transparent hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35 focus-visible:outline-none data-[state=active]:bg-[#1e3c73]/10 data-[state=active]:text-[#1e3c73] data-[state=active]:after:bg-[#1e3c73] dark:data-[state=active]:bg-[#1e3c73]/20"
                                 >
                                     <ShieldCheck className="h-4 w-4" />
                                     <span className="whitespace-nowrap">Eligibility & Requirements</span>
                                 </TabsTrigger>
-
                             </TabsList>
 
                             <TabsContent value="form" forceMount className="mt-3 data-[state=inactive]:hidden">
-
                                 <section className="w-full">
                                     <Card className="relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/75 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-zinc-800/60 dark:bg-zinc-950/40">
-
                                         <div className="absolute inset-x-0 top-0 h-1 bg-[#1e3c73]" />
 
                                         <CardHeader className="py-3">
-                                            <div className="grid items-center gap-3 grid-cols-1 sm:grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr_auto]">
+                                            <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr_auto]">
                                                 {/* logos */}
-                                                <div className="flex items-center gap-2 shrink-0 justify-center">
+                                                <div className="flex shrink-0 items-center justify-center gap-2">
                                                     <img src="/ched_logo.png" alt="CHED logo" className="h-8 w-auto md:h-9" />
                                                     <img src="/bagong_pilipinas.png" alt="Bagong Pilipinas logo" className="h-11 w-auto md:h-12" />
                                                 </div>
 
                                                 {/* title (no truncation, wraps nicely) */}
                                                 <div className="min-w-0">
-                                                    <CardTitle
-                                                        className="
-                                                            text-base font-semibold leading-tight text-zinc-900 dark:text-zinc-100
-                                                            whitespace-normal break-words
-                                                        "
-                                                    >
+                                                    <CardTitle className="text-base leading-tight font-semibold break-words whitespace-normal text-zinc-900 dark:text-zinc-100">
                                                         CALL FOR APPLICATION FOR THE CHED Merit Scholarship Program (CMSP)
                                                     </CardTitle>
                                                     <CardDescription className="text-xs text-zinc-600 dark:text-zinc-400">
@@ -2033,46 +1836,52 @@ export default function Welcome() {
                                                 </div>
 
                                                 {/* badges */}
-                                                <div className="flex flex-wrap items-center gap-1 justify-center sm:col-span-2 lg:col-span-1 lg:justify-end">
+                                                <div className="flex flex-wrap items-center justify-center gap-1 sm:col-span-2 lg:col-span-1 lg:justify-end">
                                                     {ayDeadline && (
                                                         <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                                                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                                                            <svg
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                className="h-3.5 w-3.5"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                            >
+                                                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                                                <path d="M16 2v4M8 2v4M3 10h18" />
                                                             </svg>
                                                             AY {ayDeadline.academic_year}
                                                         </span>
                                                     )}
 
                                                     <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100/80 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                                            <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            className="h-3.5 w-3.5"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <circle cx="12" cy="12" r="9" />
+                                                            <path d="M12 7v5l3 2" />
                                                         </svg>
-                                                        {ayDeadline ? `Deadline: ${formattedDeadline}` : "Deadline: TBA"}
+                                                        {ayDeadline ? `Deadline: ${formattedDeadline}` : 'Deadline: TBA'}
                                                     </span>
                                                 </div>
                                             </div>
-
                                         </CardHeader>
                                     </Card>
                                 </section>
 
-
-
-
                                 <form id="cmspForm" onSubmit={handleSubmit} encType="multipart/form-data" noValidate>
-                                    <input type="hidden" name="academic_year" value={ayDeadline?.academic_year ?? ""} />
-                                    <input type="hidden" name="deadline" value={ayDeadline?.deadline ?? ""} />
+                                    <input type="hidden" name="academic_year" value={ayDeadline?.academic_year ?? ''} />
+                                    <input type="hidden" name="deadline" value={ayDeadline?.deadline ?? ''} />
 
-                                    <section className="w-full mt-4">
+                                    <section className="mt-4 w-full">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
                                                 <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
                                                     <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
+                                                        className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#25468a] bg-[#1e3c73] text-base font-bold text-white shadow"
                                                         aria-hidden
                                                     >
                                                         1
@@ -2094,13 +1903,13 @@ export default function Welcome() {
                                                                     type="radio"
                                                                     name="incoming"
                                                                     value="yes"
-                                                                    checked={incoming === "yes"}
+                                                                    checked={incoming === 'yes'}
                                                                     onChange={(e) => {
                                                                         setIncoming(e.target.value);
                                                                         persistDraft('incoming', e.target.value);
                                                                     }}
                                                                     className="h-4 w-4"
-                                                                />{" "}
+                                                                />{' '}
                                                                 Yes
                                                             </label>
                                                             <label className="flex items-center gap-2 text-sm">
@@ -2108,17 +1917,16 @@ export default function Welcome() {
                                                                     type="radio"
                                                                     name="incoming"
                                                                     value="no"
-                                                                    checked={incoming === "no"}
+                                                                    checked={incoming === 'no'}
                                                                     onChange={(e) => {
                                                                         setIncoming(e.target.value);
                                                                         persistDraft('incoming', e.target.value);
                                                                     }}
                                                                     className="h-4 w-4"
-                                                                />{" "}
+                                                                />{' '}
                                                                 If NO, you are not qualified to apply.
                                                             </label>
                                                         </div>
-
                                                     </div>
 
                                                     {/* Select Region */}
@@ -2134,7 +1942,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="region"
                                                                 >
-                                                                    {nameRegion || "Select region"}
+                                                                    {nameRegion || 'Select region'}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -2148,7 +1956,7 @@ export default function Welcome() {
                                                                     <CommandList>
                                                                         <CommandEmpty>No result</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {["Region XII", "BARMM"].map((region) => (
+                                                                            {['Region XII', 'BARMM'].map((region) => (
                                                                                 <CommandItem
                                                                                     key={region}
                                                                                     value={region}
@@ -2172,16 +1980,12 @@ export default function Welcome() {
                                         </Card>
                                     </section>
 
-                                    <section className="w-full mt-4">
+                                    <section className="mt-4 w-full">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
+                                                <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
                                                     <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
+                                                        className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#25468a] bg-[#1e3c73] text-base font-bold text-white shadow"
                                                         aria-hidden
                                                     >
                                                         2
@@ -2191,10 +1995,7 @@ export default function Welcome() {
                                             </CardHeader>
 
                                             <CardContent className="space-y-6">
-
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
-
                                                     {/* LRN (Learner Reference Number) */}
                                                     <div className="md:col-span-1">
                                                         <label className="mb-1 block text-sm font-medium">
@@ -2205,9 +2006,7 @@ export default function Welcome() {
                                                             name="lrn"
                                                             placeholder="Enter your 12-digit LRN"
                                                             maxLength={12}
-                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                            dark:border-zinc-700 dark:bg-zinc-900"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                                                             required
                                                         />
                                                         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -2216,9 +2015,16 @@ export default function Welcome() {
                                                     </div>
                                                     {/* Email */}
                                                     <div>
-                                                        <label className="mb-1 block text-sm font-medium">Email (Active Email Address) <span className="text-red-500">*</span></label>
-                                                        <input type="email" name="email" placeholder="Your answer"
-                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Email (Active Email Address) <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="email"
+                                                            name="email"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                            required
+                                                        />
                                                     </div>
                                                     {/* Contact Number */}
                                                     <div>
@@ -2235,9 +2041,7 @@ export default function Welcome() {
                                                             maxLength={11}
                                                             pattern="^\d{11}$"
                                                             title="Enter exactly 11 digits (e.g., 09XXXXXXXXX)"
-                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                            dark:border-zinc-700 dark:bg-zinc-900"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                                                             onInput={(e) => {
                                                                 const t = e.currentTarget;
                                                                 // keep digits only; hard cap at 11
@@ -2254,41 +2058,51 @@ export default function Welcome() {
                                                                 }
                                                             }}
                                                         />
-
                                                     </div>
                                                 </div>
 
-
-
-
-
                                                 {/* Grid 2–3 cols */}
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-
-
-
-
-
                                                     {/* Last Name */}
                                                     <div>
-                                                        <label className="mb-1 block text-sm font-medium">Last Name <span className="text-red-500">*</span></label>
-                                                        <input type="text" name="last_name" placeholder="Your answer"
-                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Last Name <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="last_name"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                            required
+                                                        />
                                                     </div>
 
                                                     {/* First Name */}
                                                     <div>
-                                                        <label className="mb-1 block text-sm font-medium">First Name <span className="text-red-500">*</span></label>
-                                                        <input type="text" name="first_name" placeholder="Your answer"
-                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            First Name <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="first_name"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                            required
+                                                        />
                                                     </div>
 
                                                     {/* Middle Name */}
                                                     <div>
-                                                        <label className="mb-1 block text-sm font-medium">Middle Name <span className="text-red-500">*</span></label>
-                                                        <input type="text" name="middle_name" placeholder="Your answer"
-                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                        <label className="mb-1 block text-sm font-medium">
+                                                            Middle Name <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="middle_name"
+                                                            placeholder="Your answer"
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                            required
+                                                        />
                                                     </div>
 
                                                     {/* Sex (Radio) */}
@@ -2343,13 +2157,11 @@ export default function Welcome() {
                                                                 name="maiden_name"
                                                                 placeholder="Your answer"
                                                                 className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
-
                                                                 required
                                                                 onChange={(e) => persistDraft('maiden_name', e.currentTarget.value)}
                                                             />
                                                         </div>
                                                     )}
-
 
                                                     {/* Name Extension (Command searchable) */}
                                                     <div>
@@ -2362,7 +2174,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="name_extension"
                                                                 >
-                                                                    {nameExt || "Select extension"}
+                                                                    {nameExt || 'Select extension'}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -2376,7 +2188,7 @@ export default function Welcome() {
                                                                     <CommandList>
                                                                         <CommandEmpty>No result</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {["Jr", "II", "III", "Others"].map((ext) => (
+                                                                            {['Jr', 'II', 'III', 'Others'].map((ext) => (
                                                                                 <CommandItem
                                                                                     key={ext}
                                                                                     value={ext}
@@ -2396,7 +2208,6 @@ export default function Welcome() {
                                                         </Popover>
                                                     </div>
 
-
                                                     {/* Birthdate */}
                                                     <div>
                                                         <label className="mb-1 block text-sm font-medium">
@@ -2408,9 +2219,9 @@ export default function Welcome() {
                                                             type="date"
                                                             value={birthdate}
                                                             onChange={(e) => {
-                                                                const v = e.target.value;       // yyyy-MM-dd (partial typing allowed)
+                                                                const v = e.target.value; // yyyy-MM-dd (partial typing allowed)
                                                                 setBirthdate(v);
-                                                                persistDraft("birthdate", v || "");
+                                                                persistDraft('birthdate', v || '');
                                                             }}
                                                             onBlur={(e) => {
                                                                 const v = e.currentTarget.value;
@@ -2418,13 +2229,10 @@ export default function Welcome() {
                                                             }}
                                                             required
                                                         />
-
-
                                                     </div>
 
                                                     <label className="flex items-center gap-2 text-sm font-medium">
-                                                        <input type="checkbox" name="working" className="h-4 w-4" value="yes" />
-                                                        I am a working student
+                                                        <input type="checkbox" name="working" className="h-4 w-4" value="yes" />I am a working student
                                                     </label>
 
                                                     {/* Ethnicity (searchable) */}
@@ -2440,7 +2248,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="ethnicity"
                                                                 >
-                                                                    {ethnicityLabel || "Select ethnicity"}
+                                                                    {ethnicityLabel || 'Select ethnicity'}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -2465,8 +2273,8 @@ export default function Welcome() {
                                                                                         onSelect={() => {
                                                                                             setEthnicityId(e.id);
                                                                                             setEthnicityLabel(e.label);
-                                                                                            persistDraft("ethnicity", String(e.id));
-                                                                                            persistDraft("ethnicity_label", e.label);
+                                                                                            persistDraft('ethnicity', String(e.id));
+                                                                                            persistDraft('ethnicity_label', e.label);
                                                                                             setOpenEthnicity(false);
                                                                                         }}
                                                                                     >
@@ -2494,7 +2302,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="religion"
                                                                 >
-                                                                    {religionLabel || "Select religion"}
+                                                                    {religionLabel || 'Select religion'}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -2519,8 +2327,8 @@ export default function Welcome() {
                                                                                         onSelect={() => {
                                                                                             setReligionId(r.id);
                                                                                             setReligionLabel(r.label);
-                                                                                            persistDraft("religion", String(r.id));
-                                                                                            persistDraft("religion_label", r.label);
+                                                                                            persistDraft('religion', String(r.id));
+                                                                                            persistDraft('religion_label', r.label);
                                                                                             setOpenReligion(false);
                                                                                         }}
                                                                                     >
@@ -2534,24 +2342,18 @@ export default function Welcome() {
                                                             </PopoverContent>
                                                         </Popover>
                                                     </div>
-
-
                                                 </div>
                                             </CardContent>
                                         </Card>
                                     </section>
 
-                                    {nameRegion === "Region XII" && (
-                                        <section className="w-full mt-4">
+                                    {nameRegion === 'Region XII' && (
+                                        <section className="mt-4 w-full">
                                             <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                                 <CardHeader className="pb-2">
-                                                    <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
+                                                    <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
                                                         <span
-                                                            className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
+                                                            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#25468a] bg-[#1e3c73] text-base font-bold text-white shadow"
                                                             aria-hidden
                                                         >
                                                             3
@@ -2567,9 +2369,7 @@ export default function Welcome() {
                                                 </CardHeader>
 
                                                 <CardContent className="space-y-6">
-
                                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
                                                         {/* Province & Municipality */}
                                                         <div className="md:col-span-2">
                                                             <label className="mb-1 block text-sm font-medium">
@@ -2584,7 +2384,7 @@ export default function Welcome() {
                                                                         className="w-full justify-between"
                                                                         data-field="province_municipality"
                                                                     >
-                                                                        {provinceLabel || "Select location"}
+                                                                        {provinceLabel || 'Select location'}
                                                                         <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                     </Button>
                                                                 </PopoverTrigger>
@@ -2611,10 +2411,13 @@ export default function Welcome() {
                                                                                                 setProvinceId(loc.id);
                                                                                                 setProvinceLabel(loc.label);
                                                                                                 persistDraft('province_municipality', String(loc.id));
-                                                                                                persistDraft('province_municipality_label', loc.label);
+                                                                                                persistDraft(
+                                                                                                    'province_municipality_label',
+                                                                                                    loc.label,
+                                                                                                );
                                                                                                 setDistricts([]);
                                                                                                 setDistrictId(null);
-                                                                                                setDistrictLabel("");
+                                                                                                setDistrictLabel('');
                                                                                                 persistDraft('district', '');
                                                                                                 persistDraft('district_label', '');
                                                                                                 setOpenProvince(false);
@@ -2631,25 +2434,42 @@ export default function Welcome() {
                                                             </Popover>
                                                         </div>
 
-
-
                                                         {/* Address Fields */}
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium">Barangay <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="barangay" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Barangay <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                name="barangay"
+                                                                placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                            />
                                                         </div>
 
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium">Purok/Street <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="purok_street" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Purok/Street <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                name="purok_street"
+                                                                placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                            />
                                                         </div>
 
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium">ZIP Code <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="zip_code" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" required />
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                ZIP Code <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                name="zip_code"
+                                                                placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                                required
+                                                            />
                                                         </div>
 
                                                         {/* District */}
@@ -2667,9 +2487,7 @@ export default function Welcome() {
                                                                         data-field="district"
                                                                         disabled={!provinceId || loadingDistricts}
                                                                     >
-                                                                        {loadingDistricts
-                                                                            ? "Loading..."
-                                                                            : districtLabel || "Select district"}
+                                                                        {loadingDistricts ? 'Loading...' : districtLabel || 'Select district'}
                                                                         <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                     </Button>
                                                                 </PopoverTrigger>
@@ -2680,15 +2498,10 @@ export default function Welcome() {
                                                                     sideOffset={8}
                                                                 >
                                                                     <Command>
-                                                                        <CommandInput
-                                                                            placeholder="Search district..."
-                                                                            disabled={!provinceId}
-                                                                        />
+                                                                        <CommandInput placeholder="Search district..." disabled={!provinceId} />
                                                                         <CommandList>
                                                                             {!provinceId ? (
-                                                                                <CommandEmpty>
-                                                                                    Select a province & municipality first.
-                                                                                </CommandEmpty>
+                                                                                <CommandEmpty>Select a province & municipality first.</CommandEmpty>
                                                                             ) : loadingDistricts ? (
                                                                                 <CommandEmpty>Loading...</CommandEmpty>
                                                                             ) : districts.length === 0 ? (
@@ -2710,7 +2523,6 @@ export default function Welcome() {
                                                                                             {d.label}
                                                                                         </CommandItem>
                                                                                     ))}
-
                                                                                 </CommandGroup>
                                                                             )}
                                                                         </CommandList>
@@ -2718,34 +2530,25 @@ export default function Welcome() {
                                                                 </PopoverContent>
                                                             </Popover>
                                                         </div>
-
                                                     </div>
-
                                                 </CardContent>
                                             </Card>
                                         </section>
                                     )}
 
-
                                     {/* BARMM B Section */}
-                                    {nameRegion === "BARMM" && (
-                                        <section className="w-full mt-4">
+                                    {nameRegion === 'BARMM' && (
+                                        <section className="mt-4 w-full">
                                             <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                                 <CardHeader className="pb-2">
-
-                                                    <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
+                                                    <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
                                                         <span
-                                                            className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
+                                                            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#25468a] bg-[#1e3c73] text-base font-bold text-white shadow"
                                                             aria-hidden
                                                         >
                                                             3
                                                         </span>
                                                         Step 3: Address
-
                                                         <Badge
                                                             variant="outline"
                                                             className="rounded-full border-purple-300 bg-purple-50 text-xs font-semibold text-purple-700 dark:border-purple-900/50 dark:bg-purple-950/20 dark:text-purple-300"
@@ -2760,94 +2563,89 @@ export default function Welcome() {
                                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                                                         {/* Province */}
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium">Province <span className="text-red-500">*</span></label>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Province <span className="text-red-500">*</span>
+                                                            </label>
                                                             <input
                                                                 type="text"
                                                                 name="barmm_province"
                                                                 placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                dark:border-zinc-700 dark:bg-zinc-900"
-
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                                                             />
                                                         </div>
 
                                                         {/* Municipality */}
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium">Municipality <span className="text-red-500">*</span></label>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Municipality <span className="text-red-500">*</span>
+                                                            </label>
                                                             <input
                                                                 type="text"
                                                                 placeholder="Your answer"
                                                                 name="barmm_municipality"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                                                             />
                                                         </div>
 
                                                         {/* Barangay */}
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium">Barangay <span className="text-red-500">*</span></label>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Barangay <span className="text-red-500">*</span>
+                                                            </label>
                                                             <input
                                                                 type="text"
                                                                 placeholder="Your answer"
                                                                 name="barmm_barangay"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                                                             />
                                                         </div>
 
                                                         {/* Purok/Street */}
                                                         <div className="lg:col-span-2">
-                                                            <label className="mb-1 block text-sm font-medium">Purok/Street <span className="text-red-500">*</span></label>
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                Purok/Street <span className="text-red-500">*</span>
+                                                            </label>
                                                             <input
                                                                 type="text"
                                                                 placeholder="Your answer"
                                                                 name="barmm_purok_street"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                dark:border-zinc-700 dark:bg-zinc-900"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium">ZIP Code <span className="text-red-500">*</span></label>
-                                                            <input type="text" name="barmm_zip_code" placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900" />
+                                                            <label className="mb-1 block text-sm font-medium">
+                                                                ZIP Code <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                name="barmm_zip_code"
+                                                                placeholder="Your answer"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                            />
                                                         </div>
                                                     </div>
-
                                                 </CardContent>
                                             </Card>
                                         </section>
                                     )}
 
-                                    <section className="w-full mt-4">
+                                    <section className="mt-4 w-full">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
-
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
+                                                <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
                                                     <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
+                                                        className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#25468a] bg-[#1e3c73] text-base font-bold text-white shadow"
                                                         aria-hidden
                                                     >
                                                         4
                                                     </span>
                                                     Step 4: School & Course
-
-
                                                 </CardTitle>
                                             </CardHeader>
 
                                             <CardContent className="space-y-6">
-
                                                 {/* School / Year / Course Section */}
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-
                                                     {/* School intended to enroll */}
                                                     <div className="lg:col-span-2">
                                                         <label className="mb-1 block text-sm font-medium">
@@ -2862,7 +2660,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="intended_school"
                                                                 >
-                                                                    {schoolLabel || "Choose school"}
+                                                                    {schoolLabel || 'Choose school'}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -2879,41 +2677,38 @@ export default function Welcome() {
                                                                         onValueChange={(v) => {
                                                                             setSchoolQuery(v);
                                                                             const normalized = v.trim().toLowerCase();
-                                                                            if (normalized === "others" || normalized === "other") {
+                                                                            if (normalized === 'others' || normalized === 'other') {
                                                                                 const others = schools.find(
-                                                                                    (s) => s.label?.trim().toLowerCase() === "others"
+                                                                                    (s) => s.label?.trim().toLowerCase() === 'others',
                                                                                 );
                                                                                 if (others) {
                                                                                     setSchoolId(others.id);
                                                                                     setSchoolLabel(others.label);
-                                                                                    persistDraft("intended_school", String(others.id));
-                                                                                    persistDraft("intended_school_label", others.label);
+                                                                                    persistDraft('intended_school', String(others.id));
+                                                                                    persistDraft('intended_school_label', others.label);
                                                                                     setOpenSchool(false);
                                                                                 }
                                                                             }
                                                                         }}
                                                                     />
                                                                     <CommandList>
-
                                                                         {loadingSchools ? (
                                                                             <CommandEmpty>Loading...</CommandEmpty>
                                                                         ) : schools.length === 0 ? (
                                                                             <CommandEmpty>No result</CommandEmpty>
                                                                         ) : (
                                                                             <CommandGroup heading="Schools">
-
                                                                                 {sortedSchools.map((s) => (
-
                                                                                     <CommandItem
                                                                                         key={s.id}
                                                                                         value={s.label}
                                                                                         onSelect={() => {
                                                                                             setSchoolId(s.id);
                                                                                             setSchoolLabel(s.label);
-                                                                                            persistDraft("intended_school", String(s.id));
-                                                                                            persistDraft("intended_school_label", s.label);
+                                                                                            persistDraft('intended_school', String(s.id));
+                                                                                            persistDraft('intended_school_label', s.label);
                                                                                             setOpenSchool(false);
-                                                                                            setSchoolQuery(""); // clear search for next time
+                                                                                            setSchoolQuery(''); // clear search for next time
                                                                                         }}
                                                                                     >
                                                                                         {s.label}
@@ -2923,12 +2718,9 @@ export default function Welcome() {
                                                                         )}
                                                                     </CommandList>
                                                                 </Command>
-
                                                             </PopoverContent>
                                                         </Popover>
                                                     </div>
-
-
 
                                                     {/* Type of School */}
                                                     <div>
@@ -2936,36 +2728,27 @@ export default function Welcome() {
                                                             Type of School <span className="text-red-500">*</span>
                                                         </label>
                                                         <div className="flex flex-col gap-2 text-sm" data-group="school_type">
-                                                            {["Public", "LUC", "Private"].map((type) => (
+                                                            {['Public', 'LUC', 'Private'].map((type) => (
                                                                 <label key={type} className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="school_type"
-                                                                        value={type}
-                                                                        className="h-4 w-4"
-                                                                    />
+                                                                    <input type="radio" name="school_type" value={type} className="h-4 w-4" />
                                                                     {type}
                                                                 </label>
                                                             ))}
                                                         </div>
                                                     </div>
 
-
-
                                                     {/* If not indicated */}
                                                     {isOthersSelected && (
                                                         <div className="lg:col-span-3">
                                                             <label className="mb-1 block text-sm font-medium">
-                                                                If your school was not indicated, please specify here.{" "}
-                                                                <span className="italic text-xs">(Do not abbreviate!)</span>
+                                                                If your school was not indicated, please specify here.{' '}
+                                                                <span className="text-xs italic">(Do not abbreviate!)</span>
                                                             </label>
                                                             <input
                                                                 type="text"
                                                                 name="other_school"
                                                                 placeholder="Your answer"
-                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                            focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                            dark:border-zinc-700 dark:bg-zinc-900"
+                                                                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
                                                             />
                                                         </div>
                                                     )}
@@ -2984,7 +2767,7 @@ export default function Welcome() {
                                                                     className="w-full justify-between"
                                                                     data-field="year_level"
                                                                 >
-                                                                    {yearLevel || "Choose"}
+                                                                    {yearLevel || 'Choose'}
                                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
@@ -2999,7 +2782,7 @@ export default function Welcome() {
                                                                     <CommandList>
                                                                         <CommandEmpty>No result</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {["Incoming First Year"].map((lvl) => (
+                                                                            {['Incoming First Year'].map((lvl) => (
                                                                                 <CommandItem
                                                                                     key={lvl}
                                                                                     value={lvl}
@@ -3019,14 +2802,13 @@ export default function Welcome() {
                                                         </Popover>
                                                     </div>
 
-
                                                     {/* Course (CHED Priority) */}
                                                     <div className="lg:col-span-2">
                                                         <label className="mb-1 block text-sm font-medium">
                                                             Course (CHED Priority Courses) <span className="text-red-500">*</span>
                                                         </label>
                                                         <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
-                                                            Based on the:{" "}
+                                                            Based on the:{' '}
                                                             <a
                                                                 href="/files/CMO-NO.-7-S.-2023.pdf"
                                                                 target="_blank"
@@ -3045,10 +2827,13 @@ export default function Welcome() {
                                                                     className="w-full justify-between overflow-hidden"
                                                                     data-field="course"
                                                                 >
-                                                                    <span className="flex-1 min-w-0 truncate text-left" title={courseLabel || undefined}>
-                                                                        {courseLabel || "Choose course"}
+                                                                    <span
+                                                                        className="min-w-0 flex-1 truncate text-left"
+                                                                        title={courseLabel || undefined}
+                                                                    >
+                                                                        {courseLabel || 'Choose course'}
                                                                     </span>
-                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
+                                                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                                 </Button>
                                                             </PopoverTrigger>
 
@@ -3081,7 +2866,6 @@ export default function Welcome() {
                                                                                         {c.label}
                                                                                     </CommandItem>
                                                                                 ))}
-
                                                                             </CommandGroup>
                                                                         )}
                                                                     </CommandList>
@@ -3092,11 +2876,10 @@ export default function Welcome() {
 
                                                     {/* === Senior High School === */}
 
-
                                                     {/* SHS Information Card */}
                                                     <div className="lg:col-span-3">
                                                         <Card className="mb-2 rounded-xl border border-blue-200 bg-blue-50/60 shadow-none dark:border-blue-900/40 dark:bg-blue-950/20">
-                                                            <CardHeader className="py-2 px-4">
+                                                            <CardHeader className="px-4 py-2">
                                                                 <CardTitle className="text-sm font-semibold text-blue-900 dark:text-blue-200">
                                                                     Senior High School (SHS) Information
                                                                 </CardTitle>
@@ -3104,25 +2887,29 @@ export default function Welcome() {
                                                                     Please provide details about your Senior High School. Strictly no abbreviations.
                                                                 </CardDescription>
                                                             </CardHeader>
-                                                            <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-3 px-4 pb-4">
+                                                            <CardContent className="grid grid-cols-1 gap-4 px-4 pb-4 lg:grid-cols-3">
                                                                 <div className="lg:col-span-2">
                                                                     <label className="mb-1 block text-sm font-medium">
-                                                                        Name of Senior High School Attended/Graduated in (Strictly no abbreviation){" "}
+                                                                        Name of Senior High School Attended/Graduated in (Strictly no abbreviation){' '}
                                                                         <span className="text-red-500">*</span>
                                                                     </label>
-                                                                    <input type="text" name="shs_name" placeholder="Your answer"
-                                                                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                        focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                        dark:border-zinc-700 dark:bg-zinc-900" />
+                                                                    <input
+                                                                        type="text"
+                                                                        name="shs_name"
+                                                                        placeholder="Your answer"
+                                                                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                                    />
                                                                 </div>
                                                                 <div className="lg:col-span-1">
                                                                     <label className="mb-1 block text-sm font-medium">
                                                                         School Address (Senior High School) <span className="text-red-500">*</span>
                                                                     </label>
-                                                                    <input type="text" name="shs_address" placeholder="Your answer"
-                                                                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm 
-                                                                        focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                        dark:border-zinc-700 dark:bg-zinc-900" />
+                                                                    <input
+                                                                        type="text"
+                                                                        name="shs_address"
+                                                                        placeholder="Your answer"
+                                                                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
+                                                                    />
                                                                 </div>
                                                                 {/* Type of School */}
                                                                 <div className="lg:col-span-1">
@@ -3130,7 +2917,7 @@ export default function Welcome() {
                                                                         Type of School <span className="text-red-500">*</span>
                                                                     </label>
                                                                     <div className="flex flex-row gap-4 text-sm" data-group="shs_school_type">
-                                                                        {["Public", "Private"].map((type) => (
+                                                                        {['Public', 'Private'].map((type) => (
                                                                             <label key={type} className="flex items-center gap-2">
                                                                                 <input
                                                                                     type="radio"
@@ -3146,7 +2933,8 @@ export default function Welcome() {
 
                                                                 <div>
                                                                     <label className="mb-1 block text-sm font-medium">
-                                                                        General Weighted Average (GWA) of<br />
+                                                                        General Weighted Average (GWA) of
+                                                                        <br />
                                                                         1st Semester Grade 12 <span className="text-red-500">*</span>
                                                                     </label>
                                                                     <input
@@ -3163,7 +2951,8 @@ export default function Welcome() {
                                                                 </div>
                                                                 <div>
                                                                     <label className="mb-1 block text-sm font-medium">
-                                                                        General Weighted Average (GWA) of<br />
+                                                                        General Weighted Average (GWA) of
+                                                                        <br />
                                                                         2nd Semester Grade 12 <span className="text-red-500">*</span>
                                                                     </label>
                                                                     <input
@@ -3182,10 +2971,6 @@ export default function Welcome() {
                                                         </Card>
                                                     </div>
 
-
-
-
-
                                                     {/* === CHED Memorandum (Thumbnail) === */}
                                                     <div className="lg:col-span-3">
                                                         <label className="mb-1 block text-sm font-medium">
@@ -3193,7 +2978,7 @@ export default function Welcome() {
                                                         </label>
 
                                                         {/* Stack on mobile/tablet; row on large screens */}
-                                                        <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900 lg:flex-row lg:items-center">
+                                                        <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 lg:flex-row lg:items-center dark:border-zinc-700 dark:bg-zinc-900">
                                                             {/* Thumbnail */}
                                                             <a
                                                                 href="/files/memorandum.jpg"
@@ -3205,24 +2990,24 @@ export default function Welcome() {
                                                                     src="/files/memorandum.jpg"
                                                                     alt="CHED Memorandum"
                                                                     loading="lazy"
-                                                                    className="h-24 w-auto rounded-md border border-zinc-300 object-cover hover:opacity-90 dark:border-zinc-600 md:h-28"
+                                                                    className="h-24 w-auto rounded-md border border-zinc-300 object-cover hover:opacity-90 md:h-28 dark:border-zinc-600"
                                                                 />
                                                             </a>
 
                                                             {/* Right side: link + dropdown */}
-                                                            <div className="flex flex-1 min-w-0 flex-col gap-2">
+                                                            <div className="flex min-w-0 flex-1 flex-col gap-2">
                                                                 <a
                                                                     href="/files/memorandum.jpg"
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="text-sm text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 break-words"
+                                                                    className="text-sm break-words text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                                                 >
                                                                     View Full Memorandum
                                                                 </a>
 
                                                                 <select
                                                                     name="gad_stufaps_course"
-                                                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900 lg:w-64"
+                                                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 lg:w-64 dark:border-zinc-700 dark:bg-zinc-900"
                                                                 >
                                                                     <option value="">Choose</option>
                                                                     <option value="Bachelor of Marine and Transportation">
@@ -3232,22 +3017,17 @@ export default function Welcome() {
                                                             </div>
                                                         </div>
                                                     </div>
-
-
-
-
                                                 </div>
                                             </CardContent>
                                         </Card>
                                     </section>
 
-
-                                    <section className="w-full mt-4">
+                                    <section className="mt-4 w-full">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
+                                                <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
                                                     <span
-                                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e3c73] text-white font-bold text-base shadow border-2 border-[#25468a]"
+                                                        className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#25468a] bg-[#1e3c73] text-base font-bold text-white shadow"
                                                         aria-hidden
                                                     >
                                                         5
@@ -3257,7 +3037,6 @@ export default function Welcome() {
                                             </CardHeader>
 
                                             <CardContent className="space-y-10">
-
                                                 {/* === Father Information === */}
                                                 <div>
                                                     <div className="flex items-center justify-between gap-4">
@@ -3271,15 +3050,17 @@ export default function Welcome() {
                                                                 <span>N/A</span>
                                                             </label>
                                                             <label htmlFor="father-deceased" className="flex items-center gap-2 text-sm">
-                                                                <Checkbox id="father-deceased" checked={fatherDeceased} onCheckedChange={onFatherDeceasedChange} />
+                                                                <Checkbox
+                                                                    id="father-deceased"
+                                                                    checked={fatherDeceased}
+                                                                    onCheckedChange={onFatherDeceasedChange}
+                                                                />
                                                                 <span>Deceased</span>
                                                             </label>
                                                         </div>
                                                     </div>
 
                                                     <div className="relative">
-
-
                                                         {/* REPLACE the wrapper around the grid with this (remove the overlay entirely) */}
                                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                                                             <div>
@@ -3291,10 +3072,10 @@ export default function Welcome() {
                                                                     type="text"
                                                                     name="father_name"
                                                                     placeholder="Your answer"
-                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    className="input-primary disabled:cursor-not-allowed disabled:opacity-60"
                                                                     disabled={fatherFieldsDisabled}
                                                                     aria-disabled={fatherFieldsDisabled}
-                                                                    title={fatherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    title={fatherFieldsDisabled ? 'Disabled by N/A' : ''}
                                                                     required={!fatherFieldsDisabled}
                                                                 />
                                                             </div>
@@ -3308,10 +3089,10 @@ export default function Welcome() {
                                                                     type="text"
                                                                     name="father_occupation"
                                                                     placeholder="Your answer"
-                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    className="input-primary disabled:cursor-not-allowed disabled:opacity-60"
                                                                     disabled={fatherFieldsDisabled}
                                                                     aria-disabled={fatherFieldsDisabled}
-                                                                    title={fatherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    title={fatherFieldsDisabled ? 'Disabled by N/A' : ''}
                                                                     required={!fatherFieldsDisabled}
                                                                 />
                                                             </div>
@@ -3325,16 +3106,16 @@ export default function Welcome() {
                                                                     type="text"
                                                                     name="father_income_monthly"
                                                                     placeholder="e.g., 10000"
-                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    className="input-primary disabled:cursor-not-allowed disabled:opacity-60"
                                                                     inputMode="numeric"
                                                                     onInput={(e) => {
                                                                         const t = e.currentTarget;
-                                                                        t.value = t.value.replace(/\D/g, "");
+                                                                        t.value = t.value.replace(/\D/g, '');
                                                                         setFatherMonthly(t.value);
                                                                     }}
                                                                     disabled={fatherFieldsDisabled}
                                                                     aria-disabled={fatherFieldsDisabled}
-                                                                    title={fatherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    title={fatherFieldsDisabled ? 'Disabled by N/A' : ''}
                                                                     required={!fatherFieldsDisabled}
                                                                 />
                                                             </div>
@@ -3346,33 +3127,31 @@ export default function Welcome() {
                                                                 {/* Visible, non-editable display */}
                                                                 <input
                                                                     type="text"
-                                                                    className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
-                                                                    value={!fatherNA && fatherMonthly ? fmt(getYearly(fatherMonthly)) : ""}
+                                                                    className="input-primary cursor-not-allowed border-2 border-dashed border-gray-300 bg-gray-100 text-gray-500"
+                                                                    value={!fatherNA && fatherMonthly ? fmt(getYearly(fatherMonthly)) : ''}
                                                                     placeholder="Auto-calculated"
                                                                     disabled
                                                                     aria-readonly="true"
                                                                     aria-disabled="true"
                                                                     tabIndex={-1}
                                                                 />
-                                                                <span className="text-xs text-gray-500 italic block mt-1">
+                                                                <span className="mt-1 block text-xs text-gray-500 italic">
                                                                     Auto-calculated from monthly income (read-only)
                                                                 </span>
 
                                                                 <input
                                                                     type="hidden"
                                                                     name="father_income_yearly_bracket"
-                                                                    value={!fatherNA && fatherMonthly ? String(getYearly(fatherMonthly)) : ""}
+                                                                    value={!fatherNA && fatherMonthly ? String(getYearly(fatherMonthly)) : ''}
                                                                 />
                                                             </div>
                                                         </div>
-
                                                     </div>
 
                                                     {/* Optional: send flags */}
-                                                    <input type="hidden" name="father_na" value={fatherNA ? "1" : "0"} />
-                                                    <input type="hidden" name="father_deceased" value={fatherDeceased ? "1" : "0"} />
+                                                    <input type="hidden" name="father_na" value={fatherNA ? '1' : '0'} />
+                                                    <input type="hidden" name="father_deceased" value={fatherDeceased ? '1' : '0'} />
                                                 </div>
-
 
                                                 {/* === Mother Information === */}
                                                 <div>
@@ -3387,14 +3166,17 @@ export default function Welcome() {
                                                                 <span>N/A</span>
                                                             </label>
                                                             <label htmlFor="mother-deceased" className="flex items-center gap-2 text-sm">
-                                                                <Checkbox id="mother-deceased" checked={motherDeceased} onCheckedChange={onMotherDeceasedChange} />
+                                                                <Checkbox
+                                                                    id="mother-deceased"
+                                                                    checked={motherDeceased}
+                                                                    onCheckedChange={onMotherDeceasedChange}
+                                                                />
                                                                 <span>Deceased</span>
                                                             </label>
                                                         </div>
                                                     </div>
 
                                                     <div className="relative">
-
                                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                                                             <div>
                                                                 <label className="mb-1 block text-sm font-medium">
@@ -3405,10 +3187,10 @@ export default function Welcome() {
                                                                     type="text"
                                                                     name="mother_name"
                                                                     placeholder="Your answer"
-                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    className="input-primary disabled:cursor-not-allowed disabled:opacity-60"
                                                                     disabled={motherFieldsDisabled}
                                                                     aria-disabled={motherFieldsDisabled}
-                                                                    title={motherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    title={motherFieldsDisabled ? 'Disabled by N/A' : ''}
                                                                     required={!motherFieldsDisabled}
                                                                 />
                                                             </div>
@@ -3422,10 +3204,10 @@ export default function Welcome() {
                                                                     type="text"
                                                                     name="mother_occupation"
                                                                     placeholder="Your answer"
-                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    className="input-primary disabled:cursor-not-allowed disabled:opacity-60"
                                                                     disabled={motherFieldsDisabled}
                                                                     aria-disabled={motherFieldsDisabled}
-                                                                    title={motherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    title={motherFieldsDisabled ? 'Disabled by N/A' : ''}
                                                                     required={!motherFieldsDisabled}
                                                                 />
                                                             </div>
@@ -3439,16 +3221,16 @@ export default function Welcome() {
                                                                     type="text"
                                                                     name="mother_income_monthly"
                                                                     placeholder="e.g., 10000"
-                                                                    className="input-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    className="input-primary disabled:cursor-not-allowed disabled:opacity-60"
                                                                     inputMode="numeric"
                                                                     onInput={(e) => {
                                                                         const t = e.currentTarget;
-                                                                        t.value = t.value.replace(/\D/g, "");
+                                                                        t.value = t.value.replace(/\D/g, '');
                                                                         setMotherMonthly(t.value);
                                                                     }}
                                                                     disabled={motherFieldsDisabled}
                                                                     aria-disabled={motherFieldsDisabled}
-                                                                    title={motherFieldsDisabled ? "Disabled by N/A" : ""}
+                                                                    title={motherFieldsDisabled ? 'Disabled by N/A' : ''}
                                                                     required={!motherFieldsDisabled}
                                                                 />
                                                             </div>
@@ -3459,32 +3241,30 @@ export default function Welcome() {
                                                                 </label>
                                                                 <input
                                                                     type="text"
-                                                                    className="input-primary bg-gray-100 text-gray-500 cursor-not-allowed border-dashed border-2 border-gray-300"
-                                                                    value={!motherNA && motherMonthly ? fmt(getYearly(motherMonthly)) : ""}
+                                                                    className="input-primary cursor-not-allowed border-2 border-dashed border-gray-300 bg-gray-100 text-gray-500"
+                                                                    value={!motherNA && motherMonthly ? fmt(getYearly(motherMonthly)) : ''}
                                                                     placeholder="Auto-calculated"
                                                                     disabled
                                                                     aria-readonly="true"
                                                                     aria-disabled="true"
                                                                     tabIndex={-1}
                                                                 />
-                                                                <span className="text-xs text-gray-500 italic block mt-1">
+                                                                <span className="mt-1 block text-xs text-gray-500 italic">
                                                                     Auto-calculated from monthly income (read-only)
                                                                 </span>
 
                                                                 <input
                                                                     type="hidden"
                                                                     name="mother_income_yearly_bracket"
-                                                                    value={!motherNA && motherMonthly ? String(getYearly(motherMonthly)) : ""}
+                                                                    value={!motherNA && motherMonthly ? String(getYearly(motherMonthly)) : ''}
                                                                 />
                                                             </div>
                                                         </div>
-
                                                     </div>
 
-                                                    <input type="hidden" name="mother_na" value={motherNA ? "1" : "0"} />
-                                                    <input type="hidden" name="mother_deceased" value={motherDeceased ? "1" : "0"} />
+                                                    <input type="hidden" name="mother_na" value={motherNA ? '1' : '0'} />
+                                                    <input type="hidden" name="mother_deceased" value={motherDeceased ? '1' : '0'} />
                                                 </div>
-
 
                                                 {/* === Guardian Information === */}
                                                 {showGuardian && (
@@ -3535,44 +3315,36 @@ export default function Welcome() {
                                                         </div>
                                                     </div>
                                                 )}
-
                                             </CardContent>
                                         </Card>
                                     </section>
 
-
-
-                                    <section className="w-full mt-4">
+                                    <section className="mt-4 w-full">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                             <CardHeader className="pb-2">
-
-                                                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-3">
+                                                <CardTitle className="flex items-center gap-3 text-sm font-semibold tracking-tight">
                                                     <span
-                                                        className="
-                                                            flex h-7 w-7 items-center justify-center rounded-full
-                                                            bg-[#1e3c73] text-white font-bold text-base shadow
-                                                            border-2 border-[#25468a]
-                                                        "
+                                                        className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#25468a] bg-[#1e3c73] text-base font-bold text-white shadow"
                                                         aria-hidden
                                                     >
                                                         6
                                                     </span>
                                                     Step 6: Attachments
-
-
                                                 </CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-8">
-
                                                 <div className="rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-200">
                                                     <strong>NOTE:</strong> All uploaded documents must be:
-                                                    <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                                                    <ul className="mt-1 list-disc space-y-0.5 pl-5">
                                                         <li>Whole page readable — do not crop the document.</li>
-                                                        <li>Upload only <strong>1 PDF file</strong> per field.</li>
-                                                        <li>Maximum file size: <strong>10 MB</strong>.</li>
+                                                        <li>
+                                                            Upload only <strong>1 PDF file</strong> per field.
+                                                        </li>
+                                                        <li>
+                                                            Maximum file size: <strong>10 MB</strong>.
+                                                        </li>
                                                     </ul>
                                                 </div>
-
 
                                                 {/* === Application Form Upload (no Badge) === */}
                                                 <div>
@@ -3581,10 +3353,7 @@ export default function Welcome() {
                                                     </label>
 
                                                     {/* Badge-like container */}
-                                                    <div
-                                                        className="rounded-xl mb-2 w-full border border-blue-200 bg-blue-50/70 p-3 text-sm text-blue-900
-               dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200"
-                                                    >
+                                                    <div className="mb-2 w-full rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
                                                         {/* Instruction row */}
                                                         <div className="flex flex-col gap-2 sm:gap-3">
                                                             <div className="flex items-center gap-2">
@@ -3594,17 +3363,13 @@ export default function Welcome() {
 
                                                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                                                 <p className="leading-tight sm:flex-1">
-
-                                                                    Download the form
-
-                                                                    , fill it out completely, scan as PDF, then upload below.
+                                                                    Download the form , fill it out completely, scan as PDF, then upload below.
                                                                 </p>
                                                                 <a
                                                                     href="/files/CMSP_ANNEX_A-APPLICATION_FORM_2025-2026.pdf"
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-
-                                                                    className="inline-flex w-full justify-center sm:w-auto sm:shrink-0 items-center bg-white hover:bg-gray-100 text-blue-600 hover:text-blue-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                                    className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-blue-600 shadow-sm hover:bg-gray-100 hover:text-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none sm:w-auto sm:shrink-0 dark:bg-zinc-800 dark:text-blue-400 dark:hover:bg-zinc-700 dark:hover:text-blue-300"
                                                                 >
                                                                     <FileText className="mr-2 h-4 w-4" />
                                                                     Download Form
@@ -3613,7 +3378,7 @@ export default function Welcome() {
                                                         </div>
 
                                                         {/* Upload area */}
-                                                        <div className="mt-3 pt-3 border-t border-blue-200/60 dark:border-blue-900/30">
+                                                        <div className="mt-3 border-t border-blue-200/60 pt-3 dark:border-blue-900/30">
                                                             <div className="relative">
                                                                 <label htmlFor="application_form" className="sr-only">
                                                                     Upload accomplished application form (PDF)
@@ -3625,25 +3390,14 @@ export default function Welcome() {
                                                                     name="application_form"
                                                                     accept="application/pdf"
                                                                     onChange={(e) => setHasAppForm(!!e.currentTarget.files?.length)}
-                                                                    className="
-            w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
-            file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
-            file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a]
-            focus:border-blue-500 focus:ring focus:ring-blue-200
-            dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
-            disabled:cursor-not-allowed disabled:opacity-60
-            disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
-            dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
-          "
+                                                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a] focus:border-blue-500 focus:ring focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a] dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700"
                                                                 />
 
                                                                 {hasAppForm && (
                                                                     <button
                                                                         type="button"
                                                                         aria-label="Clear file"
-                                                                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
-                       text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
-                       dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                        className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-800"
                                                                         onClick={() => {
                                                                             if (!appFormRef.current || appFormRef.current.disabled) return;
                                                                             appFormRef.current.value = '';
@@ -3658,27 +3412,22 @@ export default function Welcome() {
                                                                     </button>
                                                                 )}
                                                             </div>
-
-
                                                         </div>
                                                     </div>
                                                 </div>
-
 
                                                 {/* === Required Documents === */}
                                                 <div>
                                                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                                         {[
-
-                                                            { name: "grades_g12_s1", label: "Grades/Report Card of 1st Semester in Grade 12" },
-                                                            { name: "grades_g12_s2", label: "Grades/Report Card of 2nd Semester in Grade 12" },
-                                                            { name: "birth_certificate", label: "Birth Certificate" },
+                                                            { name: 'grades_g12_s1', label: 'Grades/Report Card of 1st Semester in Grade 12' },
+                                                            { name: 'grades_g12_s2', label: 'Grades/Report Card of 2nd Semester in Grade 12' },
+                                                            { name: 'birth_certificate', label: 'Birth Certificate' },
                                                         ].map(({ name, label }) => (
                                                             <div key={name}>
                                                                 <label htmlFor={name} className="mb-1 block text-sm font-medium">
                                                                     {label} <span className="text-red-500">*</span>
                                                                 </label>
-
 
                                                                 <div className="relative">
                                                                     <input
@@ -3687,55 +3436,48 @@ export default function Welcome() {
                                                                         type="file"
                                                                         required
                                                                         accept="application/pdf"
-                                                                        ref={(el) => { fileRefs.current[name] = el; }}
+                                                                        ref={(el) => {
+                                                                            fileRefs.current[name] = el;
+                                                                        }}
                                                                         onChange={(e) => {
                                                                             const file = e.currentTarget.files?.[0];
-                                                                            if (!file) { setHasFileMap(m => ({ ...m, [name]: false })); return; }
-                                                                            const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                            if (!file) {
+                                                                                setHasFileMap((m) => ({ ...m, [name]: false }));
+                                                                                return;
+                                                                            }
+                                                                            const isPdf =
+                                                                                file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
                                                                             if (!isPdf) {
-                                                                                toast.error("PDF only.");
-                                                                                e.currentTarget.value = "";
-                                                                                setHasFileMap(m => ({ ...m, [name]: false }));
+                                                                                toast.error('PDF only.');
+                                                                                e.currentTarget.value = '';
+                                                                                setHasFileMap((m) => ({ ...m, [name]: false }));
                                                                                 return;
                                                                             }
                                                                             if (file.size > 10 * 1024 * 1024) {
-                                                                                toast.error("Max file size is 10 MB.");
-                                                                                e.currentTarget.value = "";
-                                                                                setHasFileMap(m => ({ ...m, [name]: false }));
+                                                                                toast.error('Max file size is 10 MB.');
+                                                                                e.currentTarget.value = '';
+                                                                                setHasFileMap((m) => ({ ...m, [name]: false }));
                                                                                 return;
                                                                             }
-                                                                            setHasFileMap(m => ({ ...m, [name]: true }));
+                                                                            setHasFileMap((m) => ({ ...m, [name]: true }));
                                                                         }}
-                                                                        className="
-        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
-        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
-        file:text-sm file:font-medium file:text-white
-        hover:file:bg-[#25468a]
-        focus:border-blue-500 focus:ring focus:ring-blue-200
-        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
-        /* Disabled look for the whole control and the native file button */
-        disabled:cursor-not-allowed disabled:opacity-60
-        disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
-        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
-        "
+                                                                        className="/* Disabled look for the whole control and the native file button */ w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a] focus:border-blue-500 focus:ring focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a] dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700"
                                                                     />
 
                                                                     {hasFileMap[name] && (
                                                                         <button
                                                                             type="button"
                                                                             aria-label="Clear file"
-                                                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
-                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
-                    dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                            className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-800"
                                                                             onClick={() => {
                                                                                 const el = fileRefs.current[name];
                                                                                 if (!el || el.disabled) return;
-                                                                                el.value = "";
-                                                                                setHasFileMap(m => ({ ...m, [name]: false }));
-                                                                                el.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                                el.value = '';
+                                                                                setHasFileMap((m) => ({ ...m, [name]: false }));
+                                                                                el.dispatchEvent(new Event('change', { bubbles: true }));
                                                                                 el.focus();
                                                                                 clearFile(fileRefs.current[name], () =>
-                                                                                    setHasFileMap(m => ({ ...m, [name]: false }))
+                                                                                    setHasFileMap((m) => ({ ...m, [name]: false })),
                                                                                 );
                                                                             }}
                                                                             disabled={fileRefs.current[name]?.disabled}
@@ -3744,7 +3486,6 @@ export default function Welcome() {
                                                                         </button>
                                                                     )}
                                                                 </div>
-
                                                             </div>
                                                         ))}
                                                     </div>
@@ -3762,16 +3503,15 @@ export default function Welcome() {
                                                     </div>
 
                                                     {/* List of options */}
-                                                    <ul className="mb-3 list-disc pl-5 text-xs text-zinc-700 dark:text-zinc-300 space-y-1">
+                                                    <ul className="mb-3 list-disc space-y-1 pl-5 text-xs text-zinc-700 dark:text-zinc-300">
                                                         <li>Latest ITR of parents or guardian if employed</li>
                                                         <li>Certificate of Tax Exemption/Non-Filer issued by BIR</li>
                                                         <li>
-                                                            Certified true copy of latest contract or proof of income (for children of Overseas Filipino Workers and Seafarers)
+                                                            Certified true copy of latest contract or proof of income (for children of Overseas
+                                                            Filipino Workers and Seafarers)
                                                         </li>
                                                         <li>Social Case Study Report issued by CSWD/MSWD</li>
                                                     </ul>
-
-
 
                                                     {/* File Upload */}
                                                     <div className="relative">
@@ -3782,48 +3522,39 @@ export default function Welcome() {
                                                             name="proof_of_income"
                                                             onChange={(e) => {
                                                                 const file = e.currentTarget.files?.[0];
-                                                                if (!file) { setHasProofIncome(false); return; }
+                                                                if (!file) {
+                                                                    setHasProofIncome(false);
+                                                                    return;
+                                                                }
 
-                                                                const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
                                                                 if (!isPdf) {
-                                                                    toast.error("PDF only.");
-                                                                    e.currentTarget.value = "";
+                                                                    toast.error('PDF only.');
+                                                                    e.currentTarget.value = '';
                                                                     setHasProofIncome(false);
                                                                     return;
                                                                 }
                                                                 if (file.size > 10 * 1024 * 1024) {
-                                                                    toast.error("Max file size is 10 MB.");
-                                                                    e.currentTarget.value = "";
+                                                                    toast.error('Max file size is 10 MB.');
+                                                                    e.currentTarget.value = '';
                                                                     setHasProofIncome(false);
                                                                     return;
                                                                 }
                                                                 setHasProofIncome(true);
                                                             }}
-                                                            className="
-        w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
-        file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 
-        file:text-sm file:font-medium file:text-white 
-        hover:file:bg-[#25468a] 
-        focus:border-blue-500 focus:ring focus:ring-blue-200 
-        dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
-        disabled:cursor-not-allowed disabled:opacity-60
-        disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
-        dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
-      "
+                                                            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a] focus:border-blue-500 focus:ring focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a] dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700"
                                                         />
 
                                                         {hasProofIncome && (
                                                             <button
                                                                 type="button"
                                                                 aria-label="Clear file"
-                                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
-                   text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
-                   dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-800"
                                                                 onClick={() => {
                                                                     if (!proofIncomeRef.current || proofIncomeRef.current.disabled) return;
-                                                                    proofIncomeRef.current.value = "";
+                                                                    proofIncomeRef.current.value = '';
                                                                     setHasProofIncome(false);
-                                                                    proofIncomeRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                    proofIncomeRef.current.dispatchEvent(new Event('change', { bubbles: true }));
                                                                     proofIncomeRef.current.focus();
                                                                 }}
                                                                 disabled={proofIncomeRef.current?.disabled}
@@ -3832,10 +3563,7 @@ export default function Welcome() {
                                                             </button>
                                                         )}
                                                     </div>
-
-
                                                 </div>
-
 
                                                 {/* === Special Group === */}
                                                 <div>
@@ -3843,15 +3571,15 @@ export default function Welcome() {
                                                         Check if the applicant belongs to a Special Group <span className="text-red-500">*</span>
                                                     </h3>
 
-                                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm" data-group="special_groups[]">
+                                                    <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2" data-group="special_groups[]">
                                                         {/* Left column */}
                                                         <div className="space-y-2">
                                                             {[
-                                                                "Person With Disability (PWD)",
-                                                                "Solo Parent",
-                                                                "Dependent Solo Parent",
-                                                                "Underprivileged  and Homeless Citizens",
-                                                                "Magna Carta for the Poor",
+                                                                'Person With Disability (PWD)',
+                                                                'Solo Parent',
+                                                                'Dependent Solo Parent',
+                                                                'Underprivileged  and Homeless Citizens',
+                                                                'Magna Carta for the Poor',
                                                             ].map((option, idx) => (
                                                                 <label key={idx} className="flex items-center gap-2">
                                                                     <input
@@ -3869,10 +3597,10 @@ export default function Welcome() {
                                                         {/* Right column */}
                                                         <div className="space-y-2">
                                                             {[
-                                                                "First Generation Students (first in the family to attend college or university)",
-                                                                "Student Senior Citizen",
-                                                                "Indigenous People (IP)",
-                                                                "N/A", // always last
+                                                                'First Generation Students (first in the family to attend college or university)',
+                                                                'Student Senior Citizen',
+                                                                'Indigenous People (IP)',
+                                                                'N/A', // always last
                                                             ].map((option, idx) => (
                                                                 <label key={idx} className="flex items-center gap-2">
                                                                     <input
@@ -3889,8 +3617,6 @@ export default function Welcome() {
                                                     </div>
                                                 </div>
 
-
-
                                                 {/* === Proof of Special Group & Certificate of Guardianship === */}
                                                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                                     {/* === Proof of Special Group === */}
@@ -3905,16 +3631,17 @@ export default function Welcome() {
                                                             <li>NCIP Certification</li>
                                                             <li>Underprivileged and Homeless Citizens Certification issued by DHSUD or C/MSWD</li>
                                                             <li>
-                                                                Social Case Study Report issued by C/MSWD covered under Magna Carta for the Poor and/or First Generation Students
+                                                                Social Case Study Report issued by C/MSWD covered under Magna Carta for the Poor
+                                                                and/or First Generation Students
                                                             </li>
                                                         </ul>
-                                                        <p className="text-xs text-justify rounded-md border border-green-200 bg-green-50 px-3 py-2 text-green-800 dark:border-green-600 dark:bg-green-900/30 dark:text-green-200">
-                                                            Additional five (5) points in the total score are given to applicants belonging
-                                                            to the special group of persons such as the Underprivileged and Homeless Citizens
-                                                            under Republic Act (RA) No. 7279, Persons with Disability (PWD) under RA No. 7277
-                                                            as amended, Solo Parents and/or their Dependents under RA 8972, Senior Citizens
-                                                            under RA 9994, and Indigenous Peoples under RA 8371, after complying with all the
-                                                            requirements herein set forth.
+                                                        <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-justify text-xs text-green-800 dark:border-green-600 dark:bg-green-900/30 dark:text-green-200">
+                                                            Additional five (5) points in the total score are given to applicants belonging to the
+                                                            special group of persons such as the Underprivileged and Homeless Citizens under Republic
+                                                            Act (RA) No. 7279, Persons with Disability (PWD) under RA No. 7277 as amended, Solo
+                                                            Parents and/or their Dependents under RA 8972, Senior Citizens under RA 9994, and
+                                                            Indigenous Peoples under RA 8371, after complying with all the requirements herein set
+                                                            forth.
                                                         </p>
 
                                                         <div className="relative mt-2">
@@ -3926,48 +3653,38 @@ export default function Welcome() {
                                                                 disabled={naSelected}
                                                                 onChange={(e) => {
                                                                     const file = e.currentTarget.files?.[0];
-                                                                    if (!file) { setHasProofSpecial(false); return; }
-                                                                    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                    if (!file) {
+                                                                        setHasProofSpecial(false);
+                                                                        return;
+                                                                    }
+                                                                    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
                                                                     if (!isPdf) {
-                                                                        toast.error("PDF only.");
-                                                                        e.currentTarget.value = "";
+                                                                        toast.error('PDF only.');
+                                                                        e.currentTarget.value = '';
                                                                         setHasProofSpecial(false);
                                                                         return;
                                                                     }
                                                                     if (file.size > 10 * 1024 * 1024) {
-                                                                        toast.error("Max file size is 10 MB.");
-                                                                        e.currentTarget.value = "";
+                                                                        toast.error('Max file size is 10 MB.');
+                                                                        e.currentTarget.value = '';
                                                                         setHasProofSpecial(false);
                                                                         return;
                                                                     }
                                                                     setHasProofSpecial(true);
                                                                 }}
-                                                                className="
-                                                                w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
-                                                                file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5
-                                                                file:text-sm file:font-medium file:text-white
-                                                                hover:file:bg-[#25468a]
-                                                                focus:border-blue-500 focus:ring focus:ring-blue-200
-                                                                dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
-                                                                /* Disabled styling */
-                                                                disabled:cursor-not-allowed disabled:opacity-60
-                                                                disabled:file:bg-zinc-300 disabled:file:text-zinc-600
-                                                                dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400
-                                                                "
+                                                                className="/* Disabled styling */ w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a] focus:border-blue-500 focus:ring focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:file:bg-zinc-300 disabled:file:text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a] dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400"
                                                             />
 
                                                             {hasProofSpecial && (
                                                                 <button
                                                                     type="button"
                                                                     aria-label="Clear file"
-                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
-                    text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
-                    dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-800"
                                                                     onClick={() => {
                                                                         if (!proofSpecialRef.current || proofSpecialRef.current.disabled) return;
-                                                                        proofSpecialRef.current.value = "";
+                                                                        proofSpecialRef.current.value = '';
                                                                         setHasProofSpecial(false);
-                                                                        proofSpecialRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                        proofSpecialRef.current.dispatchEvent(new Event('change', { bubbles: true }));
                                                                         proofSpecialRef.current.focus();
                                                                     }}
                                                                     disabled={proofSpecialRef.current?.disabled}
@@ -3976,15 +3693,13 @@ export default function Welcome() {
                                                                 </button>
                                                             )}
                                                         </div>
-
-
                                                     </div>
 
                                                     {/* === Certificate of Guardianship === */}
                                                     <div>
                                                         <label className="mb-1 block text-sm font-medium">
-                                                            Notarized Certificate of Guardianship, issued by the legal
-                                                            guardian of the student applicant, if applicable.
+                                                            Notarized Certificate of Guardianship, issued by the legal guardian of the student
+                                                            applicant, if applicable.
                                                         </label>
                                                         <div className="relative">
                                                             <input
@@ -3994,49 +3709,39 @@ export default function Welcome() {
                                                                 name="guardianship_certificate"
                                                                 onChange={(e) => {
                                                                     const file = e.currentTarget.files?.[0];
-                                                                    if (!file) { setHasGuardianship(false); return; }
+                                                                    if (!file) {
+                                                                        setHasGuardianship(false);
+                                                                        return;
+                                                                    }
 
-                                                                    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+                                                                    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
                                                                     if (!isPdf) {
-                                                                        toast.error("PDF only.");
-                                                                        e.currentTarget.value = "";
+                                                                        toast.error('PDF only.');
+                                                                        e.currentTarget.value = '';
                                                                         setHasGuardianship(false);
                                                                         return;
                                                                     }
                                                                     if (file.size > 10 * 1024 * 1024) {
-                                                                        toast.error("Max file size is 10 MB.");
-                                                                        e.currentTarget.value = "";
+                                                                        toast.error('Max file size is 10 MB.');
+                                                                        e.currentTarget.value = '';
                                                                         setHasGuardianship(false);
                                                                         return;
                                                                     }
                                                                     setHasGuardianship(true);
                                                                 }}
-                                                                className="
-                                                                w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors
-                                                                file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 
-                                                                file:text-sm file:font-medium file:text-white 
-                                                                hover:file:bg-[#25468a] 
-                                                                focus:border-blue-500 focus:ring focus:ring-blue-200 
-                                                                dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a]
-                                                                /* Disabled look */
-                                                                disabled:cursor-not-allowed disabled:opacity-60
-                                                                disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300
-                                                                dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700
-                                                                "
+                                                                className="/* Disabled look */ w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a] focus:border-blue-500 focus:ring focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a] dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700"
                                                             />
 
                                                             {hasGuardianship && (
                                                                 <button
                                                                     type="button"
                                                                     aria-label="Clear file"
-                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1
-                                                                            text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100
-                                                                            dark:hover:bg-zinc-800 disabled:opacity-50"
+                                                                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-800"
                                                                     onClick={() => {
                                                                         if (!guardianshipRef.current || guardianshipRef.current.disabled) return;
-                                                                        guardianshipRef.current.value = "";
+                                                                        guardianshipRef.current.value = '';
                                                                         setHasGuardianship(false);
-                                                                        guardianshipRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                                                                        guardianshipRef.current.dispatchEvent(new Event('change', { bubbles: true }));
                                                                         guardianshipRef.current.focus();
                                                                     }}
                                                                     disabled={guardianshipRef.current?.disabled}
@@ -4045,32 +3750,21 @@ export default function Welcome() {
                                                                 </button>
                                                             )}
                                                         </div>
-
-
-
                                                     </div>
                                                 </div>
-
-
-
-
                                             </CardContent>
                                         </Card>
                                     </section>
 
                                     {/* === Certification & Data Privacy Consent === */}
-                                    <section className="w-full mt-4">
+                                    <section className="mt-4 w-full">
                                         <Card className="rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
-
-
                                             <CardContent className="space-y-6 text-sm text-zinc-700 dark:text-zinc-300">
                                                 {/* Ranking Info */}
-                                                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 text-sm 
-                                                                    dark:border-amber-900 dark:bg-amber-950/30">
+                                                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/30">
                                                     <p className="mb-2 text-amber-900 dark:text-amber-200">
-                                                        The ranking shall be used by selecting the most qualified applicants based on
-                                                        the requirements. The ranking shall be made according to the following
-                                                        percentage distribution:
+                                                        The ranking shall be used by selecting the most qualified applicants based on the
+                                                        requirements. The ranking shall be made according to the following percentage distribution:
                                                     </p>
                                                     <ul className="ml-4 list-disc space-y-1 text-amber-800 dark:text-amber-300">
                                                         <li>
@@ -4083,34 +3777,30 @@ export default function Welcome() {
                                                             TOTAL – <span className="font-semibold">100%</span>
                                                         </li>
                                                     </ul>
-                                                    <p className="mt-2 font-medium text-amber-900 dark:text-amber-200">
-                                                        Good luck and God bless!
-                                                    </p>
+                                                    <p className="mt-2 font-medium text-amber-900 dark:text-amber-200">Good luck and God bless!</p>
                                                 </div>
-
 
                                                 {/* Certification & Consent */}
                                                 <div>
                                                     <p className="mb-3 text-justify text-sm leading-relaxed">
-                                                        I hereby certify that the foregoing statements are true and correct. Any
-                                                        misinformation or withholding of information will automatically disqualify me
-                                                        from the CHED Scholarship Program. I am willing to refund the financial
-                                                        benefits received if such information is discovered after acceptance of the
-                                                        award.
+                                                        I hereby certify that the foregoing statements are true and correct. Any misinformation or
+                                                        withholding of information will automatically disqualify me from the CHED Scholarship Program.
+                                                        I am willing to refund the financial benefits received if such information is discovered after
+                                                        acceptance of the award.
                                                     </p>
                                                     <p className="mb-3 text-justify text-sm leading-relaxed">
-                                                        I hereby express my consent for the Commission on Higher Education to collect,
-                                                        record, organize, update or modify, retrieve, consult, use, consolidate, block,
-                                                        erase, or destruct my personal data as part of my information. I hereby affirm
-                                                        my right to be informed, object to processing, access and rectify, suspend or
-                                                        withdraw my personal data and be indemnified in case of damages pursuant to the
-                                                        provisions of the Republic Act No. 10173 of the Philippines, Data Privacy Act
-                                                        of 2012 and its corresponding Implementing Rules and Regulations.
+                                                        I hereby express my consent for the Commission on Higher Education to collect, record,
+                                                        organize, update or modify, retrieve, consult, use, consolidate, block, erase, or destruct my
+                                                        personal data as part of my information. I hereby affirm my right to be informed, object to
+                                                        processing, access and rectify, suspend or withdraw my personal data and be indemnified in
+                                                        case of damages pursuant to the provisions of the Republic Act No. 10173 of the Philippines,
+                                                        Data Privacy Act of 2012 and its corresponding Implementing Rules and Regulations.
                                                     </p>
 
                                                     {/* Checkbox */}
                                                     <label className="flex items-center gap-2 text-sm font-medium">
-                                                        <input type="checkbox" name="consent" className="h-4 w-4" value="yes" /> Yes <span className="text-red-500">*</span>
+                                                        <input type="checkbox" name="consent" className="h-4 w-4" value="yes" /> Yes{' '}
+                                                        <span className="text-red-500">*</span>
                                                     </label>
                                                 </div>
                                             </CardContent>
@@ -4122,11 +3812,7 @@ export default function Welcome() {
                                         <div className="flex justify-center pt-6">
                                             <Button
                                                 type="submit"
-
-                                                className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm
-                                                hover:bg-[#25468a] focus:outline-none focus:ring-2 focus:ring-[#1e3c73]
-                                                disabled:cursor-not-allowed disabled:opacity-50
-                                                dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
+                                                className="w-full max-w-xs rounded-lg bg-[#1e3c73] px-6 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#25468a] focus:ring-2 focus:ring-[#1e3c73] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#1e3c73] dark:hover:bg-[#25468a] dark:focus:ring-[#1e3c73]"
                                                 disabled={isSubmitting}
                                                 aria-busy={isSubmitting}
                                             >
@@ -4135,10 +3821,8 @@ export default function Welcome() {
                                         </div>
                                     </section>
                                 </form>
-
                             </TabsContent>
                             <TabsContent value="req" forceMount className="mt-3 data-[state=inactive]:hidden">
-
                                 {/* Top CMSP card */}
                                 <section className="w-full">
                                     <ApplicationInfoCard
@@ -4149,13 +3833,12 @@ export default function Welcome() {
                                 </section>
 
                                 {/* Toggleable compact row — 3 columns: 1 (Ineligible) + 2 (Qualifications in 2-inner-cols) */}
-                                <section className="w-full mt-4">
+                                <section className="mt-4 w-full">
                                     <div className="mb-2 flex items-center justify-between">
                                         <h2
-                                            className={`text-sm font-semibold ${showReqs
-                                                ? "text-zinc-700 dark:text-zinc-300"
-                                                : "text-zinc-400 dark:text-zinc-500"
-                                                }`}
+                                            className={`text-sm font-semibold ${
+                                                showReqs ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-500'
+                                            }`}
                                         >
                                             Eligibility & Requirements
                                         </h2>
@@ -4164,17 +3847,13 @@ export default function Welcome() {
                                             size="sm"
                                             aria-expanded={showReqs}
                                             onClick={() => setShowReqs((s) => !s)}
-                                            className="h-8 rounded-full px-3 flex items-center gap-1"
+                                            className="flex h-8 items-center gap-1 rounded-full px-3"
                                         >
-                                            <motion.div
-                                                animate={{ rotate: showReqs ? 180 : 0 }}
-                                                transition={{ duration: 0.3 }}
-                                            >
+                                            <motion.div animate={{ rotate: showReqs ? 180 : 0 }} transition={{ duration: 0.3 }}>
                                                 <ChevronDown className="h-4 w-4" />
                                             </motion.div>
-                                            {showReqs ? "Hide" : "Show"}
+                                            {showReqs ? 'Hide' : 'Show'}
                                         </Button>
-
                                     </div>
 
                                     <AnimatePresence initial={false}>
@@ -4182,17 +3861,18 @@ export default function Welcome() {
                                             <motion.div
                                                 key="reqs"
                                                 initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: "auto" }}
+                                                animate={{ opacity: 1, height: 'auto' }}
                                                 exit={{ opacity: 0, height: 0 }}
-                                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                                transition={{ duration: 0.3, ease: 'easeInOut' }}
                                                 className="overflow-hidden"
                                             >
-
                                                 <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
                                                     {/* Col 1: Ineligible Applicant */}
                                                     <Card className="flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                                         <CardHeader className="pb-2">
-                                                            <CardTitle className="text-sm font-semibold tracking-tight">INELIGIBLE APPLICANT</CardTitle>
+                                                            <CardTitle className="text-sm font-semibold tracking-tight">
+                                                                INELIGIBLE APPLICANT
+                                                            </CardTitle>
                                                             <CardDescription className="text-xs text-zinc-600 dark:text-zinc-400">
                                                                 The following applicants are ineligible to apply:
                                                             </CardDescription>
@@ -4200,81 +3880,106 @@ export default function Welcome() {
                                                         <CardContent className="flex-1 text-[12px] leading-snug text-zinc-800 dark:text-zinc-200">
                                                             <ul className="list-none space-y-1.5">
                                                                 <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.1</span>
+                                                                    <span className="text-right font-medium tabular-nums">5.1</span>
                                                                     <span>Foreign students;</span>
                                                                 </li>
 
                                                                 <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.2</span>
-                                                                    <span>Applicants who are not incoming or current first year undergraduate students;</span>
-                                                                </li>
-
-                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.3</span>
-                                                                    <span>Applicants who will or are enrolled in priority programs but not granted government recognition or -certification by CHED;</span>
-                                                                </li>
-
-                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.4</span>
-                                                                    <span>Applicants who will or intend to enroll in a non-priority program;</span>
-                                                                </li>
-
-                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.5</span>
-                                                                    <span>Transferees and Shiftees;</span>
-                                                                </li>
-
-                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.6</span>
+                                                                    <span className="text-right font-medium tabular-nums">5.2</span>
                                                                     <span>
-                                                                        An existing recipient of any nationally government-funded scholarships or grants, including Tertiary Education Subsidy (TES) or
-                                                                        Tulong Dunong Program (TDP). Grantees under the One-time Grants are exempted;
+                                                                        Applicants who are not incoming or current first year undergraduate students;
                                                                     </span>
                                                                 </li>
 
                                                                 <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.7</span>
-                                                                    <span>Applicants who has completed an undergraduate degree program or a second course taker; and</span>
+                                                                    <span className="text-right font-medium tabular-nums">5.3</span>
+                                                                    <span>
+                                                                        Applicants who will or are enrolled in priority programs but not granted
+                                                                        government recognition or -certification by CHED;
+                                                                    </span>
                                                                 </li>
 
                                                                 <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
-                                                                    <span className="font-medium tabular-nums text-right">5.8</span>
-                                                                    <span>Applicants who submitted tampered and/or falsified application documents, including documentary requirements.</span>
+                                                                    <span className="text-right font-medium tabular-nums">5.4</span>
+                                                                    <span>Applicants who will or intend to enroll in a non-priority program;</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="text-right font-medium tabular-nums">5.5</span>
+                                                                    <span>Transferees and Shiftees;</span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="text-right font-medium tabular-nums">5.6</span>
+                                                                    <span>
+                                                                        An existing recipient of any nationally government-funded scholarships or
+                                                                        grants, including Tertiary Education Subsidy (TES) or Tulong Dunong Program
+                                                                        (TDP). Grantees under the One-time Grants are exempted;
+                                                                    </span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="text-right font-medium tabular-nums">5.7</span>
+                                                                    <span>
+                                                                        Applicants who has completed an undergraduate degree program or a second
+                                                                        course taker; and
+                                                                    </span>
+                                                                </li>
+
+                                                                <li className="grid grid-cols-[2.5rem_1fr] items-start gap-2">
+                                                                    <span className="text-right font-medium tabular-nums">5.8</span>
+                                                                    <span>
+                                                                        Applicants who submitted tampered and/or falsified application documents,
+                                                                        including documentary requirements.
+                                                                    </span>
                                                                 </li>
                                                             </ul>
                                                         </CardContent>
-
                                                     </Card>
 
                                                     {/* Cols 2–3 */}
                                                     <Card className="col-span-1 flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white/75 shadow-sm lg:col-span-2 dark:border-zinc-800/70 dark:bg-zinc-950/40">
                                                         <CardHeader className="pb-2">
-                                                            <CardTitle className="text-sm font-semibold tracking-tight">
-                                                                QUALIFICATIONS
-                                                            </CardTitle>
+                                                            <CardTitle className="text-sm font-semibold tracking-tight">QUALIFICATIONS</CardTitle>
                                                         </CardHeader>
 
                                                         {/* Three inner columns on lg+; stacked on mobile */}
                                                         <CardContent className="flex-1 text-[12px] leading-snug text-zinc-800 dark:text-zinc-200">
                                                             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-
                                                                 {/* Col 1: I & II */}
                                                                 <div className="space-y-3">
                                                                     <div>
                                                                         <h3 className="mb-1 text-[12px] font-semibold">I. Priority Programs:</h3>
-                                                                        <ol className="list-decimal pl-5 space-y-1">
-                                                                            <li>National – CMO No. 7, s. 2023 entitled “List of Identified Priority Programs for AYs 2023-2024 to 2027-2028”;</li>
-                                                                            <li>Regional – Memorandum from the Office of the Chairperson on Regional Priority Programs dated September 17, 2021; and</li>
-                                                                            <li>Gender and Development (GAD) – Memorandum from the Chairperson on GAD StuFAPs Allocation dated April 4, 2011.</li>
+                                                                        <ol className="list-decimal space-y-1 pl-5">
+                                                                            <li>
+                                                                                National – CMO No. 7, s. 2023 entitled “List of Identified Priority
+                                                                                Programs for AYs 2023-2024 to 2027-2028”;
+                                                                            </li>
+                                                                            <li>
+                                                                                Regional – Memorandum from the Office of the Chairperson on Regional
+                                                                                Priority Programs dated September 17, 2021; and
+                                                                            </li>
+                                                                            <li>
+                                                                                Gender and Development (GAD) – Memorandum from the Chairperson on GAD
+                                                                                StuFAPs Allocation dated April 4, 2011.
+                                                                            </li>
                                                                         </ol>
                                                                     </div>
 
                                                                     <div>
-                                                                        <h3 className="mb-1 text-[12px] font-semibold">II. Eligibility Requirements:</h3>
-                                                                        <ol className="list-decimal pl-5 space-y-1">
+                                                                        <h3 className="mb-1 text-[12px] font-semibold">
+                                                                            II. Eligibility Requirements:
+                                                                        </h3>
+                                                                        <ol className="list-decimal space-y-1 pl-5">
                                                                             <li>Filipino Citizen;</li>
-                                                                            <li>Senior High school graduate with a minimum general weighted average (GWA) of 93% or its equivalent; and</li>
-                                                                            <li>Combined annual gross income of parents, or legal guardian should not exceed PhP500,000.00;</li>
+                                                                            <li>
+                                                                                Senior High school graduate with a minimum general weighted average
+                                                                                (GWA) of 93% or its equivalent; and
+                                                                            </li>
+                                                                            <li>
+                                                                                Combined annual gross income of parents, or legal guardian should not
+                                                                                exceed PhP500,000.00;
+                                                                            </li>
                                                                         </ol>
                                                                     </div>
                                                                 </div>
@@ -4282,17 +3987,24 @@ export default function Welcome() {
                                                                 {/* Col 2: III (1–4) */}
                                                                 <div className="space-y-3">
                                                                     <div>
-                                                                        <h3 className="mb-1 text-[12px] font-semibold">III. Documentary Requirements:</h3>
-                                                                        <ol className="list-decimal pl-5 space-y-1">
+                                                                        <h3 className="mb-1 text-[12px] font-semibold">
+                                                                            III. Documentary Requirements:
+                                                                        </h3>
+                                                                        <ol className="list-decimal space-y-1 pl-5">
                                                                             <li>Accomplished Application Form;</li>
                                                                             <li>Copy of Birth certificate issued by NSO or PSA;</li>
-                                                                            <li>Certified true copy of Form 138 (SF9), duly signed by the registrar;</li>
+                                                                            <li>
+                                                                                Certified true copy of Form 138 (SF9), duly signed by the registrar;
+                                                                            </li>
                                                                             <li>
                                                                                 Financial - submit any one (1) of the following:
-                                                                                <ul className="mt-1 list-[circle] pl-5 space-y-1">
+                                                                                <ul className="mt-1 list-[circle] space-y-1 pl-5">
                                                                                     <li>Latest Income Tax Return (ITR) of parents or guardian</li>
                                                                                     <li>Certificate of Tax Exemption/Non-Filer from BIR;</li>
-                                                                                    <li>Certified true copy of contract/proof of income (OFW/Seafarers);</li>
+                                                                                    <li>
+                                                                                        Certified true copy of contract/proof of income
+                                                                                        (OFW/Seafarers);
+                                                                                    </li>
                                                                                     <li>Social Case Study Report from CSWD/MSWD.</li>
                                                                                 </ul>
                                                                             </li>
@@ -4302,25 +4014,25 @@ export default function Welcome() {
 
                                                                 {/* Col 3: III (5–6) */}
                                                                 <div className="space-y-3">
-                                                                    <ol start={5} className="list-decimal pl-5 space-y-1">
+                                                                    <ol start={5} className="list-decimal space-y-1 pl-5">
                                                                         <li>
                                                                             Other Requirements, if applicable
-                                                                            <ul className="mt-1 list-[circle] pl-5 space-y-1">
+                                                                            <ul className="mt-1 list-[circle] space-y-1 pl-5">
                                                                                 <li>PWD ID issued by CSWD/MSWD or Certification from PDAO;</li>
                                                                                 <li>Solo Parent ID from CSWD/MSWD;</li>
                                                                                 <li>Senior Citizen ID from CSWD/MSWD;</li>
                                                                                 <li>Underprivileged/Homeless certification from DHSUD/CSWD/MSWD;</li>
-                                                                                <li>Social Case Study Report under Magna Carta of the Poor / First-Gen Students</li>
+                                                                                <li>
+                                                                                    Social Case Study Report under Magna Carta of the Poor / First-Gen
+                                                                                    Students
+                                                                                </li>
                                                                                 <li>Indigenous Peoples Certification from NCIP.</li>
                                                                             </ul>
                                                                         </li>
                                                                         <li>Notarized Certificate of Guardianship, if applicable.</li>
                                                                     </ol>
                                                                 </div>
-
                                                             </div>
-
-
                                                         </CardContent>
                                                     </Card>
                                                     <div className="lg:col-span-3">
@@ -4329,15 +4041,14 @@ export default function Welcome() {
                                                         </label>
 
                                                         <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
-
                                                             {/* Thumbnails row - centered */}
                                                             <div className="flex justify-center gap-4 overflow-x-auto pb-2">
                                                                 {[
-                                                                    "/files/CMO-NO.-7-S.-2023_page-0001.jpg",
-                                                                    "/files/CMO-NO.-7-S.-2023_page-0002.jpg",
-                                                                    "/files/CMO-NO.-7-S.-2023_page-0003.jpg",
-                                                                    "/files/CMO-NO.-7-S.-2023_page-0004.jpg",
-                                                                    "/files/CMO-NO.-7-S.-2023_page-0005.jpg",
+                                                                    '/files/CMO-NO.-7-S.-2023_page-0001.jpg',
+                                                                    '/files/CMO-NO.-7-S.-2023_page-0002.jpg',
+                                                                    '/files/CMO-NO.-7-S.-2023_page-0003.jpg',
+                                                                    '/files/CMO-NO.-7-S.-2023_page-0004.jpg',
+                                                                    '/files/CMO-NO.-7-S.-2023_page-0005.jpg',
                                                                 ].map((src, idx) => (
                                                                     <a
                                                                         key={idx}
@@ -4368,26 +4079,14 @@ export default function Welcome() {
                                                             </div>
                                                         </div>
                                                     </div>
-
-
                                                 </div>
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
                                 </section>
-
                             </TabsContent>
                         </Tabs>
-
-
-
-
-
-
-
-
                     </main>
-
                 </div>
 
                 <div className="hidden h-14.5 lg:block"></div>
@@ -4397,4 +4096,3 @@ export default function Welcome() {
         </>
     );
 }
-

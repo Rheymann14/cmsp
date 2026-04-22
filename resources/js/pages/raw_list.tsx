@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import AppLayout from '@/layouts/app-layout';
 import {
     DISQUALIFIED_REMARK,
@@ -47,6 +47,7 @@ import {
     GraduationCap,
     Loader2,
     Search,
+    SlidersHorizontal,
     SquarePen,
     Tent,
     UserX,
@@ -135,6 +136,122 @@ const EMPTY_VALIDATION_FORM = {
     validator_notes: '',
     remarks: '',
 };
+
+const RAW_LIST_COLUMNS = [
+    { key: 'no', label: 'No' },
+    { key: 'tracking_no', label: 'Tracking No' },
+    { key: 'lrn', label: 'LRN' },
+    { key: 'email', label: 'Email' },
+    { key: 'contact_number', label: 'Contact #' },
+    { key: 'name', label: 'Name' },
+    { key: 'name_extension', label: 'Name Ext.' },
+    { key: 'maiden_name', label: 'Maiden Name' },
+    { key: 'sex', label: 'Sex' },
+    { key: 'birthdate', label: 'Birthdate' },
+    { key: 'age', label: 'Age' },
+    { key: 'ethnicity', label: 'Ethnicity' },
+    { key: 'religion', label: 'Religion' },
+    { key: 'province_municipality', label: 'Province/Municipality' },
+    { key: 'district', label: 'District' },
+    { key: 'barangay', label: 'Barangay' },
+    { key: 'purok_street', label: 'Purok/Street' },
+    { key: 'zip_code', label: 'ZIP' },
+    { key: 'barmm_province', label: 'BARMM Province' },
+    { key: 'barmm_municipality', label: 'BARMM Municipality' },
+    { key: 'barmm_barangay', label: 'BARMM Barangay' },
+    { key: 'barmm_street', label: 'BARMM Street' },
+    { key: 'barmm_zip', label: 'BARMM ZIP' },
+    { key: 'intended_school', label: 'Intended School' },
+    { key: 'school_type', label: 'School Type' },
+    { key: 'other_school', label: 'Other School' },
+    { key: 'year_level', label: 'Year Level' },
+    { key: 'course', label: 'Course' },
+    { key: 'gad_stufaps', label: 'GAD StuFAPs' },
+    { key: 'shs_school_name', label: 'SHS School Name' },
+    { key: 'shs_school_address', label: 'SHS School Address' },
+    { key: 'shs_school_type', label: 'SHS School Type' },
+    { key: 'father', label: 'Father' },
+    { key: 'father_occupation', label: 'Father Occupation' },
+    { key: 'father_income_monthly', label: 'Father Income (monthly)' },
+    { key: 'father_income_yearly', label: 'Father Income (yearly)' },
+    { key: 'mother', label: 'Mother' },
+    { key: 'mother_occupation', label: 'Mother Occupation' },
+    { key: 'mother_income_monthly', label: 'Mother Income (monthly)' },
+    { key: 'mother_income_yearly', label: 'Mother Income (yearly)' },
+    { key: 'guardian', label: 'Guardian' },
+    { key: 'guardian_occupation', label: 'Guardian Occupation' },
+    { key: 'guardian_income_monthly', label: 'Guardian Income (monthly)' },
+    { key: 'gwa_g12_s1', label: 'GWA G12 S1' },
+    { key: 'gwa_g12_s2', label: 'GWA G12 S2' },
+    { key: 'special_groups', label: 'Special Groups' },
+    { key: 'files', label: 'Files' },
+    { key: 'academic_year', label: 'AY' },
+    { key: 'deadline', label: 'Deadline' },
+    { key: 'final_total_points', label: 'Final Total Points' },
+    { key: 'rank', label: 'Rank' },
+    { key: 'submitted', label: 'Submitted' },
+    { key: 'action', label: 'Action' },
+] as const;
+
+type RawListColumnKey = (typeof RAW_LIST_COLUMNS)[number]['key'];
+const RAW_LIST_COLUMN_STORAGE_KEY = 'cmsp.raw-list.hidden-columns';
+const RAW_LIST_COLUMN_KEYS = new Set<RawListColumnKey>(RAW_LIST_COLUMNS.map((column) => column.key));
+const RAW_LIST_COLUMN_GROUPS: Array<{ label: string; keys: RawListColumnKey[] }> = [
+    { label: 'Core identifiers', keys: ['no', 'tracking_no', 'lrn', 'action'] },
+    {
+        label: 'Personal and contact',
+        keys: ['email', 'contact_number', 'name', 'name_extension', 'maiden_name', 'sex', 'birthdate', 'age', 'ethnicity', 'religion'],
+    },
+    {
+        label: 'Address fields',
+        keys: [
+            'province_municipality',
+            'district',
+            'barangay',
+            'purok_street',
+            'zip_code',
+            'barmm_province',
+            'barmm_municipality',
+            'barmm_barangay',
+            'barmm_street',
+            'barmm_zip',
+        ],
+    },
+    {
+        label: 'School and course',
+        keys: [
+            'intended_school',
+            'school_type',
+            'other_school',
+            'year_level',
+            'course',
+            'gad_stufaps',
+            'shs_school_name',
+            'shs_school_address',
+            'shs_school_type',
+        ],
+    },
+    {
+        label: 'Family information',
+        keys: [
+            'father',
+            'father_occupation',
+            'father_income_monthly',
+            'father_income_yearly',
+            'mother',
+            'mother_occupation',
+            'mother_income_monthly',
+            'mother_income_yearly',
+            'guardian',
+            'guardian_occupation',
+            'guardian_income_monthly',
+        ],
+    },
+    {
+        label: 'Academic and submission',
+        keys: ['gwa_g12_s1', 'gwa_g12_s2', 'special_groups', 'files', 'academic_year', 'deadline', 'final_total_points', 'rank', 'submitted'],
+    },
+];
 
 const InDialogPopoverContent = React.forwardRef<HTMLDivElement, PopoverPrimitive.PopoverContentProps & { container?: HTMLElement | null }>(
     ({ container, sideOffset = 8, className, ...props }, ref) => {
@@ -619,7 +736,7 @@ function CmspsTable({
         } | null;
     };
 
-    const COLS = 50; // keep this in sync with the header
+    const COLS = RAW_LIST_COLUMNS.length;
 
     const ATTACHMENTS = [
         { key: 'application_form_path', label: 'application form' },
@@ -835,6 +952,25 @@ function CmspsTable({
     const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
     const [pointsSort, setPointsSort] = useState<'asc' | 'desc' | null>(null);
     const [submittedSort, setSubmittedSort] = useState<'asc' | 'desc' | null>(null);
+    const [columnsPopoverOpen, setColumnsPopoverOpen] = useState(false);
+    const [hiddenColumnKeys, setHiddenColumnKeys] = useState<Set<RawListColumnKey>>(() => {
+        if (typeof window === 'undefined') {
+            return new Set();
+        }
+
+        try {
+            const stored = window.localStorage.getItem(RAW_LIST_COLUMN_STORAGE_KEY);
+            const parsed: unknown = stored ? JSON.parse(stored) : [];
+
+            if (!Array.isArray(parsed)) {
+                return new Set();
+            }
+
+            return new Set(parsed.filter((key): key is RawListColumnKey => RAW_LIST_COLUMN_KEYS.has(key as RawListColumnKey)));
+        } catch {
+            return new Set();
+        }
+    });
     const heiProgramsCacheRef = useRef<Map<string, HeiProgramItem[]>>(new Map());
 
     useEffect(() => {
@@ -1636,6 +1772,68 @@ function CmspsTable({
     const fmtDate = (iso: string) =>
         new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+    const visibleColumnCount = Math.max(1, COLS - hiddenColumnKeys.size);
+    const hiddenColumnStyles = useMemo(() => {
+        if (hiddenColumnKeys.size === 0) {
+            return '';
+        }
+
+        return RAW_LIST_COLUMNS.reduce<string[]>((rules, column, index) => {
+            if (hiddenColumnKeys.has(column.key)) {
+                rules.push(`.raw-list-table tr:not(.raw-list-empty-row) > :nth-child(${index + 1}) { display: none; }`);
+            }
+
+            return rules;
+        }, []).join('\n');
+    }, [hiddenColumnKeys]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(RAW_LIST_COLUMN_STORAGE_KEY, JSON.stringify(Array.from(hiddenColumnKeys)));
+        } catch {
+            // Ignore storage failures; column visibility still works for this session.
+        }
+    }, [hiddenColumnKeys]);
+
+    const toggleColumnVisibility = (columnKey: RawListColumnKey) => {
+        setHiddenColumnKeys((current) => {
+            const next = new Set(current);
+
+            if (next.has(columnKey)) {
+                next.delete(columnKey);
+                return next;
+            }
+
+            if (next.size >= COLS - 1) {
+                return current;
+            }
+
+            next.add(columnKey);
+            return next;
+        });
+    };
+
+    const setColumnGroupVisibility = (columnKeys: RawListColumnKey[], visible: boolean) => {
+        setHiddenColumnKeys((current) => {
+            const next = new Set(current);
+
+            if (visible) {
+                columnKeys.forEach((columnKey) => next.delete(columnKey));
+                return next;
+            }
+
+            columnKeys.forEach((columnKey) => next.add(columnKey));
+
+            if (next.size >= COLS) {
+                return current;
+            }
+
+            return next;
+        });
+    };
+
+    const showAllColumns = () => setHiddenColumnKeys(new Set());
+
     const latestValidation = validationRow?.latest_validation ?? null;
     const validationStatusTone = latestValidation
         ? {
@@ -1742,6 +1940,95 @@ function CmspsTable({
 
                 {/* Right: per-page */}
                 <div className="flex items-center gap-2">
+                    <Popover open={columnsPopoverOpen} onOpenChange={setColumnsPopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button type="button" variant="outline" size="sm" className="gap-2">
+                                <SlidersHorizontal className="h-3.5 w-3.5" />
+                                Columns
+                                {hiddenColumnKeys.size > 0 ? (
+                                    <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                                        {visibleColumnCount}/{COLS}
+                                    </span>
+                                ) : null}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-96 p-0">
+                            <div className="flex items-center justify-between border-b px-3 py-2">
+                                <div>
+                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Table columns</p>
+                                    <p className="text-xs text-muted-foreground">Use ranges or individual columns.</p>
+                                </div>
+                                <Button type="button" variant="ghost" size="sm" onClick={showAllColumns} disabled={hiddenColumnKeys.size === 0}>
+                                    Show all
+                                </Button>
+                            </div>
+                            <div className="max-h-[360px] overflow-y-auto p-2">
+                                <div className="mb-2 rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
+                                    <p className="px-1 pb-1.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                                        Quick ranges
+                                    </p>
+                                    <div className="grid gap-1">
+                                        {RAW_LIST_COLUMN_GROUPS.map((group) => {
+                                            const visibleInGroup = group.keys.filter((columnKey) => !hiddenColumnKeys.has(columnKey)).length;
+                                            const allVisible = visibleInGroup === group.keys.length;
+                                            const allHidden = visibleInGroup === 0;
+                                            const disableToggle = allVisible && visibleColumnCount === group.keys.length;
+
+                                            return (
+                                                <label
+                                                    key={group.label}
+                                                    className={cn(
+                                                        'flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900',
+                                                        disableToggle && 'cursor-not-allowed opacity-60',
+                                                    )}
+                                                >
+                                                    <span className="flex min-w-0 items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="h-4 w-4 rounded border-zinc-300 text-[#1e3c73] focus:ring-[#1e3c73]"
+                                                            checked={allVisible}
+                                                            disabled={disableToggle}
+                                                            onChange={() => setColumnGroupVisibility(group.keys, !allVisible)}
+                                                        />
+                                                        <span className="min-w-0 truncate">{group.label}</span>
+                                                    </span>
+                                                    <span className="shrink-0 text-xs text-muted-foreground">
+                                                        {allHidden ? 'Hidden' : `${visibleInGroup}/${group.keys.length}`}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <p className="px-1 pb-1.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                                    Individual columns
+                                </p>
+                                {RAW_LIST_COLUMNS.map((column) => {
+                                    const checked = !hiddenColumnKeys.has(column.key);
+                                    const disableToggle = checked && visibleColumnCount === 1;
+
+                                    return (
+                                        <label
+                                            key={column.key}
+                                            className={cn(
+                                                'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900',
+                                                disableToggle && 'cursor-not-allowed opacity-60',
+                                            )}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-zinc-300 text-[#1e3c73] focus:ring-[#1e3c73]"
+                                                checked={checked}
+                                                disabled={disableToggle}
+                                                onChange={() => toggleColumnVisibility(column.key)}
+                                            />
+                                            <span className="min-w-0 truncate">{column.label}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                     <span className="text-sm text-muted-foreground">Rows per page</span>
                     <select
                         className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900"
@@ -1775,7 +2062,8 @@ function CmspsTable({
 
             <div className="w-full max-w-full rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
                 <div className="w-full max-w-full min-w-0 overflow-x-auto">
-                    <table className="w-max min-w-full table-auto text-left text-sm [&>tbody>tr>td]:max-w-[240px] [&>tbody>tr>td]:align-top [&>tbody>tr>td]:break-words">
+                    {hiddenColumnStyles ? <style>{hiddenColumnStyles}</style> : null}
+                    <table className="raw-list-table w-max min-w-full table-auto text-left text-sm [&>tbody>tr>td]:max-w-[240px] [&>tbody>tr>td]:align-top [&>tbody>tr>td]:break-words">
                         <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 [&>tr>th]:break-words [&>tr>th]:whitespace-normal">
                             <tr className="[&>th]:whitespace-nowrap">
                                 <th className="px-3 py-2 font-semibold">No</th>
@@ -1972,8 +2260,8 @@ function CmspsTable({
                                     </tr>
                                 ))
                             ) : displayRows.length === 0 ? (
-                                <tr className="border-t border-zinc-100 dark:border-zinc-800">
-                                    <td className="px-3 py-6 text-left text-zinc-600 dark:text-zinc-300" colSpan={COLS}>
+                                <tr className="raw-list-empty-row border-t border-zinc-100 dark:border-zinc-800">
+                                    <td className="px-3 py-6 text-left text-zinc-600 dark:text-zinc-300" colSpan={visibleColumnCount}>
                                         <div className="flex flex-col items-start gap-3">
                                             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
                                                 <UserX className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" />
