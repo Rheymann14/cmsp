@@ -16,6 +16,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger } from '@/components/ui/popover';
 import AppLayout from '@/layouts/app-layout';
+import {
+    DISQUALIFIED_REMARK,
+    getApplicationRemarksResult,
+    isDocumentaryRequirementSatisfied,
+    isProgramNameMatch,
+    normalizeHeiProgram,
+    normalizePriorityCourse,
+    normalizeText,
+    type CourseOption,
+    type HeiProgramItem,
+} from '@/lib/program-evaluation';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
@@ -76,34 +87,6 @@ type HeiItem = {
     instName: string;
 };
 
-type HeiProgramItem = {
-    programName: string;
-    status?: number | null;
-    programStatus?: string | null;
-    statusLabel?: string | null;
-};
-
-const normalizeText = (value: string): string =>
-    value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
-        .trim();
-
-const isInactiveProgram = (program: HeiProgramItem): boolean => {
-    if (program.status === 0) return true;
-
-    const normalizedStatuses = [program.programStatus, program.statusLabel]
-        .map((value) =>
-            String(value ?? '')
-                .trim()
-                .toLowerCase(),
-        )
-        .filter(Boolean);
-
-    return normalizedStatuses.some(
-        (value) => value === '0' || value === 'inactive' || value.includes('discontinued') || value.includes('inactive') || value.includes('closed'),
-    );
-};
 type AyDeadlineOption = {
     id: number;
     academic_year: string;
@@ -572,11 +555,15 @@ function CmspsTable({
         father_occupation: string;
         father_income_monthly: number;
         father_income_yearly_bracket: string;
+        father_na?: boolean | number | string | null;
+        father_deceased?: boolean | number | string | null;
 
         mother_name: string;
         mother_occupation: string;
         mother_income_monthly: number;
         mother_income_yearly_bracket: string;
+        mother_na?: boolean | number | string | null;
+        mother_deceased?: boolean | number | string | null;
 
         guardian_name: string;
         guardian_occupation: string;
@@ -642,6 +629,7 @@ function CmspsTable({
         label: AttachmentLabel;
         url: string | null; // allow null so we can render “missing”
         missing: boolean;
+        notRequired: boolean;
     };
 
     const normalizeAttachmentUrl = (path: ApplicationRow[AttachmentKey]) => {
@@ -652,17 +640,52 @@ function CmspsTable({
         return `/storage/${withoutStorage}`;
     };
 
+    const isNoSpecialGroupValue = (value: string): boolean => {
+        const normalized = normalizeText(value);
+        return normalized === '' || normalized === 'n a' || normalized === 'na' || normalized === 'none';
+    };
+
+    const requiresSpecialGroupProof = (specialGroups: string[] | null | undefined): boolean =>
+        Array.isArray(specialGroups) && specialGroups.some((group) => !isNoSpecialGroupValue(String(group)));
+
+    const getMissingRequiredAttachmentLabels = (row: ApplicationRow): AttachmentLabel[] =>
+        ATTACHMENTS.reduce<AttachmentLabel[]>((missing, { key, label }) => {
+            if (key === 'proof_of_special_group_path' && !requiresSpecialGroupProof(row.special_groups)) {
+                return missing;
+            }
+
+            if (key === 'guardianship_certificate_path') {
+                return missing;
+            }
+
+            if (!normalizeAttachmentUrl(row[key])) {
+                missing.push(label);
+            }
+
+            return missing;
+        }, []);
+
     const renderAttachments = (row: ApplicationRow) => {
         const items: AttachmentItem[] = ATTACHMENTS.map(({ key, label }) => {
             const url = normalizeAttachmentUrl(row[key]); // string | null
-            return { label, url, missing: !url };
+            const notRequired =
+                (key === 'proof_of_special_group_path' && !requiresSpecialGroupProof(row.special_groups)) ||
+                (key === 'guardianship_certificate_path' && !url);
+            return { label, url, missing: !url && !notRequired, notRequired };
         });
 
         return (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
                 <span className="font-medium text-muted-foreground">Files:</span>
-                {items.map(({ label, url, missing }) =>
-                    missing ? (
+                {items.map(({ label, url, missing, notRequired }) =>
+                    notRequired ? (
+                        <span key={label} className="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400" title="Not required">
+                            <span className="h-2 w-2 rounded-full bg-zinc-400" aria-hidden />
+                            <span className="capitalize">
+                                {label}: {label === 'guardianship' ? 'optional' : 'N/A'}
+                            </span>
+                        </span>
+                    ) : missing ? (
                         // Missing (red)
                         <span key={label} className="inline-flex items-center gap-1 text-red-600 dark:text-red-400" title="Missing file">
                             <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
@@ -789,9 +812,12 @@ function CmspsTable({
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const [validationRow, setValidationRow] = useState<ApplicationRow | null>(null);
     const [validationForm, setValidationForm] = useState({ ...EMPTY_VALIDATION_FORM });
+    const [validationDisqualificationReasons, setValidationDisqualificationReasons] = useState<string[]>([]);
     const [validationErrors, setValidationErrors] = useState<{ document_status?: string; no_siblings?: string; initial_rank?: string }>({});
     const [validationSubmitting, setValidationSubmitting] = useState(false);
     const [heiItems, setHeiItems] = useState<HeiItem[]>([]);
+    const [priorityCourses, setPriorityCourses] = useState<CourseOption[]>([]);
+    const [priorityCoursesLoading, setPriorityCoursesLoading] = useState(true);
     const [heiProgramsLoading, setHeiProgramsLoading] = useState(false);
     const [clearingValidation, setClearingValidation] = useState(false);
     const [siblingsPopoverOpen, setSiblingsPopoverOpen] = useState(false);
@@ -801,6 +827,7 @@ function CmspsTable({
     const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
     const [pointsSort, setPointsSort] = useState<'asc' | 'desc' | null>(null);
     const [submittedSort, setSubmittedSort] = useState<'asc' | 'desc' | null>(null);
+    const heiProgramsCacheRef = useRef<Map<string, HeiProgramItem[]>>(new Map());
 
     useEffect(() => {
         setPage(1);
@@ -894,25 +921,80 @@ function CmspsTable({
     useEffect(() => {
         let cancelled = false;
 
+        const loadPriorityCourses = async () => {
+            setPriorityCoursesLoading(true);
+            try {
+                const res = await fetch('/api/courses', {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+
+                if (!res.ok) throw new Error('Failed to fetch priority courses');
+                const json = await res.json();
+                if (cancelled) return;
+
+                const items = Array.isArray(json?.data) ? json.data : [];
+                setPriorityCourses(items.map(normalizePriorityCourse).filter((item: CourseOption | null): item is CourseOption => item !== null));
+            } catch {
+                if (!cancelled) {
+                    setPriorityCourses([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setPriorityCoursesLoading(false);
+                }
+            }
+        };
+
+        void loadPriorityCourses();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
         const evaluateRemarks = async () => {
             if (!validationDialogOpen || !validationRow) {
                 return;
             }
 
-            const disqualificationReasons: string[] = [];
-
             const parentCombinedIncome = Number(validationRow.father_income_monthly ?? 0) + Number(validationRow.mother_income_monthly ?? 0);
-            if (parentCombinedIncome > 501000) {
-                disqualificationReasons.push('Combined parents income is greater than 501,000.');
+            const gwaAverage = (Number(validationRow.gwa_g12_s1 ?? 0) + Number(validationRow.gwa_g12_s2 ?? 0)) / 2;
+            const requiredValidationIssues: string[] = [];
+
+            if (validationForm.no_siblings === '') {
+                requiredValidationIssues.push('Number of siblings is required.');
             }
 
-            const gwaAverage = (Number(validationRow.gwa_g12_s1 ?? 0) + Number(validationRow.gwa_g12_s2 ?? 0)) / 2;
-            if (gwaAverage < 92.5) {
-                disqualificationReasons.push('GWA average is below 93 (92.5 rounds to 93).');
+            if (validationForm.initial_rank === '') {
+                requiredValidationIssues.push('Initial rank is required.');
             }
+
+            if (parentCombinedIncome > 501000) {
+                requiredValidationIssues.push('Combined parents income is greater than 501,000.');
+            }
+
+            if (gwaAverage < 92.5) {
+                requiredValidationIssues.push('GWA average is below 93.');
+            }
+
+            const missingRequiredAttachments = getMissingRequiredAttachmentLabels(validationRow);
+            const documentaryStatusSatisfied = isDocumentaryRequirementSatisfied(validationForm.document_status);
+            const documentaryRequirementsSatisfied = documentaryStatusSatisfied && missingRequiredAttachments.length === 0;
+            const documentaryRequirementIssues = missingRequiredAttachments.map((label) => `Missing required attachment: ${label}.`);
+
+            const requiredValidationComplete = requiredValidationIssues.length === 0;
 
             const normalizedSchoolName = normalizeText(validationRow.intended_school_name ?? '');
             const normalizedCourseName = normalizeText(validationRow.course_name ?? '');
+            let selectedHeiProgram: HeiProgramItem | null = null;
+
+            if (priorityCoursesLoading) {
+                return;
+            }
 
             if (normalizedSchoolName && normalizedCourseName && heiItems.length > 0) {
                 const matchedHei = heiItems.find((hei) => {
@@ -921,41 +1003,34 @@ function CmspsTable({
                 });
 
                 if (matchedHei?.instCode) {
-                    setHeiProgramsLoading(true);
+                    const cacheKey = matchedHei.instCode;
+                    let programs = heiProgramsCacheRef.current.get(cacheKey) ?? null;
+
                     try {
-                        const res = await fetch(`/api/hei_programs/${encodeURIComponent(matchedHei.instCode)}/programs`, {
-                            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                            credentials: 'same-origin',
-                        });
-
-                        if (res.ok) {
-                            const json = await res.json();
-                            const items = Array.isArray(json?.programs) ? json.programs : [];
-                            const programs: HeiProgramItem[] = items
-                                .map((item: Record<string, unknown>) => ({
-                                    programName: String(item?.programName ?? item?.program_name ?? '').trim(),
-                                    status: item?.status === 0 || item?.status === '0' ? 0 : item?.status === 1 || item?.status === '1' ? 1 : null,
-                                    programStatus: item?.program_status ? String(item.program_status).trim() : null,
-                                    statusLabel: item?.status_label ? String(item.status_label).trim() : null,
-                                }))
-                                .filter((program: HeiProgramItem) => program.programName.length > 0);
-
-                            const hasInactiveMatchedProgram = programs.some((program) => {
-                                const normalizedProgram = normalizeText(program.programName);
-                                const isCourseMatch =
-                                    normalizedProgram === normalizedCourseName ||
-                                    normalizedProgram.includes(normalizedCourseName) ||
-                                    normalizedCourseName.includes(normalizedProgram);
-
-                                return isCourseMatch && isInactiveProgram(program);
+                        if (!programs) {
+                            setHeiProgramsLoading(true);
+                            const res = await fetch(`/api/hei_programs/${encodeURIComponent(matchedHei.instCode)}/programs`, {
+                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                credentials: 'same-origin',
                             });
 
-                            if (hasInactiveMatchedProgram) {
-                                disqualificationReasons.push('Priority course in selected HEI is discontinued/inactive.');
+                            if (!res.ok) {
+                                throw new Error('Failed to fetch HEI programs');
                             }
+
+                            const json = await res.json();
+                            const items = Array.isArray(json?.programs) ? json.programs : [];
+                            const normalizedPrograms = items
+                                .map(normalizeHeiProgram)
+                                .filter((program: HeiProgramItem | null): program is HeiProgramItem => program !== null);
+                            programs = normalizedPrograms;
+                            heiProgramsCacheRef.current.set(cacheKey, normalizedPrograms);
                         }
+
+                        selectedHeiProgram =
+                            (programs ?? []).find((program) => isProgramNameMatch(program.programName, validationRow.course_name ?? '')) ?? null;
                     } catch {
-                        // Ignore API matching failures and keep other computed criteria.
+                        selectedHeiProgram = null;
                     } finally {
                         if (!cancelled) {
                             setHeiProgramsLoading(false);
@@ -968,13 +1043,22 @@ function CmspsTable({
                 return;
             }
 
-            const computedRemarks =
-                disqualificationReasons.length > 0 ? `Disqualified Applicant - ${disqualificationReasons.join(' ')}` : 'Qualified Applicant';
+            const computedRemarksResult = getApplicationRemarksResult({
+                documentStatus: validationForm.document_status,
+                selectedProgramName: validationRow.course_name ?? '',
+                priorityCourses,
+                selectedHeiProgram,
+                requiredValidationComplete,
+                requiredValidationIssues,
+                documentaryRequirementsSatisfied,
+                documentaryRequirementIssues,
+            });
 
             setValidationForm((prev) => ({
                 ...prev,
-                remarks: computedRemarks,
+                remarks: computedRemarksResult.remarks,
             }));
+            setValidationDisqualificationReasons(computedRemarksResult.reasons);
         };
 
         void evaluateRemarks();
@@ -982,7 +1066,16 @@ function CmspsTable({
         return () => {
             cancelled = true;
         };
-    }, [heiItems, validationDialogOpen, validationRow]);
+    }, [
+        heiItems,
+        priorityCourses,
+        priorityCoursesLoading,
+        validationDialogOpen,
+        validationForm.document_status,
+        validationForm.initial_rank,
+        validationForm.no_siblings,
+        validationRow,
+    ]);
 
     const fetchData = useCallback(
         async (p = page, s = search, pp = perPage) => {
@@ -1301,6 +1394,7 @@ function CmspsTable({
     const resetValidationState = () => {
         setValidationRow(null);
         setValidationForm({ ...EMPTY_VALIDATION_FORM });
+        setValidationDisqualificationReasons([]);
         setValidationErrors({});
         setValidationSubmitting(false);
         setClearingValidation(false);
@@ -1319,6 +1413,7 @@ function CmspsTable({
             validator_notes: row.latest_validation?.validator_notes ?? '',
             remarks: row.latest_validation?.remarks ?? '',
         });
+        setValidationDisqualificationReasons([]);
         setValidationErrors({});
         setValidationSubmitting(false);
         setClearingValidation(false);
@@ -2111,12 +2206,12 @@ function CmspsTable({
                 <Dialog open={validationDialogOpen} onOpenChange={handleValidationDialogChange}>
                     <DialogContent
                         ref={dialogContentRef}
-                        className="flex w-[92vw] max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 p-0 shadow-2xl ring-1 ring-[#1e3c73]/10 backdrop-blur-md sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800/70 dark:bg-zinc-950/80"
+                        className="flex max-h-[90dvh] w-[92vw] flex-col gap-0 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 p-0 shadow-2xl ring-1 ring-[#1e3c73]/10 backdrop-blur-md sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl dark:border-zinc-800/70 dark:bg-zinc-950/80"
                         onInteractOutside={(e) => {
                             e.preventDefault();
                         }}
                     >
-                        <DialogHeader className="shrink-0 space-y-2 border-b border-zinc-200/70 px-6 pb-4 pt-6 dark:border-zinc-800/70">
+                        <DialogHeader className="shrink-0 space-y-2 border-b border-zinc-200/70 px-6 pt-6 pb-4 dark:border-zinc-800/70">
                             <div className="py-1 text-[22px] font-semibold tracking-wide text-[#1e3c73]">
                                 Validate Application{' '}
                                 <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
@@ -2294,11 +2389,21 @@ function CmspsTable({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="validation-remarks">Remarks</Label>
-                                <Input id="validation-remarks" value={validationForm.remarks} readOnly className="font-semibold" />
+                                <Input id="validation-remarks" value={validationForm.remarks} readOnly disabled className="font-semibold" />
                                 <p className="text-xs text-muted-foreground">
                                     Automatically computed as Qualified/Disqualified based on criteria.{' '}
-                                    {heiProgramsLoading ? 'Checking HEI program status…' : ''}
+                                    {priorityCoursesLoading || heiProgramsLoading ? 'Checking HEI program status…' : ''}
                                 </p>
+                                {validationForm.remarks === DISQUALIFIED_REMARK && validationDisqualificationReasons.length > 0 ? (
+                                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+                                        <p className="font-semibold">Reason for disqualification:</p>
+                                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                                            {validationDisqualificationReasons.map((reason) => (
+                                                <li key={reason}>{reason}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                         <DialogFooter className="shrink-0 gap-2 border-t border-zinc-200/70 px-6 py-4 sm:justify-between dark:border-zinc-800/70">
@@ -2323,7 +2428,7 @@ function CmspsTable({
                                 <Button
                                     type="button"
                                     onClick={handleValidationSubmit}
-                                    disabled={validationSubmitting || clearingValidation}
+                                    disabled={validationSubmitting || clearingValidation || priorityCoursesLoading || heiProgramsLoading}
                                     className="bg-[#1e3c73] text-white shadow-sm hover:bg-[#1a3565]"
                                 >
                                     {validationSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

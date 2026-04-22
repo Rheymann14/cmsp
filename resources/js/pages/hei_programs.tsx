@@ -1,8 +1,16 @@
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
+import {
+    isDiscontinuedProgram,
+    isPriorityCourse,
+    normalizeHeiProgram,
+    normalizePriorityCourse,
+    type CourseOption,
+    type HeiProgramItem,
+} from '@/lib/program-evaluation';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Building2, GraduationCap, Loader2, Search } from 'lucide-react';
@@ -17,87 +25,12 @@ type HeiItem = {
     municipalityCity?: string | null;
 };
 
-type CourseOption = {
-    id: number;
-    label: string;
-};
-
-type ProgramItem = {
-    programName: string;
-    major?: string | null;
-    status?: number | null;
-    programStatus?: string | null;
-    statusLabel?: string | null;
-};
-
-const isInactiveProgram = (program: ProgramItem): boolean => {
-    if (program.status === 0) return true;
-
-    const normalizedStatuses = [program.programStatus, program.statusLabel]
-        .map((value) => String(value ?? '').trim().toLowerCase())
-        .filter(Boolean);
-
-    return normalizedStatuses.some((value) =>
-        value === '0' ||
-        value === 'inactive' ||
-        value.includes('discontinued') ||
-        value.includes('inactive') ||
-        value.includes('closed'),
-    );
-};
-
-const normalizeText = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-
-const compactText = (value: string): string => normalizeText(value).replace(/\s+/g, '');
-
-const stopWords = new Set([
-    'bachelor',
-    'science',
-    'arts',
-    'in',
-    'of',
-    'and',
-    'the',
-    'major',
-    'related',
-    'fields',
-    'education',
-]);
-
-const extractAcronym = (value: string): string =>
-    normalizeText(value)
-        .split(' ')
-        .filter((word) => word && !stopWords.has(word))
-        .map((word) => word[0])
-        .join('')
-        .toUpperCase();
-
-const isPriorityMatch = (programName: string, courses: CourseOption[]): boolean => {
-    const normalizedProgram = normalizeText(programName);
-    const compactProgram = compactText(programName);
-    const acronymProgram = extractAcronym(programName);
-
-    return courses.some((course) => {
-        const normalizedCourse = normalizeText(course.label);
-        const compactCourse = compactText(course.label);
-        const acronymCourse = extractAcronym(course.label);
-
-        return (
-            normalizedProgram === normalizedCourse ||
-            compactProgram === compactCourse ||
-            normalizedProgram.includes(normalizedCourse) ||
-            normalizedCourse.includes(normalizedProgram) ||
-            (acronymProgram.length >= 3 && acronymProgram === acronymCourse) ||
-            (acronymCourse.length >= 3 && compactProgram.includes(acronymCourse.toLowerCase()))
-        );
-    });
-};
-
 export default function HeiProgramsPage() {
     const [heis, setHeis] = useState<HeiItem[]>([]);
     const [search, setSearch] = useState('');
+    const [programSearch, setProgramSearch] = useState('');
     const [selectedHei, setSelectedHei] = useState<HeiItem | null>(null);
-    const [programs, setPrograms] = useState<ProgramItem[]>([]);
+    const [programs, setPrograms] = useState<HeiProgramItem[]>([]);
     const [priorityCourses, setPriorityCourses] = useState<CourseOption[]>([]);
     const [loadingHei, setLoadingHei] = useState(true);
     const [loadingPrograms, setLoadingPrograms] = useState(false);
@@ -153,14 +86,7 @@ export default function HeiProgramsPage() {
                 if (cancelled) return;
 
                 const items = Array.isArray(json?.data) ? json.data : [];
-                setPriorityCourses(
-                    items
-                        .map((item: Record<string, unknown>) => ({
-                            id: Number(item.id),
-                            label: String(item.label ?? ''),
-                        }))
-                        .filter((item: CourseOption) => Number.isFinite(item.id) && item.label.length > 0),
-                );
+                setPriorityCourses(items.map(normalizePriorityCourse).filter((item: CourseOption | null): item is CourseOption => item !== null));
             } catch {
                 if (!cancelled) {
                     setPriorityCourses([]);
@@ -196,45 +122,7 @@ export default function HeiProgramsPage() {
 
                 if (!cancelled) {
                     const items = Array.isArray(json?.programs) ? json.programs : [];
-                    const normalizedPrograms: Array<ProgramItem | null> = items.map((item: unknown) => {
-                        if (typeof item === 'string') {
-                            return {
-                                programName: item,
-                                major: null,
-                                status: null,
-                                programStatus: null,
-                                statusLabel: null,
-                            };
-                        }
-
-                        if (!item || typeof item !== 'object') return null;
-                        const typedItem = item as Record<string, unknown>;
-
-                        return {
-                            programName: String(typedItem.programName ?? '').trim(),
-                            major: typedItem.major ? String(typedItem.major).trim() : null,
-                            programStatus: typedItem.program_status
-                                ? String(typedItem.program_status).trim()
-                                : typedItem.programStatus
-                                    ? String(typedItem.programStatus).trim()
-                                    : null,
-                            statusLabel: typedItem.status_label
-                                ? String(typedItem.status_label).trim()
-                                : typedItem.programStatusLabel
-                                    ? String(typedItem.programStatusLabel).trim()
-                                    : null,
-                            status:
-                                typedItem.status === 0 || typedItem.status === '0'
-                                    ? 0
-                                    : typedItem.status === 1 || typedItem.status === '1'
-                                        ? 1
-                                        : typedItem.status == null
-                                            ? null
-                                            : Number(typedItem.status),
-                        };
-                    });
-
-                    setPrograms(normalizedPrograms.filter((item: ProgramItem | null): item is ProgramItem => Boolean(item?.programName)));
+                    setPrograms(items.map(normalizeHeiProgram).filter((item: HeiProgramItem | null): item is HeiProgramItem => item !== null));
                 }
             } catch {
                 if (!cancelled) {
@@ -252,6 +140,10 @@ export default function HeiProgramsPage() {
         };
     }, [selectedHei]);
 
+    useEffect(() => {
+        setProgramSearch('');
+    }, [selectedHei?.instCode]);
+
     const filteredHeis = useMemo(() => {
         const keyword = search.trim().toLowerCase();
         if (!keyword) return heis;
@@ -261,13 +153,24 @@ export default function HeiProgramsPage() {
         );
     }, [heis, search]);
 
+    const filteredPrograms = useMemo(() => {
+        const keyword = programSearch.trim().toLowerCase();
+        if (!keyword) return programs;
+
+        return programs.filter((program) =>
+            `${program.programName} ${program.major ?? ''} ${program.programStatus ?? ''} ${program.statusLabel ?? ''}`
+                .toLowerCase()
+                .includes(keyword),
+        );
+    }, [programSearch, programs]);
+
     const programRows = useMemo(
         () =>
-            programs.map((program) => ({
+            filteredPrograms.map((program) => ({
                 program,
-                matched: isPriorityMatch(program.programName, priorityCourses),
+                matched: isPriorityCourse(program.programName, priorityCourses),
             })),
-        [programs, priorityCourses],
+        [filteredPrograms, priorityCourses],
     );
 
     const matchedCount = useMemo(() => programRows.filter((row) => row.matched).length, [programRows]);
@@ -282,9 +185,7 @@ export default function HeiProgramsPage() {
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                         Browse Higher Education Institutions and view the list of programs offered per institution.
                     </p>
-                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
-                        Green items indicate a match with CHED Priority Courses.
-                    </p>
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">Green items indicate a match with CHED Priority Courses.</p>
                 </div>
 
                 <div className="grid gap-5 lg:grid-cols-2">
@@ -297,7 +198,7 @@ export default function HeiProgramsPage() {
 
                         <CardContent className="space-y-3 p-4">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     className="pl-9"
                                     placeholder="Search by code, name, province, city"
@@ -318,11 +219,11 @@ export default function HeiProgramsPage() {
                                         <Button
                                             key={hei.instCode}
                                             variant="ghost"
-                                            className={`h-auto w-full justify-start whitespace-normal border px-3 py-2 text-left ${selectedHei?.instCode === hei.instCode ? 'border-blue-300 bg-blue-100 text-blue-900 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20'}`}
+                                            className={`h-auto w-full justify-start border px-3 py-2 text-left whitespace-normal ${selectedHei?.instCode === hei.instCode ? 'border-blue-300 bg-blue-100 text-blue-900 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20'}`}
                                             onClick={() => setSelectedHei(hei)}
                                         >
                                             <div className="space-y-1">
-                                                <div className="font-semibold leading-snug">
+                                                <div className="leading-snug font-semibold">
                                                     {heiIndex + 1}. {hei.instName}
                                                 </div>
                                                 <div className="text-xs opacity-80">Code: {hei.instCode}</div>
@@ -374,6 +275,16 @@ export default function HeiProgramsPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
+                                    <div className="relative">
+                                        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Input
+                                            className="pl-9"
+                                            placeholder="Search by program, major, status"
+                                            value={programSearch}
+                                            onChange={(event) => setProgramSearch(event.target.value)}
+                                        />
+                                    </div>
+
                                     {/* Summary strip */}
                                     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-200">
                                         <span className="font-medium">HEI Code:</span>
@@ -385,74 +296,75 @@ export default function HeiProgramsPage() {
                                         <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                                             {matchedCount} / {programRows.length}
                                         </span>
+
+                                        {programSearch.trim() ? (
+                                            <>
+                                                <span className="mx-1 text-slate-300 dark:text-slate-700">•</span>
+                                                <span className="font-medium">Showing:</span>
+                                                <span>{programRows.length} programs</span>
+                                            </>
+                                        ) : null}
                                     </div>
 
                                     {/* Programs list */}
-                                    <ol
-                                        className="
-                                            divide-y divide-slate-200
-                                            rounded-lg border border-slate-200
-                                            bg-white/60
-                                            max-h-[480px] overflow-y-auto
-                                            scroll-smooth
-                                            dark:divide-slate-800
-                                            dark:border-slate-800
-                                            dark:bg-slate-950/20
-                                        "
-                                    >
-                                        {programRows.map((row, programIndex) => {
-                                            const inactive = isInactiveProgram(row.program);
-                                            const matched = row.matched;
+                                    {programRows.length === 0 ? (
+                                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-300">
+                                            No programs match your search.
+                                        </div>
+                                    ) : (
+                                        <ol className="max-h-[480px] divide-y divide-slate-200 overflow-y-auto scroll-smooth rounded-lg border border-slate-200 bg-white/60 dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950/20">
+                                            {programRows.map((row, programIndex) => {
+                                                const inactive = isDiscontinuedProgram(row.program);
+                                                const matched = row.matched;
+                                                const showMatched = matched;
 
-                                            // Inactive should "win" over matched highlight
-                                            const showMatched = matched;
-
-                                            return (
-                                                <li
-                                                    key={`${row.program.programName}-${row.program.major ?? ""}-${programIndex}`}
-                                                    className={[
-                                                        "group relative flex items-start gap-3 px-4 py-3 transition-colors",
-                                                        "hover:bg-slate-50/70 dark:hover:bg-slate-900/30",
-                                                        showMatched ? "bg-emerald-50/60 dark:bg-emerald-950/20" : "",
-                                                        inactive ? "bg-red-50/40 dark:bg-red-950/10 opacity-80" : "",
-                                                    ].join(" ")}
-                                                >
-                                                    {showMatched ? (
-                                                        <span className="absolute left-0 top-0 h-full w-1 rounded-l-lg bg-emerald-500/40 dark:bg-emerald-400/30" />
-                                                    ) : null}
-
-                                                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                                                        {programIndex + 1}
-                                                    </span>
-
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                                            {row.program.programName}
-                                                        </p>
-
-                                                        {row.program.major ? (
-                                                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                                Major: {row.program.major}
-                                                            </p>
+                                                return (
+                                                    <li
+                                                        key={`${row.program.programName}-${row.program.major ?? ''}-${programIndex}`}
+                                                        className={[
+                                                            'group relative flex items-start gap-3 px-4 py-3 transition-colors',
+                                                            'hover:bg-slate-50/70 dark:hover:bg-slate-900/30',
+                                                            showMatched ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : '',
+                                                            inactive ? 'bg-red-50/40 opacity-80 dark:bg-red-950/10' : '',
+                                                        ].join(' ')}
+                                                    >
+                                                        {showMatched ? (
+                                                            <span className="absolute top-0 left-0 h-full w-1 rounded-l-lg bg-emerald-500/40 dark:bg-emerald-400/30" />
                                                         ) : null}
-                                                    </div>
-                                                    <div className="flex shrink-0 items-center gap-1.5">
-                                                        {inactive && (
-                                                            <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-                                                                Discontinued
-                                                            </Badge>
-                                                        )}
 
-                                                        {matched && (
-                                                            <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
-                                                                Priority Course
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ol>
+                                                        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                                                            {programIndex + 1}
+                                                        </span>
+
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                                {row.program.programName}
+                                                            </p>
+
+                                                            {row.program.major ? (
+                                                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                                    Major: {row.program.major}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                        <div className="flex shrink-0 items-center gap-1.5">
+                                                            {inactive && (
+                                                                <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                                                    Discontinued
+                                                                </Badge>
+                                                            )}
+
+                                                            {matched && (
+                                                                <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                                    Priority Course
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ol>
+                                    )}
                                 </div>
                             )}
                         </CardContent>
