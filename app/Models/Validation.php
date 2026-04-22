@@ -17,11 +17,14 @@ class Validation extends Model
         'initial_rank',
         'validator_notes',
         'remarks',
+        'qualification_status',
+        'disqualification_reasons',
         'checked_by',
     ];
 
     protected $casts = [
         'no_siblings' => 'integer',
+        'disqualification_reasons' => 'array',
     ];
 
     public function application()

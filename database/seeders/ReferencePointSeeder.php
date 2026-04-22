@@ -15,7 +15,7 @@ class ReferencePointSeeder extends Seeder
         $gradePoints = [
             ['range_from' => 0.00,   'range_to' => 90.49, 'equivalent_points' => 75],
             ['range_from' => 91.00,  'range_to' => 92.49, 'equivalent_points' => 80],
-            ['range_from' => 93.00,  'range_to' => 94.99, 'equivalent_points' => 85],
+            ['range_from' => 93.00,  'range_to' => 94.49, 'equivalent_points' => 85],
             ['range_from' => 95.00,  'range_to' => 96.49, 'equivalent_points' => 90],
             ['range_from' => 97.00,  'range_to' => 98.49, 'equivalent_points' => 95],
             ['range_from' => 99.00,  'range_to' => 100.00, 'equivalent_points' => 100],

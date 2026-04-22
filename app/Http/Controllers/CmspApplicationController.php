@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\AyDeadline;
 use App\Models\CmspApplication;
 use App\Models\ReferencePoint;
+use App\Services\CmspEvaluationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\UploadedFile;
@@ -28,6 +29,10 @@ class CmspApplicationController extends Controller
 {
     private ?Collection $gradeReferencePoints = null;
     private ?Collection $incomeReferencePoints = null;
+
+    public function __construct(private readonly CmspEvaluationService $evaluationService)
+    {
+    }
 
     /** Store to public/attachments with ULID + original filename; returns relative path */
     private function putAttachment(UploadedFile $file, string $dir = 'attachments'): string
@@ -153,9 +158,8 @@ class CmspApplicationController extends Controller
         ],
 
 
-        // If your UI may send decimals, switch to numeric|between:80,100
-        'gwa_g12_s1' => ['required','integer','between:80,100'],
-        'gwa_g12_s2' => ['required','integer','between:80,100'],
+        'gwa_g12_s1' => ['required','numeric','between:80,100'],
+        'gwa_g12_s2' => ['required','numeric','between:80,100'],
 
         'special_groups'   => ['required','array','min:1'],
         'special_groups.*' => ['string','max:80'],
@@ -342,6 +346,16 @@ public function exportXlsx(Request $request)
             });
         }
 
+        $academicYear = trim((string) $request->get('academic_year', ''));
+        if ($academicYear !== '') {
+            $query->where('a.academic_year', $academicYear);
+        }
+
+        $deadlineInput = trim((string) $request->get('deadline', ''));
+        if ($deadlineInput !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadlineInput) === 1) {
+            $query->whereDate('a.deadline', $deadlineInput);
+        }
+
         $applications = $query->get();
 
         $computed = $this->applyDenseRank($this->buildComputedEntries($applications));
@@ -359,40 +373,32 @@ public function exportXlsx(Request $request)
             'CMSP RANKING'
         );
 
-        $regionXiiEntries = array_values(array_filter($computed, static function (array $entry): bool {
-            /** @var CmspApplication $app */
-            $app = $entry['model'];
+        $sspEntries = $this->applyDenseRank(array_values(array_filter(
+            $computed,
+            fn (array $entry): bool => $this->isQualifiedEntry($entry) && $this->entryInitialRankMatches($entry, ['FSSP', 'HSSP'])
+        )));
 
-            return filled($app->province_municipality)
-                && filled($app->barangay)
-                && filled($app->purok_street);
-        }));
-
-        $regionSheet = $spreadsheet->createSheet();
+        $sspSheet = $spreadsheet->createSheet();
         $this->populateRanklistSheet(
-            $regionSheet,
-            $regionXiiEntries,
+            $sspSheet,
+            $sspEntries,
             $ayLabel,
-            'REGION XII',
-            'REGION XII'
+            'XII SSP RANKING',
+            'XII SSP RANKING'
         );
 
-        $barmmEntries = array_values(array_filter($computed, static function (array $entry): bool {
-            /** @var CmspApplication $app */
-            $app = $entry['model'];
+        $pesfaEntries = $this->applyDenseRank(array_values(array_filter(
+            $computed,
+            fn (array $entry): bool => $this->isQualifiedEntry($entry) && $this->entryInitialRankMatches($entry, ['FPESFA', 'FPESFA-GAD', 'HPESFA', 'HPGAD'])
+        )));
 
-            return filled($app->barmm_province)
-                && filled($app->barmm_barangay)
-                && filled($app->barmm_purok_street);
-        }));
-
-        $barmmSheet = $spreadsheet->createSheet();
+        $pesfaSheet = $spreadsheet->createSheet();
         $this->populateRanklistSheet(
-            $barmmSheet,
-            $barmmEntries,
+            $pesfaSheet,
+            $pesfaEntries,
             $ayLabel,
-            'BARMM',
-            'BARMM'
+            'XII PESFA RANKING',
+            'XII PESFA RANKING'
         );
 
         $spreadsheet->setActiveSheetIndex(0);
@@ -486,18 +492,34 @@ public function indexJson(\Illuminate\Http\Request $request)
     ];
 
     $rankingEntries = $this->applyDenseRank($this->buildComputedEntries((clone $q)->get()));
-    $rankingsById = [];
-    foreach ($rankingEntries as $entry) {
-        $rankingsById[$entry['model']->id] = [
-            'final_points' => $entry['final_points'],
-            'rank' => $entry['rank'],
-        ];
-    }
+        $rankingsById = [];
+        foreach ($rankingEntries as $entry) {
+            $rankingsById[$entry['model']->id] = [
+                'grade_12_gwa' => $entry['grade_12_gwa'],
+                'income' => $entry['income'],
+                'equivalent_grade_points' => $entry['equivalent_grade_points'],
+                'equivalent_income_points' => $entry['equivalent_income_points'],
+                'weighted_grade_points' => $entry['weighted_grade_points'],
+                'weighted_income_points' => $entry['weighted_income_points'],
+                'total_points' => $entry['total_points'],
+                'plus_five_points' => $entry['plus_five_points'],
+                'final_points' => $entry['final_points'],
+                'rank' => $entry['rank'],
+            ];
+        }
 
     $apps = $q->paginate($perPage)->appends($request->all());
 
     $apps->getCollection()->transform(function (CmspApplication $application) use ($rankingsById) {
         $ranking = $rankingsById[$application->id] ?? null;
+        $application->setAttribute('grade_12_gwa', $ranking['grade_12_gwa'] ?? null);
+        $application->setAttribute('income', $ranking['income'] ?? null);
+        $application->setAttribute('equivalent_grade_points', $ranking['equivalent_grade_points'] ?? null);
+        $application->setAttribute('equivalent_income_points', $ranking['equivalent_income_points'] ?? null);
+        $application->setAttribute('weighted_grade_points', $ranking['weighted_grade_points'] ?? null);
+        $application->setAttribute('weighted_income_points', $ranking['weighted_income_points'] ?? null);
+        $application->setAttribute('total_points', $ranking['total_points'] ?? null);
+        $application->setAttribute('plus_five_points', $ranking['plus_five_points'] ?? null);
         $application->setAttribute('final_total_points', $ranking['final_points'] ?? null);
         $application->setAttribute('rank', $ranking['rank'] ?? null);
 
@@ -609,27 +631,7 @@ public function indexJson(\Illuminate\Http\Request $request)
      */
     private function calculateApplicationScores(CmspApplication $application): array
     {
-        $gwa = (float) ($application->gwa_g12_s2 ?? 0);
-        $gradePoints = $this->mapGradePoints($gwa);
-        $incomeTotal = $this->resolveHouseholdIncome($application);
-        $incomePoints = $this->mapIncomePoints($incomeTotal);
-        $gradeWeighted = round($gradePoints * 0.70, 2);
-        $incomeWeighted = round($incomePoints * 0.30, 2);
-        $totalPoints = round($gradeWeighted + $incomeWeighted, 2);
-        $plusFive = $application->proof_of_special_group_path ? 5 : 0;
-        $finalPoints = round($totalPoints + $plusFive, 2);
-
-        return [
-            'gwa' => $gwa,
-            'income_total' => $incomeTotal,
-            'grade_points' => $gradePoints,
-            'income_points' => $incomePoints,
-            'grade_weighted' => $gradeWeighted,
-            'income_weighted' => $incomeWeighted,
-            'total_points' => $totalPoints,
-            'plus_five' => $plusFive,
-            'final_points' => $finalPoints,
-        ];
+        return $this->evaluationService->computeScores($application);
     }
 
     /**
@@ -710,6 +712,27 @@ public function indexJson(\Illuminate\Http\Request $request)
         return $entries;
     }
 
+    private function isQualifiedEntry(array $entry): bool
+    {
+        /** @var CmspApplication $app */
+        $app = $entry['model'];
+        $remarks = trim((string) ($app->validation_remarks ?? ''));
+
+        return strcasecmp($remarks, CmspEvaluationService::QUALIFIED_REMARK) === 0;
+    }
+
+    /**
+     * @param array<int, string> $allowedRanks
+     */
+    private function entryInitialRankMatches(array $entry, array $allowedRanks): bool
+    {
+        /** @var CmspApplication $app */
+        $app = $entry['model'];
+        $initialRank = mb_strtoupper(trim((string) ($app->validation_initial_rank ?? '')));
+
+        return in_array($initialRank, $allowedRanks, true);
+    }
+
 
 
     private function resolveValidationRemarksForExport(CmspApplication $app): string
@@ -729,31 +752,7 @@ public function indexJson(\Illuminate\Http\Request $request)
             return $storedRemarks;
         }
 
-        $validatorNotes = trim((string) ($app->validation_validator_notes ?? ''));
-        if ($validatorNotes !== '') {
-            $normalizedNotes = mb_strtolower($validatorNotes);
-            if (str_contains($normalizedNotes, 'disqualif')) {
-                return 'Disqualified Applicant';
-            }
-
-            if (str_contains($normalizedNotes, 'qualif')) {
-                return 'Qualified Applicant';
-            }
-        }
-
-        $fatherIncome = is_numeric($app->father_income_monthly) ? (float) $app->father_income_monthly : 0.0;
-        $motherIncome = is_numeric($app->mother_income_monthly) ? (float) $app->mother_income_monthly : 0.0;
-        $combinedIncome = $fatherIncome + $motherIncome;
-
-        $gwaS1 = is_numeric($app->gwa_g12_s1) ? (float) $app->gwa_g12_s1 : 0.0;
-        $gwaS2 = is_numeric($app->gwa_g12_s2) ? (float) $app->gwa_g12_s2 : 0.0;
-        $gwaAverage = ($gwaS1 + $gwaS2) / 2;
-
-        if ($combinedIncome > 501000 || $gwaAverage < 92.5) {
-            return 'Disqualified Applicant';
-        }
-
-        return 'Qualified Applicant';
+        return $this->evaluationService->evaluate($app)['remarks'];
     }
 
     /**
@@ -1064,7 +1063,7 @@ public function indexJson(\Illuminate\Http\Request $request)
                 $app = $entry['model'];
                 $remarks = $this->resolveValidationRemarksForExport($app);
 
-                if (stripos($remarks, 'disqualified') !== false) {
+                if ($remarks !== 'Pending Validation' && strcasecmp($remarks, CmspEvaluationService::QUALIFIED_REMARK) !== 0) {
                     $row = $startRow + $index;
                     $sheet->getStyle("A{$row}:AL{$row}")->getFill()
                         ->setFillType(Fill::FILL_SOLID)

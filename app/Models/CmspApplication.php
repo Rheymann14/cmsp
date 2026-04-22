@@ -84,8 +84,8 @@ class CmspApplication extends Model
         'mother_na' => 'boolean',
         'mother_deceased' => 'boolean',
 
-        'gwa_g12_s1' => 'integer',
-        'gwa_g12_s2' => 'integer',
+        'gwa_g12_s1' => 'decimal:2',
+        'gwa_g12_s2' => 'decimal:2',
 
         // 'working' => 'boolean',
     ];

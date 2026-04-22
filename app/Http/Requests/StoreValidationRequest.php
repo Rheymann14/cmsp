@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\CmspEvaluationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,8 @@ class StoreValidationRequest extends FormRequest
             'initial_rank' => ['required', 'string', Rule::in(['FPESFA', 'FPESFA-GAD', 'FSSP', 'HPESFA', 'HPGAD', 'HSSP'])],
             'validator_notes' => ['nullable', 'string', 'max:2000'],
             'remarks' => ['nullable', 'string', 'max:255'],
+            'disqualification_reasons' => ['nullable', 'array'],
+            'disqualification_reasons.*' => ['string', Rule::in(array_keys(CmspEvaluationService::manualDisqualificationReasons()))],
         ];
     }
 }

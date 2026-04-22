@@ -18,6 +18,7 @@ import { Popover, PopoverTrigger } from '@/components/ui/popover';
 import AppLayout from '@/layouts/app-layout';
 import {
     DISQUALIFIED_REMARK,
+    QUALIFIED_APPLICANT_REMARK,
     getApplicationRemarksResult,
     isDocumentaryRequirementSatisfied,
     isProgramNameMatch,
@@ -290,149 +291,154 @@ export default function RawList() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Raw List" />
             <Toaster richColors position="top-right" closeButton duration={4000} />
-            <div className="mt-2 mb-6 text-center">
-                <h1 className="text-xl font-medium tracking-tight text-[#1e3c73] sm:text-2xl md:text-3xl dark:text-zinc-100">
-                    CHED Merit Scholarship Program (CMSP)
-                </h1>
-            </div>
+            <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto w-full max-w-[1760px]">
+                    <div className="mt-2 mb-6 text-center">
+                        <h1 className="text-xl font-medium tracking-tight text-[#1e3c73] sm:text-2xl md:text-3xl dark:text-zinc-100">
+                            CHED Merit Scholarship Program (CMSP)
+                        </h1>
+                    </div>
 
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-visible rounded-xl p-4 sm:p-6 lg:p-8">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button
-                                variant="outline"
-                                className={cn(
-                                    'gap-2 self-start sm:self-auto',
-                                    selectedAcademicYear
-                                        ? 'border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700/60 dark:text-blue-300 dark:hover:bg-blue-900/20'
-                                        : 'border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10 dark:border-[#1e3c73] dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20',
-                                )}
-                            >
-                                <CalendarRange className="h-4 w-4" />
-                                {selectedAcademicYear ? 'Change academic year' : 'Select academic year'}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[800px]">
-                            <DialogHeader>
-                                <DialogTitle>Select academic year</DialogTitle>
-                                <DialogDescription>Choose an academic year deadline to filter the raw list data.</DialogDescription>
-                            </DialogHeader>
-                            <Command>
-                                <CommandInput placeholder="Search academic year..." />
-                                <CommandList>
-                                    <CommandEmpty>{deadlinesLoading ? 'Loading deadlines...' : 'No academic year deadlines found.'}</CommandEmpty>
-                                    {ayDeadlines.length > 0 ? (
-                                        <CommandGroup heading="Academic year deadlines">
-                                            {ayDeadlines.map((deadline) => (
-                                                <CommandItem
-                                                    key={deadline.id}
-                                                    value={`AY ${deadline.academic_year}`}
-                                                    onSelect={() => {
-                                                        setSelectedDeadlineId(deadline.id);
-                                                        setDeadlineDialogOpen(false);
-                                                    }}
-                                                >
-                                                    <div className="flex flex-1 flex-col">
-                                                        <span className="font-medium">AY {deadline.academic_year}</span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {deadline.deadline_formatted
-                                                                ? `Deadline: ${deadline.deadline_formatted}`
-                                                                : 'No deadline date'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {deadline.is_enabled ? (
-                                                            <Badge variant="secondary" className="whitespace-nowrap">
-                                                                Enabled
-                                                            </Badge>
-                                                        ) : null}
-                                                        {selectedDeadlineId === deadline.id ? <Check className="h-4 w-4 text-[#1e3c73]" /> : null}
-                                                    </div>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    ) : null}
-                                </CommandList>
-                            </Command>
-                        </DialogContent>
-                    </Dialog>
+                    <div className="flex h-full flex-1 flex-col gap-4 overflow-x-visible rounded-xl py-4">
+                        <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className={cn(
+                                            'gap-2 self-start sm:self-auto',
+                                            selectedAcademicYear
+                                                ? 'border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700/60 dark:text-blue-300 dark:hover:bg-blue-900/20'
+                                                : 'border-[#1e3c73] text-[#1e3c73] hover:bg-[#1e3c73]/10 dark:border-[#1e3c73] dark:text-zinc-100 dark:hover:bg-[#1e3c73]/20',
+                                        )}
+                                    >
+                                        <CalendarRange className="h-4 w-4" />
+                                        {selectedAcademicYear ? 'Change academic year' : 'Select academic year'}
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[800px]">
+                                    <DialogHeader>
+                                        <DialogTitle>Select academic year</DialogTitle>
+                                        <DialogDescription>Choose an academic year deadline to filter the raw list data.</DialogDescription>
+                                    </DialogHeader>
+                                    <Command>
+                                        <CommandInput placeholder="Search academic year..." />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                {deadlinesLoading ? 'Loading deadlines...' : 'No academic year deadlines found.'}
+                                            </CommandEmpty>
+                                            {ayDeadlines.length > 0 ? (
+                                                <CommandGroup heading="Academic year deadlines">
+                                                    {ayDeadlines.map((deadline) => (
+                                                        <CommandItem
+                                                            key={deadline.id}
+                                                            value={`AY ${deadline.academic_year}`}
+                                                            onSelect={() => {
+                                                                setSelectedDeadlineId(deadline.id);
+                                                                setDeadlineDialogOpen(false);
+                                                            }}
+                                                        >
+                                                            <div className="flex flex-1 flex-col">
+                                                                <span className="font-medium">AY {deadline.academic_year}</span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {deadline.deadline_formatted
+                                                                        ? `Deadline: ${deadline.deadline_formatted}`
+                                                                        : 'No deadline date'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {deadline.is_enabled ? (
+                                                                    <Badge variant="secondary" className="whitespace-nowrap">
+                                                                        Enabled
+                                                                    </Badge>
+                                                                ) : null}
+                                                                {selectedDeadlineId === deadline.id ? (
+                                                                    <Check className="h-4 w-4 text-[#1e3c73]" />
+                                                                ) : null}
+                                                            </div>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            ) : null}
+                                        </CommandList>
+                                    </Command>
+                                </DialogContent>
+                            </Dialog>
 
-                    <div className="flex w-full flex-col gap-1">
-                        <div className="inline-flex gap-2">
-                            <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
-                                {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
-                            </span>
+                            <div className="flex w-full flex-col gap-1">
+                                <div className="inline-flex gap-2">
+                                    <span className="text-base font-semibold text-[#1e3c73] dark:text-zinc-100">
+                                        {selectedAcademicYear ? `AY ${selectedAcademicYear}` : 'loading...'}
+                                    </span>
+                                </div>
+
+                                <span className="text-xs text-muted-foreground">
+                                    {selectedDeadline?.deadline_formatted
+                                        ? `Deadline: ${selectedDeadline.deadline_formatted}`
+                                        : 'No deadline date selected'}
+                                </span>
+                            </div>
                         </div>
 
-                        <span className="text-xs text-muted-foreground">
-                            {selectedDeadline?.deadline_formatted ? `Deadline: ${selectedDeadline.deadline_formatted}` : 'No deadline date selected'}
-                        </span>
-                    </div>
-                </div>
+                        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            {/* PWD */}
+                            <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">PWD</CardTitle>
+                                    <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
+                                        <Accessibility className="h-5 w-5 text-[#1e3c73]" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold tracking-tight">{specialCounts.pwd.toLocaleString()}</div>
+                                    <p className="text-xs text-muted-foreground">as of today</p>
+                                </CardContent>
+                            </Card>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* PWD */}
-                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">PWD</CardTitle>
-                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
-                                <Accessibility className="h-5 w-5 text-[#1e3c73]" />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.pwd.toLocaleString()}</div>
-                            <p className="text-xs text-muted-foreground">as of today</p>
-                        </CardContent>
-                    </Card>
+                            {/* Solo Parent */}
+                            <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Solo Parent</CardTitle>
+                                    <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
+                                        <Baby className="h-5 w-5 text-[#1e3c73]" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold tracking-tight">{specialCounts.solo_parent.toLocaleString()}</div>
+                                    <p className="text-xs text-muted-foreground">as of today</p>
+                                </CardContent>
+                            </Card>
 
-                    {/* Solo Parent */}
-                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Solo Parent</CardTitle>
-                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
-                                <Baby className="h-5 w-5 text-[#1e3c73]" />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.solo_parent.toLocaleString()}</div>
-                            <p className="text-xs text-muted-foreground">as of today</p>
-                        </CardContent>
-                    </Card>
+                            {/* First Generation Students */}
+                            <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">First Generation Students</CardTitle>
+                                    <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
+                                        <GraduationCap className="h-5 w-5 text-[#1e3c73]" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold tracking-tight">{specialCounts.first_generation.toLocaleString()}</div>
+                                    <p className="text-xs text-muted-foreground">as of today</p>
+                                </CardContent>
+                            </Card>
 
-                    {/* First Generation Students */}
-                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">First Generation Students</CardTitle>
-                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
-                                <GraduationCap className="h-5 w-5 text-[#1e3c73]" />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.first_generation.toLocaleString()}</div>
-                            <p className="text-xs text-muted-foreground">as of today</p>
-                        </CardContent>
-                    </Card>
+                            {/* Indigenous People (IP) */}
+                            <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Indigenous People (IP)</CardTitle>
+                                    <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
+                                        <Tent className="h-5 w-5 text-[#1e3c73]" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold tracking-tight">{specialCounts.indigenous_people.toLocaleString()}</div>
+                                    <p className="text-xs text-muted-foreground">as of today</p>
+                                </CardContent>
+                            </Card>
+                        </div>
 
-                    {/* Indigenous People (IP) */}
-                    <Card className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Indigenous People (IP)</CardTitle>
-                            <div className="rounded-full bg-zinc-100 p-2 dark:bg-zinc-900">
-                                <Tent className="h-5 w-5 text-[#1e3c73]" />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-semibold tracking-tight">{specialCounts.indigenous_people.toLocaleString()}</div>
-                            <p className="text-xs text-muted-foreground">as of today</p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="w-full min-w-0">
-                    {/* Break out of AppLayout max width so the table can use the viewport width. */}
-                    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
-                        <div className="mx-auto w-full max-w-[92rem] rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <div className="w-full min-w-0 rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                             <CmspsTable
                                 onSpecialCounts={handleSpecialCounts}
                                 academicYear={selectedAcademicYear}
@@ -601,6 +607,8 @@ function CmspsTable({
             initial_rank: string;
             validator_notes: string | null;
             remarks: string | null;
+            qualification_status?: 'qualified' | 'disqualified' | string | null;
+            disqualification_reasons?: string[] | null;
             checked_by: number;
             created_at: string;
             updated_at: string;
@@ -1053,10 +1061,9 @@ function CmspsTable({
                 documentaryRequirementsSatisfied,
                 documentaryRequirementIssues,
             });
-
             setValidationForm((prev) => ({
                 ...prev,
-                remarks: computedRemarksResult.remarks,
+                remarks: computedRemarksResult.reasons.length > 0 ? DISQUALIFIED_REMARK : computedRemarksResult.remarks,
             }));
             setValidationDisqualificationReasons(computedRemarksResult.reasons);
         };
@@ -1404,6 +1411,10 @@ function CmspsTable({
     };
 
     const openValidationDialog = (row: ApplicationRow) => {
+        const savedReasons = Array.isArray(row.latest_validation?.disqualification_reasons)
+            ? row.latest_validation.disqualification_reasons.filter((reason): reason is string => typeof reason === 'string')
+            : [];
+
         setValidationRow(row);
         setSelectedId(row.id);
         setValidationForm({
@@ -1413,7 +1424,7 @@ function CmspsTable({
             validator_notes: row.latest_validation?.validator_notes ?? '',
             remarks: row.latest_validation?.remarks ?? '',
         });
-        setValidationDisqualificationReasons([]);
+        setValidationDisqualificationReasons(savedReasons);
         setValidationErrors({});
         setValidationSubmitting(false);
         setClearingValidation(false);
@@ -1428,6 +1439,13 @@ function CmspsTable({
             resetValidationState();
         }
     };
+
+    const systemRemarksDisplay =
+        validationForm.remarks === QUALIFIED_APPLICANT_REMARK
+            ? QUALIFIED_APPLICANT_REMARK
+            : validationForm.remarks
+              ? DISQUALIFIED_REMARK
+              : 'Will be generated on save';
 
     const handleValidationSubmit = async () => {
         if (!validationRow) return;
@@ -1455,7 +1473,6 @@ function CmspsTable({
                 no_siblings: Number(validationForm.no_siblings),
                 initial_rank: validationForm.initial_rank,
                 validator_notes: validationForm.validator_notes.trim() ? validationForm.validator_notes.trim() : null,
-                remarks: validationForm.remarks.trim() ? validationForm.remarks.trim() : null,
             };
 
             const res = await fetch(getValidationStoreUrl(), {
@@ -1529,13 +1546,18 @@ function CmspsTable({
                     validator_notes: savedValidation.validator_notes ?? '',
                     remarks: savedValidation.remarks ?? '',
                 });
+                setValidationDisqualificationReasons(
+                    Array.isArray(savedValidation.disqualification_reasons)
+                        ? savedValidation.disqualification_reasons.filter((reason: unknown): reason is string => typeof reason === 'string')
+                        : [],
+                );
             } else {
                 setValidationForm({
                     document_status: payload.document_status,
                     no_siblings: String(payload.no_siblings),
                     initial_rank: payload.initial_rank,
                     validator_notes: payload.validator_notes ?? '',
-                    remarks: payload.remarks ?? '',
+                    remarks: '',
                 });
             }
 
@@ -2388,13 +2410,13 @@ function CmspsTable({
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="validation-remarks">Remarks</Label>
-                                <Input id="validation-remarks" value={validationForm.remarks} readOnly disabled className="font-semibold" />
+                                <Label htmlFor="validation-remarks">System Remarks</Label>
+                                <Input id="validation-remarks" value={systemRemarksDisplay} readOnly disabled className="font-semibold" />
                                 <p className="text-xs text-muted-foreground">
-                                    Automatically computed as Qualified/Disqualified based on criteria.{' '}
+                                    Automatically computed by the server on save. Preview updates from current validation inputs.{' '}
                                     {priorityCoursesLoading || heiProgramsLoading ? 'Checking HEI program status…' : ''}
                                 </p>
-                                {validationForm.remarks === DISQUALIFIED_REMARK && validationDisqualificationReasons.length > 0 ? (
+                                {systemRemarksDisplay === DISQUALIFIED_REMARK && validationDisqualificationReasons.length > 0 ? (
                                     <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
                                         <p className="font-semibold">Reason for disqualification:</p>
                                         <ul className="mt-1 list-disc space-y-1 pl-5">
@@ -2428,7 +2450,7 @@ function CmspsTable({
                                 <Button
                                     type="button"
                                     onClick={handleValidationSubmit}
-                                    disabled={validationSubmitting || clearingValidation || priorityCoursesLoading || heiProgramsLoading}
+                                    disabled={validationSubmitting || clearingValidation}
                                     className="bg-[#1e3c73] text-white shadow-sm hover:bg-[#1a3565]"
                                 >
                                     {validationSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
