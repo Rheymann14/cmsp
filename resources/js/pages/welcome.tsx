@@ -1075,7 +1075,7 @@ export default function Welcome() {
         if (typeof saved.sex === 'string') setSex(saved.sex as 'male' | 'female' | '');
         // hydrate controlled pieces
         if (typeof saved.incoming === 'string') setIncoming(saved.incoming);
-        if (typeof saved.name_extension === 'string') setNameExt(saved.name_extension);
+        if (saved.sex === 'male' && typeof saved.name_extension === 'string') setNameExt(saved.name_extension);
         if (typeof saved.ethnicity === 'string') {
             const n = Number(saved.ethnicity);
             setEthnicityId(Number.isFinite(n) ? n : null);
@@ -1261,7 +1261,7 @@ export default function Welcome() {
 
         // Bridge UI state (from your Command/Popover, date picker, radios) → FormData
         fd.set('incoming', incoming ?? ''); // "yes" | "no"
-        fd.set('name_extension', nameExt || '');
+        fd.set('name_extension', sex === 'male' ? nameExt || '' : '');
         fd.set('ethnicity', ethnicityId ? String(ethnicityId) : '');
         fd.set('religion', religionId ? String(religionId) : '');
 
@@ -1797,7 +1797,7 @@ export default function Welcome() {
                             >
                                 <TabsTrigger
                                     value="form"
-                                    className="group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors after:absolute after:right-2 after:-bottom-[11px] after:left-2 after:h-[2px] after:rounded-full after:bg-transparent hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35 focus-visible:outline-none data-[state=active]:bg-[#1e3c73]/10 data-[state=active]:text-[#1e3c73] data-[state=active]:after:bg-[#1e3c73] dark:data-[state=active]:bg-[#1e3c73]/20"
+                                    className="group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors after:absolute after:right-2 after:-bottom-[11px] after:left-2 after:h-[2px] after:rounded-full after:bg-transparent hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35 focus-visible:outline-none data-[state=active]:bg-[#1e3c73]/10 data-[state=active]:text-[#1e3c73] data-[state=active]:after:bg-[#1e3c73] dark:text-zinc-300 dark:hover:text-zinc-100 dark:data-[state=active]:bg-[#1e3c73]/20 dark:data-[state=active]:text-blue-300 dark:data-[state=active]:after:bg-blue-300"
                                 >
                                     <FileText className="h-4 w-4" />
                                     <span className="whitespace-nowrap">Application Form</span>
@@ -1805,7 +1805,7 @@ export default function Welcome() {
 
                                 <TabsTrigger
                                     value="req"
-                                    className="group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors after:absolute after:right-2 after:-bottom-[11px] after:left-2 after:h-[2px] after:rounded-full after:bg-transparent hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35 focus-visible:outline-none data-[state=active]:bg-[#1e3c73]/10 data-[state=active]:text-[#1e3c73] data-[state=active]:after:bg-[#1e3c73] dark:data-[state=active]:bg-[#1e3c73]/20"
+                                    className="group relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors after:absolute after:right-2 after:-bottom-[11px] after:left-2 after:h-[2px] after:rounded-full after:bg-transparent hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#1e3c73]/35 focus-visible:outline-none data-[state=active]:bg-[#1e3c73]/10 data-[state=active]:text-[#1e3c73] data-[state=active]:after:bg-[#1e3c73] dark:text-zinc-300 dark:hover:text-zinc-100 dark:data-[state=active]:bg-[#1e3c73]/20 dark:data-[state=active]:text-blue-300 dark:data-[state=active]:after:bg-blue-300"
                                 >
                                     <ShieldCheck className="h-4 w-4" />
                                     <span className="whitespace-nowrap">Eligibility & Requirements</span>
@@ -2138,7 +2138,10 @@ export default function Welcome() {
                                                                     checked={sex === 'female'}
                                                                     onChange={(e) => {
                                                                         setSex('female');
+                                                                        setNameExt('');
+                                                                        setOpenNameExt(false);
                                                                         persistDraft('sex', 'female');
+                                                                        persistDraft('name_extension', '');
                                                                     }}
                                                                 />
                                                                 Female
@@ -2163,50 +2166,52 @@ export default function Welcome() {
                                                         </div>
                                                     )}
 
-                                                    {/* Name Extension (Command searchable) */}
-                                                    <div>
-                                                        <label className="mb-1 block text-sm font-medium">Name Extension</label>
-                                                        <Popover open={openNameExt} onOpenChange={setOpenNameExt}>
-                                                            <PopoverTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    role="combobox"
-                                                                    className="w-full justify-between"
-                                                                    data-field="name_extension"
+                                                    {/* Name Extension (Male only) */}
+                                                    {sex === 'male' && (
+                                                        <div>
+                                                            <label className="mb-1 block text-sm font-medium">Name Extension</label>
+                                                            <Popover open={openNameExt} onOpenChange={setOpenNameExt}>
+                                                                <PopoverTrigger asChild>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        role="combobox"
+                                                                        className="w-full justify-between"
+                                                                        data-field="name_extension"
+                                                                    >
+                                                                        {nameExt || 'Select extension'}
+                                                                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent
+                                                                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                                                                    align="start"
+                                                                    sideOffset={8}
                                                                 >
-                                                                    {nameExt || 'Select extension'}
-                                                                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent
-                                                                className="w-[var(--radix-popover-trigger-width)] p-0"
-                                                                align="start"
-                                                                sideOffset={8}
-                                                            >
-                                                                <Command>
-                                                                    <CommandInput placeholder="Search extension..." />
-                                                                    <CommandList>
-                                                                        <CommandEmpty>No result</CommandEmpty>
-                                                                        <CommandGroup>
-                                                                            {['Jr', 'II', 'III', 'Others'].map((ext) => (
-                                                                                <CommandItem
-                                                                                    key={ext}
-                                                                                    value={ext}
-                                                                                    onSelect={(value) => {
-                                                                                        setNameExt(value);
-                                                                                        persistDraft('name_extension', value);
-                                                                                        setOpenNameExt(false);
-                                                                                    }}
-                                                                                >
-                                                                                    {ext}
-                                                                                </CommandItem>
-                                                                            ))}
-                                                                        </CommandGroup>
-                                                                    </CommandList>
-                                                                </Command>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    </div>
+                                                                    <Command>
+                                                                        <CommandInput placeholder="Search extension..." />
+                                                                        <CommandList>
+                                                                            <CommandEmpty>No result</CommandEmpty>
+                                                                            <CommandGroup>
+                                                                                {['Jr', 'II', 'III', 'Others'].map((ext) => (
+                                                                                    <CommandItem
+                                                                                        key={ext}
+                                                                                        value={ext}
+                                                                                        onSelect={(value) => {
+                                                                                            setNameExt(value);
+                                                                                            persistDraft('name_extension', value);
+                                                                                            setOpenNameExt(false);
+                                                                                        }}
+                                                                                    >
+                                                                                        {ext}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                    )}
 
                                                     {/* Birthdate */}
                                                     <div>
@@ -3847,7 +3852,7 @@ export default function Welcome() {
                                             size="sm"
                                             aria-expanded={showReqs}
                                             onClick={() => setShowReqs((s) => !s)}
-                                            className="flex h-8 items-center gap-1 rounded-full px-3"
+                                            className="flex h-8 items-center gap-1 rounded-full border-zinc-300 text-zinc-700 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                                         >
                                             <motion.div animate={{ rotate: showReqs ? 180 : 0 }} transition={{ duration: 0.3 }}>
                                                 <ChevronDown className="h-4 w-4" />

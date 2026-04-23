@@ -1944,7 +1944,7 @@ function CmspsTable({
                         <PopoverTrigger asChild>
                             <Button type="button" variant="outline" size="sm" className="gap-2">
                                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                                Columns
+                                Hide Columns
                                 {hiddenColumnKeys.size > 0 ? (
                                     <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                                         {visibleColumnCount}/{COLS}
@@ -2701,7 +2701,7 @@ function CmspsTable({
                                 <Label htmlFor="validation-remarks">System Remarks</Label>
                                 <Input id="validation-remarks" value={systemRemarksDisplay} readOnly disabled className="font-semibold" />
                                 <p className="text-xs text-muted-foreground">
-                                    Automatically computed by the server on save. Preview updates from current validation inputs.{' '}
+                                    Automatically computed by the system on save. Preview updates from current validation inputs.{' '}
                                     {priorityCoursesLoading || heiProgramsLoading ? 'Checking HEI program status…' : ''}
                                 </p>
                                 {systemRemarksDisplay === DISQUALIFIED_REMARK && validationDisqualificationReasons.length > 0 ? (
