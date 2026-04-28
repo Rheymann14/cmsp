@@ -1,7 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { type BreadcrumbItem, type ReferencePoint, type SharedData } from '@/types';
-import type { FormDataConvertible } from '@inertiajs/core';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -23,9 +22,15 @@ interface ReferencePageProps {
     incomePoints: ReferencePoint[];
 }
 
-interface ReferenceFormItem extends Record<string, FormDataConvertible> {
+interface ReferenceFormItem {
     id: number;
     equivalent_points: string;
+}
+
+interface ReferenceFormData {
+    items: ReferenceFormItem[];
+    academic_year: string;
+    deadline: string;
 }
 
 interface DeadlineOption {
@@ -161,11 +166,7 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
         [gradePoints, incomePoints],
     );
 
-    const { data, setData, put, processing } = useForm<{
-        items: ReferenceFormItem[];
-        academic_year: string;
-        deadline: string;
-    }>({
+    const { data, setData, put, processing } = useForm<ReferenceFormData>({
         items: referenceItems,
         academic_year: initialFilters.academicYear,
         deadline: initialFilters.deadline,
@@ -430,7 +431,7 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
                                             {deadlines.map((deadline) => (
                                                 <CommandItem
                                                     key={deadline.id}
-                                                    value={`AY ${deadline.academic_year}`}
+                                                    value={`AY ${deadline.academic_year} ${deadline.deadline ?? ''} ${deadline.id}`}
                                                     onSelect={() => handleDeadlineSelect(deadline)}
                                                 >
                                                     <div className="flex flex-1 flex-col">

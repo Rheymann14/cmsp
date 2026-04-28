@@ -19,10 +19,40 @@ import { useEffect, useMemo, useState } from 'react';
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'HEIs & Programs', href: '/hei_programs' }];
 
 type HeiItem = {
+    id: string;
     instCode: string;
     instName: string;
     province?: string | null;
     municipalityCity?: string | null;
+};
+
+const normalizeHeiItem = (item: unknown, index: number): HeiItem | null => {
+    if (!item || typeof item !== 'object') {
+        return null;
+    }
+
+    const raw = item as Record<string, unknown>;
+    const instName = String(raw.instName ?? '').trim();
+    const instCode = String(raw.instCode ?? '').trim();
+    const province = String(raw.province ?? '').trim();
+    const municipalityCity = String(raw.municipalityCity ?? '').trim();
+
+    if (!instName || !instCode) {
+        return null;
+    }
+
+    return {
+        id: [instCode, instName, province, municipalityCity, String(index)].join('::'),
+        instCode,
+        instName,
+        province: province || null,
+        municipalityCity: municipalityCity || null,
+    };
+};
+
+const isPlaceholderCode = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'pending' || normalized === 'n/a' || normalized === 'na' || normalized === 'null';
 };
 
 export default function HeiProgramsPage() {
@@ -50,7 +80,9 @@ export default function HeiProgramsPage() {
                 const json = await res.json();
 
                 if (cancelled) return;
-                const items = Array.isArray(json?.items) ? json.items : [];
+                const items = Array.isArray(json?.items)
+                    ? json.items.map(normalizeHeiItem).filter((item: HeiItem | null): item is HeiItem => item !== null)
+                    : [];
                 setHeis(items);
                 if (items.length > 0) {
                     setSelectedHei(items[0]);
@@ -217,16 +249,18 @@ export default function HeiProgramsPage() {
                                 ) : (
                                     filteredHeis.map((hei, heiIndex) => (
                                         <Button
-                                            key={hei.instCode}
+                                            key={hei.id}
                                             variant="ghost"
-                                            className={`h-auto w-full justify-start border px-3 py-2 text-left whitespace-normal ${selectedHei?.instCode === hei.instCode ? 'border-blue-300 bg-blue-100 text-blue-900 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20'}`}
+                                            className={`h-auto w-full justify-start border px-3 py-2 text-left whitespace-normal ${selectedHei?.id === hei.id ? 'border-blue-300 bg-blue-100 text-blue-900 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-100' : 'border-transparent hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20'}`}
                                             onClick={() => setSelectedHei(hei)}
                                         >
                                             <div className="space-y-1">
                                                 <div className="leading-snug font-semibold">
                                                     {heiIndex + 1}. {hei.instName}
                                                 </div>
-                                                <div className="text-xs opacity-80">Code: {hei.instCode}</div>
+                                                <div className="text-xs opacity-80">
+                                                    Code: {isPlaceholderCode(hei.instCode) ? 'Unavailable' : hei.instCode}
+                                                </div>
                                                 {(hei.province || hei.municipalityCity) && (
                                                     <div className="text-xs opacity-80">
                                                         {hei.municipalityCity ?? ''}

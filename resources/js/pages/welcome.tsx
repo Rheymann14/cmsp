@@ -1956,9 +1956,9 @@ export default function Welcome() {
                                                                     <CommandList>
                                                                         <CommandEmpty>No result</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {['Region XII', 'BARMM'].map((region) => (
+                                                                            {['Region XII', 'BARMM'].map((region, index) => (
                                                                                 <CommandItem
-                                                                                    key={region}
+                                                                                    key={`${region}-${index}`}
                                                                                     value={region}
                                                                                     onSelect={(value) => {
                                                                                         setRegion(value);
@@ -2192,9 +2192,9 @@ export default function Welcome() {
                                                                         <CommandList>
                                                                             <CommandEmpty>No result</CommandEmpty>
                                                                             <CommandGroup>
-                                                                                {['Jr', 'II', 'III', 'Others'].map((ext) => (
+                                                                                {['Jr', 'II', 'III', 'Others'].map((ext, index) => (
                                                                                     <CommandItem
-                                                                                        key={ext}
+                                                                                        key={`${ext}-${index}`}
                                                                                         value={ext}
                                                                                         onSelect={(value) => {
                                                                                             setNameExt(value);
@@ -2274,7 +2274,7 @@ export default function Welcome() {
                                                                                 {ethnicities.map((e) => (
                                                                                     <CommandItem
                                                                                         key={e.id}
-                                                                                        value={e.label}
+                                                                                        value={`${e.label} ${e.id}`}
                                                                                         onSelect={() => {
                                                                                             setEthnicityId(e.id);
                                                                                             setEthnicityLabel(e.label);
@@ -2328,7 +2328,7 @@ export default function Welcome() {
                                                                                 {religions.map((r) => (
                                                                                     <CommandItem
                                                                                         key={r.id}
-                                                                                        value={r.label}
+                                                                                        value={`${r.label} ${r.id}`}
                                                                                         onSelect={() => {
                                                                                             setReligionId(r.id);
                                                                                             setReligionLabel(r.label);
@@ -2411,7 +2411,7 @@ export default function Welcome() {
                                                                                     {locations.map((loc) => (
                                                                                         <CommandItem
                                                                                             key={loc.id}
-                                                                                            value={loc.label}
+                                                                                            value={`${loc.label} ${loc.id}`}
                                                                                             onSelect={() => {
                                                                                                 setProvinceId(loc.id);
                                                                                                 setProvinceLabel(loc.label);
@@ -2516,7 +2516,7 @@ export default function Welcome() {
                                                                                     {districts.map((d) => (
                                                                                         <CommandItem
                                                                                             key={d.id}
-                                                                                            value={d.label}
+                                                                                            value={`${d.label} ${d.id}`}
                                                                                             onSelect={() => {
                                                                                                 setDistrictId(d.id);
                                                                                                 setDistrictLabel(d.label);
@@ -2706,7 +2706,7 @@ export default function Welcome() {
                                                                                 {sortedSchools.map((s) => (
                                                                                     <CommandItem
                                                                                         key={s.id}
-                                                                                        value={s.label}
+                                                                                        value={`${s.label} ${s.id}`}
                                                                                         onSelect={() => {
                                                                                             setSchoolId(s.id);
                                                                                             setSchoolLabel(s.label);
@@ -2733,8 +2733,8 @@ export default function Welcome() {
                                                             Type of School <span className="text-red-500">*</span>
                                                         </label>
                                                         <div className="flex flex-col gap-2 text-sm" data-group="school_type">
-                                                            {['Public', 'LUC', 'Private'].map((type) => (
-                                                                <label key={type} className="flex items-center gap-2">
+                                                            {['Public', 'LUC', 'Private'].map((type, index) => (
+                                                                <label key={`${type}-${index}`} className="flex items-center gap-2">
                                                                     <input type="radio" name="school_type" value={type} className="h-4 w-4" />
                                                                     {type}
                                                                 </label>
@@ -2787,9 +2787,9 @@ export default function Welcome() {
                                                                     <CommandList>
                                                                         <CommandEmpty>No result</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {['Incoming First Year'].map((lvl) => (
+                                                                            {['Incoming First Year'].map((lvl, index) => (
                                                                                 <CommandItem
-                                                                                    key={lvl}
+                                                                                    key={`${lvl}-${index}`}
                                                                                     value={lvl}
                                                                                     onSelect={(value) => {
                                                                                         setYearLevel(value);
@@ -2859,7 +2859,7 @@ export default function Welcome() {
                                                                                 {courses.map((c) => (
                                                                                     <CommandItem
                                                                                         key={c.id}
-                                                                                        value={c.label}
+                                                                                        value={`${c.label} ${c.id}`}
                                                                                         onSelect={() => {
                                                                                             setCourseId(c.id);
                                                                                             setCourseLabel(c.label);
@@ -2922,8 +2922,8 @@ export default function Welcome() {
                                                                         Type of School <span className="text-red-500">*</span>
                                                                     </label>
                                                                     <div className="flex flex-row gap-4 text-sm" data-group="shs_school_type">
-                                                                        {['Public', 'Private'].map((type) => (
-                                                                            <label key={type} className="flex items-center gap-2">
+                                                                        {['Public', 'Private'].map((type, index) => (
+                                                                            <label key={`${type}-${index}`} className="flex items-center gap-2">
                                                                                 <input
                                                                                     type="radio"
                                                                                     name="shs_school_type"

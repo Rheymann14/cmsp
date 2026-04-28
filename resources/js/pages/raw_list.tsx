@@ -449,7 +449,7 @@ export default function RawList() {
                                                     {ayDeadlines.map((deadline) => (
                                                         <CommandItem
                                                             key={deadline.id}
-                                                            value={`AY ${deadline.academic_year}`}
+                                                            value={`AY ${deadline.academic_year} ${deadline.deadline ?? ''} ${deadline.id}`}
                                                             onSelect={() => {
                                                                 setSelectedDeadlineId(deadline.id);
                                                                 setDeadlineDialogOpen(false);
@@ -802,9 +802,9 @@ function CmspsTable({
         return (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
                 <span className="font-medium text-muted-foreground">Files:</span>
-                {items.map(({ label, url, missing, notRequired }) =>
+                {items.map(({ label, url, missing, notRequired }, index) =>
                     notRequired ? (
-                        <span key={label} className="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400" title="Not required">
+                        <span key={`${label}-${index}`} className="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400" title="Not required">
                             <span className="h-2 w-2 rounded-full bg-zinc-400" aria-hidden />
                             <span className="capitalize">
                                 {label}: {label === 'guardianship' ? 'optional' : 'N/A'}
@@ -812,14 +812,14 @@ function CmspsTable({
                         </span>
                     ) : missing ? (
                         // Missing (red)
-                        <span key={label} className="inline-flex items-center gap-1 text-red-600 dark:text-red-400" title="Missing file">
+                        <span key={`${label}-${index}`} className="inline-flex items-center gap-1 text-red-600 dark:text-red-400" title="Missing file">
                             <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
                             <span className="capitalize">{label}</span>
                         </span>
                     ) : (
                         // Present (green, clickable)
                         <a
-                            key={label}
+                            key={`${label}-${index}`}
                             href={url!}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -1968,7 +1968,7 @@ function CmspsTable({
                                         Quick ranges
                                     </p>
                                     <div className="grid gap-1">
-                                        {RAW_LIST_COLUMN_GROUPS.map((group) => {
+                                        {RAW_LIST_COLUMN_GROUPS.map((group, groupIndex) => {
                                             const visibleInGroup = group.keys.filter((columnKey) => !hiddenColumnKeys.has(columnKey)).length;
                                             const allVisible = visibleInGroup === group.keys.length;
                                             const allHidden = visibleInGroup === 0;
@@ -1976,7 +1976,7 @@ function CmspsTable({
 
                                             return (
                                                 <label
-                                                    key={group.label}
+                                                    key={`${group.label}-${groupIndex}`}
                                                     className={cn(
                                                         'flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900',
                                                         disableToggle && 'cursor-not-allowed opacity-60',
@@ -2604,11 +2604,11 @@ function CmspsTable({
                                             <CommandList>
                                                 <CommandEmpty>No results found.</CommandEmpty>
                                                 <CommandGroup>
-                                                    {SIBLING_OPTIONS.map((count) => {
+                                                    {SIBLING_OPTIONS.map((count, index) => {
                                                         const value = String(count);
                                                         return (
                                                             <CommandItem
-                                                                key={value}
+                                                                key={`${value}-${index}`}
                                                                 value={value}
                                                                 onSelect={(currentValue) => {
                                                                     setValidationForm((prev) => ({ ...prev, no_siblings: currentValue }));
@@ -2654,11 +2654,11 @@ function CmspsTable({
                                             <CommandList>
                                                 <CommandEmpty>No results found.</CommandEmpty>
                                                 <CommandGroup>
-                                                    {INITIAL_RANK_OPTIONS.map((option) => {
+                                                    {INITIAL_RANK_OPTIONS.map((option, index) => {
                                                         const value = String(option);
                                                         return (
                                                             <CommandItem
-                                                                key={value}
+                                                                key={`${value}-${index}`}
                                                                 value={value}
                                                                 onSelect={(currentValue) => {
                                                                     setValidationForm((prev) => ({ ...prev, initial_rank: currentValue }));
@@ -2708,8 +2708,8 @@ function CmspsTable({
                                     <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
                                         <p className="font-semibold">Reason for disqualification:</p>
                                         <ul className="mt-1 list-disc space-y-1 pl-5">
-                                            {validationDisqualificationReasons.map((reason) => (
-                                                <li key={reason}>{reason}</li>
+                                            {validationDisqualificationReasons.map((reason, index) => (
+                                                <li key={`${reason}-${index}`}>{reason}</li>
                                             ))}
                                         </ul>
                                     </div>

@@ -447,8 +447,8 @@ export default function ReportPage() {
     iframe.setAttribute('aria-hidden', 'true');
     iframe.setAttribute('sandbox', 'allow-same-origin allow-modals allow-scripts');
 
-    let cleanupTimer: ReturnType<typeof window.setTimeout> | null = null;
-    let printTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let cleanupTimer: number | null = null;
+    let printTimer: number | null = null;
     let objectUrl: string | null = null;
 
     const cleanup = () => {
@@ -569,13 +569,7 @@ export default function ReportPage() {
     iframe.addEventListener('load', handleLoad, { once: true });
 
     try {
-      if ('srcdoc' in iframe) {
-        iframe.srcdoc = html;
-      } else {
-        const blob = new Blob([html], { type: 'text/html' });
-        objectUrl = URL.createObjectURL(blob);
-        iframe.src = objectUrl;
-      }
+      iframe.srcdoc = html;
 
       const target = document.body ?? document.documentElement;
       if (!target) {
@@ -982,7 +976,7 @@ export default function ReportPage() {
                       {deadlines.map((deadline) => (
                         <CommandItem
                           key={deadline.id}
-                          value={`AY ${deadline.academic_year}`}
+                          value={`AY ${deadline.academic_year} ${deadline.deadline ?? ''} ${deadline.id}`}
                           onSelect={() => {
                             setSelectedDeadlineId(deadline.id);
                             setDeadlineDialogOpen(false);
@@ -1036,9 +1030,9 @@ export default function ReportPage() {
                   <span className="font-semibold uppercase tracking-wide text-[#1e3c73] dark:text-zinc-100">
                     Ranks:
                   </span>
-                  {detailDialogRanks.map((rank) => (
+                  {detailDialogRanks.map((rank, index) => (
                     <span
-                      key={rank}
+                      key={`${rank}-${index}`}
                       className="inline-flex items-center rounded-full border border-[#1e3c73]/40 px-2 py-0.5 font-semibold text-[#1e3c73] dark:border-[#1e3c73]/60 dark:text-zinc-100"
                     >
                       #{rank.toLocaleString()}
@@ -1251,9 +1245,9 @@ export default function ReportPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    summary.special_groups.map((group) => (
+                    summary.special_groups.map((group, groupIndex) => (
                       <TableRow
-                        key={group.name}
+                        key={`${group.name}-${groupIndex}`}
                         role="button"
                         tabIndex={0}
                         onClick={() => handleGroupRowClick(group.name)}
@@ -1274,9 +1268,9 @@ export default function ReportPage() {
                         <TableCell className="text-[#1e3c73] dark:text-zinc-100">
                           {group.ranks.length ? (
                             <div className="flex flex-wrap gap-1.5">
-                              {group.ranks.map((rank) => (
+                              {group.ranks.map((rank, rankIndex) => (
                                 <span
-                                  key={rank}
+                                  key={`${rank}-${rankIndex}`}
                                   className="inline-flex items-center rounded-full border border-[#1e3c73]/40 px-2 py-0.5 text-xs font-semibold text-[#1e3c73] dark:border-[#1e3c73]/60 dark:text-zinc-100"
                                 >
                                   #{rank.toLocaleString()}
