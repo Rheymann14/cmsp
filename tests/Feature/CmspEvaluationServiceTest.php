@@ -182,6 +182,68 @@ test('qualification catches no grades and incomplete grade attachments', functio
         ->and($result['remark_reasons'])->toContain('Lacking/Incomplete Grades');
 });
 
+test('special group proof is not required when special group is n a', function (array|string $specialGroups) {
+    $result = app(CmspEvaluationService::class)->evaluate(cmspTestApplication([
+        'special_groups' => $specialGroups,
+        'proof_of_special_group_path' => null,
+    ]), [], [
+        'is_priority' => true,
+        'is_discontinued' => false,
+    ], [
+        'document_status' => 'Complete',
+    ]);
+
+    expect($result['remark_reasons'])->not->toContain(CmspEvaluationService::REASON_LACKING_SPECIAL_GROUP_PROOF);
+})->with([
+    [['N/A']],
+    [['NA']],
+    [['none']],
+    ['["N/A"]'],
+]);
+
+test('special group proof is required when a special group is selected', function () {
+    $result = app(CmspEvaluationService::class)->evaluate(cmspTestApplication([
+        'special_groups' => ['N/A', 'Solo Parent'],
+        'proof_of_special_group_path' => null,
+    ]), [], [
+        'is_priority' => true,
+        'is_discontinued' => false,
+    ]);
+
+    expect($result['remark_reasons'])->toContain(CmspEvaluationService::REASON_LACKING_SPECIAL_GROUP_PROOF);
+});
+
+test('qualification disqualifies below minimum gwa and unsatisfied document status', function () {
+    $result = app(CmspEvaluationService::class)->evaluate(cmspTestApplication([
+        'gwa_g12_s1' => 92,
+        'gwa_g12_s2' => 92.5,
+    ]), [], [
+        'is_priority' => true,
+        'is_discontinued' => false,
+    ], [
+        'document_status' => 'Incomplete',
+    ]);
+
+    expect($result['qualification_status'])->toBe('disqualified')
+        ->and($result['remark_reasons'])->toContain(CmspEvaluationService::REASON_GWA_BELOW_MINIMUM)
+        ->and($result['remark_reasons'])->toContain(CmspEvaluationService::REASON_DOCUMENTARY_REQUIREMENTS);
+});
+
+test('document status text does not disqualify when required attachments are complete unless explicitly unsatisfied', function (string $documentStatus) {
+    $result = app(CmspEvaluationService::class)->evaluate(cmspTestApplication(), [], [
+        'is_priority' => true,
+        'is_discontinued' => false,
+    ], [
+        'document_status' => $documentStatus,
+    ]);
+
+    expect($result['remark_reasons'])->not->toContain(CmspEvaluationService::REASON_DOCUMENTARY_REQUIREMENTS);
+})->with([
+    ['Complete'],
+    ['Submitted'],
+    ['test'],
+]);
+
 test('ranking sorts by final total points descending and shares dense rank on ties', function () {
     $service = app(CmspRankingService::class);
 

@@ -20,7 +20,11 @@ class ValidationController extends Controller
 
         $evaluation = $evaluationService->evaluate(
             $application,
-            $data['disqualification_reasons'] ?? []
+            $data['disqualification_reasons'] ?? [],
+            null,
+            [
+                'document_status' => $data['document_status'],
+            ]
         );
 
         $validation = Validation::updateOrCreate(
@@ -30,6 +34,7 @@ class ValidationController extends Controller
                 'tracking_no' => $application->tracking_no,
                 'document_status' => $data['document_status'],
                 'no_siblings' => $data['no_siblings'],
+                'has_medical_issue_proof' => $data['has_medical_issue_proof'],
                 'initial_rank' => $data['initial_rank'],
                 'validator_notes' => $data['validator_notes'] ?? null,
                 'remarks' => $evaluation['remarks'],

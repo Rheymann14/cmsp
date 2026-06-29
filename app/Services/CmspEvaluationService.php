@@ -17,6 +17,8 @@ class CmspEvaluationService
     public const REASON_NOT_PRIORITY_COURSE = 'NOT PRIORITY COURSE';
     public const REASON_DISCONTINUED_PROGRAM = 'DISCONTINUED PROGRAM';
     public const REASON_INCOME_EXCEEDS = 'Income exceeds 500,000.00';
+    public const REASON_GWA_BELOW_MINIMUM = 'GWA average is below 93.';
+    public const REASON_DOCUMENTARY_REQUIREMENTS = 'Documentary/application requirements are not satisfied.';
     public const REASON_NO_GRADES = 'NO GR';
     public const REASON_INCOMPLETE_GRADES = 'Lacking/Incomplete Grades';
     public const REASON_NO_DOCUMENTS = 'No Documents Submitted';
@@ -56,7 +58,7 @@ class CmspEvaluationService
      * @return array{
      *     grade_12_gwa: float|null,
      *     income: float,
-     *     equivalent_grade_points: int,
+     *     equivalent_grade_points: float,
      *     equivalent_income_points: int,
      *     weighted_grade_points: float,
      *     weighted_income_points: float,
@@ -65,7 +67,7 @@ class CmspEvaluationService
      *     final_total_points: float,
      *     gwa: float|null,
      *     income_total: float,
-     *     grade_points: int,
+     *     grade_points: float,
      *     income_points: int,
      *     grade_weighted: float,
      *     income_weighted: float,
@@ -76,7 +78,7 @@ class CmspEvaluationService
     public function computeScores(CmspApplication $application): array
     {
         $grade12Gwa = $this->resolveGrade12Gwa($application);
-        $gradePoints = $grade12Gwa === null ? 0 : $this->mapGradePoints($grade12Gwa);
+        $gradePoints = $grade12Gwa ?? 0;
         $income = $this->resolveHouseholdIncome($application);
         $incomePoints = $this->mapIncomePoints($income);
         $weightedGrade = round($gradePoints * 0.70, 2);
@@ -111,6 +113,7 @@ class CmspEvaluationService
     /**
      * @param  array<int, string>  $manualReasonKeys
      * @param  array<string, mixed>|null  $programEvaluation
+     * @param  array<string, mixed>  $validationContext
      * @return array{
      *     qualification_status: string,
      *     remarks: string,
@@ -118,7 +121,7 @@ class CmspEvaluationService
      *     scores: array<string, mixed>
      * }
      */
-    public function evaluate(CmspApplication $application, array $manualReasonKeys = [], ?array $programEvaluation = null): array
+    public function evaluate(CmspApplication $application, array $manualReasonKeys = [], ?array $programEvaluation = null, array $validationContext = []): array
     {
         $scores = $this->computeScores($application);
         $reasons = [];
@@ -130,8 +133,15 @@ class CmspEvaluationService
         $missingAttachments = $this->missingRequiredAttachmentReasons($application);
         $reasons = array_merge($reasons, $missingAttachments);
 
+        $documentStatus = $validationContext['document_status'] ?? null;
+        if (is_string($documentStatus) && $this->isExplicitlyUnsatisfiedDocumentStatus($documentStatus) && count($missingAttachments) === 0) {
+            $reasons[] = self::REASON_DOCUMENTARY_REQUIREMENTS;
+        }
+
         if ($this->hasMissingOrInvalidGwa($application)) {
             $reasons[] = self::REASON_NO_GRADES;
+        } elseif ($this->hasBelowMinimumGwa($application)) {
+            $reasons[] = self::REASON_GWA_BELOW_MINIMUM;
         }
 
         $programEvaluation ??= $this->evaluateSelectedProgram($application);
@@ -214,6 +224,51 @@ class CmspEvaluationService
         }
 
         return round(($s1 + $s2) / 2, 2);
+    }
+
+    public function isDocumentaryRequirementSatisfied(string $documentStatus): bool
+    {
+        $normalized = $this->normalizeText($documentStatus);
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        $disqualifyingStatuses = ['incomplete', 'lacking', 'missing', 'pending', 'failed', 'fail', 'not complete', 'non compliant', 'deficient'];
+        foreach ($disqualifyingStatuses as $status) {
+            if (str_contains($normalized, $status)) {
+                return false;
+            }
+        }
+
+        $words = array_flip(array_filter(explode(' ', $normalized)));
+
+        return isset($words['complete'])
+            || isset($words['completed'])
+            || isset($words['complied'])
+            || isset($words['satisfied'])
+            || isset($words['passed'])
+            || isset($words['pass'])
+            || isset($words['ok'])
+            || isset($words['okay']);
+    }
+
+    public function isExplicitlyUnsatisfiedDocumentStatus(string $documentStatus): bool
+    {
+        $normalized = $this->normalizeText($documentStatus);
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        $disqualifyingStatuses = ['incomplete', 'lacking', 'missing', 'pending', 'failed', 'fail', 'not complete', 'non compliant', 'deficient'];
+        foreach ($disqualifyingStatuses as $status) {
+            if (str_contains($normalized, $status)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function mapGradePoints(float $grade): int
@@ -354,6 +409,13 @@ class CmspEvaluationService
         }
 
         return $this->uniqueReasons($missing);
+    }
+
+    private function hasBelowMinimumGwa(CmspApplication $application): bool
+    {
+        $gwa = $this->resolveGrade12Gwa($application);
+
+        return $gwa !== null && $gwa < 92.5;
     }
 
     private function mapPointsFromReferences(float $value, string $category, int $fallback): int

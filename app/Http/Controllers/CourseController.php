@@ -15,10 +15,11 @@ class CourseController extends Controller
 
         $courses = Course::orderBy('name')
             ->get()
+            ->unique(fn($c) => mb_strtolower(trim((string) $c->name)))
+            ->values()
             ->map(fn($c) => [
                 'id' => $c->id,
                 'label' => $c->name,
-           
             ]);
 
         return response()->json([

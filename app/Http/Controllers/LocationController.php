@@ -17,6 +17,8 @@ class LocationController extends Controller
             ->orderBy('province')
             ->orderBy('municipality')
             ->get()
+            ->unique(fn($loc) => mb_strtolower(trim("{$loc->province} - {$loc->municipality}")))
+            ->values()
             ->map(fn($loc) => [
                 'id' => $loc->id,
                 'label' => "{$loc->province} - {$loc->municipality}",

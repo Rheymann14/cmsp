@@ -189,10 +189,9 @@ class CmspApplicationController extends Controller
             ->withInput();
     }
 
-    // Require special proof only if non-"N/A" chosen
+    // Require special proof only if a real special group was selected.
     $needsSpecialProof = collect($validated['special_groups'])
-        ->filter(fn($v) => trim($v) !== 'N/A')
-        ->isNotEmpty();
+        ->contains(fn($value) => $this->isSpecialGroupRequiringProof((string) $value));
 
     if ($needsSpecialProof) {
         $request->validate([
@@ -315,7 +314,10 @@ public function exportXlsx(Request $request)
                 DB::raw('v.document_status as validation_document_status'),
                 DB::raw('v.validator_notes as validation_validator_notes'),
                 DB::raw('v.remarks as validation_remarks'),
+                DB::raw('v.qualification_status as validation_qualification_status'),
+                DB::raw('v.disqualification_reasons as validation_disqualification_reasons'),
                 DB::raw('v.no_siblings as validation_no_siblings'),
+                DB::raw('v.has_medical_issue_proof as validation_has_medical_issue_proof'),
                 DB::raw('v.initial_rank as validation_initial_rank'),
             ])
             ->leftJoin('ethnicities as e', 'e.id', '=', 'a.ethnicity_id')
@@ -497,7 +499,6 @@ public function indexJson(\Illuminate\Http\Request $request)
             $rankingsById[$entry['model']->id] = [
                 'grade_12_gwa' => $entry['grade_12_gwa'],
                 'income' => $entry['income'],
-                'equivalent_grade_points' => $entry['equivalent_grade_points'],
                 'equivalent_income_points' => $entry['equivalent_income_points'],
                 'weighted_grade_points' => $entry['weighted_grade_points'],
                 'weighted_income_points' => $entry['weighted_income_points'],
@@ -514,7 +515,6 @@ public function indexJson(\Illuminate\Http\Request $request)
         $ranking = $rankingsById[$application->id] ?? null;
         $application->setAttribute('grade_12_gwa', $ranking['grade_12_gwa'] ?? null);
         $application->setAttribute('income', $ranking['income'] ?? null);
-        $application->setAttribute('equivalent_grade_points', $ranking['equivalent_grade_points'] ?? null);
         $application->setAttribute('equivalent_income_points', $ranking['equivalent_income_points'] ?? null);
         $application->setAttribute('weighted_grade_points', $ranking['weighted_grade_points'] ?? null);
         $application->setAttribute('weighted_income_points', $ranking['weighted_income_points'] ?? null);
@@ -536,6 +536,14 @@ public function indexJson(\Illuminate\Http\Request $request)
             'special_counts'  => $specialCounts,
         ],
     ]);
+}
+
+
+private function isSpecialGroupRequiringProof(string $value): bool
+{
+    $normalized = trim((string) preg_replace('/[^a-z0-9]+/', ' ', mb_strtolower($value)));
+
+    return $normalized !== '' && ! in_array($normalized, ['n a', 'na', 'none'], true);
 }
 
 
@@ -620,7 +628,7 @@ public function indexJson(\Illuminate\Http\Request $request)
      * @return array{
      *     gwa: float,
      *     income_total: float,
-     *     grade_points: int,
+     *     grade_points: float,
      *     income_points: int,
      *     grade_weighted: float,
      *     income_weighted: float,
@@ -639,7 +647,7 @@ public function indexJson(\Illuminate\Http\Request $request)
      * @return array<int, array{model: CmspApplication} & array{
      *     gwa: float,
      *     income_total: float,
-     *     grade_points: int,
+     *     grade_points: float,
      *     income_points: int,
      *     grade_weighted: float,
      *     income_weighted: float,
@@ -659,15 +667,17 @@ public function indexJson(\Illuminate\Http\Request $request)
 
         usort($computed, function (array $a, array $b) {
             if ($a['final_points'] === $b['final_points']) {
-                if ($a['total_points'] === $b['total_points']) {
-                    if ($a['grade_points'] === $b['grade_points']) {
-                        return $a['model']->id <=> $b['model']->id;
-                    }
-
-                    return $b['grade_points'] <=> $a['grade_points'];
+                $siblingComparison = $this->entryHasSiblingTieBreaker($b) <=> $this->entryHasSiblingTieBreaker($a);
+                if ($siblingComparison !== 0) {
+                    return $siblingComparison;
                 }
 
-                return $b['total_points'] <=> $a['total_points'];
+                $medicalComparison = $this->entryHasMedicalIssueTieBreaker($b) <=> $this->entryHasMedicalIssueTieBreaker($a);
+                if ($medicalComparison !== 0) {
+                    return $medicalComparison;
+                }
+
+                return $a['model']->id <=> $b['model']->id;
             }
 
             return $b['final_points'] <=> $a['final_points'];
@@ -695,7 +705,11 @@ public function indexJson(\Illuminate\Http\Request $request)
                 continue;
             }
 
-            $formattedScore = sprintf('%.2f', (float) $score);
+            $formattedScore = implode('|', [
+                sprintf('%.2f', (float) $score),
+                $this->entryHasSiblingTieBreaker($entry) ? 'siblings' : 'no-siblings',
+                $this->entryHasMedicalIssueTieBreaker($entry) ? 'medical' : 'no-medical',
+            ]);
 
             if ($lastScore !== null && $formattedScore === $lastScore) {
                 $entry['rank'] = $currentRank;
@@ -712,11 +726,27 @@ public function indexJson(\Illuminate\Http\Request $request)
         return $entries;
     }
 
+    private function entryHasSiblingTieBreaker(array $entry): bool
+    {
+        /** @var CmspApplication $app */
+        $app = $entry['model'];
+
+        return (int) ($app->validation_no_siblings ?? $app->latestValidation?->no_siblings ?? 0) >= 2;
+    }
+
+    private function entryHasMedicalIssueTieBreaker(array $entry): bool
+    {
+        /** @var CmspApplication $app */
+        $app = $entry['model'];
+
+        return (bool) ($app->validation_has_medical_issue_proof ?? $app->latestValidation?->has_medical_issue_proof ?? false);
+    }
+
     private function isQualifiedEntry(array $entry): bool
     {
         /** @var CmspApplication $app */
         $app = $entry['model'];
-        $remarks = trim((string) ($app->validation_remarks ?? ''));
+        $remarks = $this->resolveValidationRemarksForExport($app);
 
         return strcasecmp($remarks, CmspEvaluationService::QUALIFIED_REMARK) === 0;
     }
@@ -739,20 +769,115 @@ public function indexJson(\Illuminate\Http\Request $request)
     {
         $hasValidationRow = !is_null($app->validation_document_status)
             || !is_null($app->validation_no_siblings)
+            || !is_null($app->validation_has_medical_issue_proof)
             || !is_null($app->validation_initial_rank)
             || !is_null($app->validation_validator_notes)
-            || !is_null($app->validation_remarks);
+            || !is_null($app->validation_remarks)
+            || !is_null($app->validation_qualification_status)
+            || !is_null($app->validation_disqualification_reasons);
 
         if (!$hasValidationRow) {
             return 'Pending Validation';
         }
 
-        $storedRemarks = trim((string) ($app->validation_remarks ?? ''));
-        if ($storedRemarks !== '') {
+        $computedEvaluation = $this->evaluationService->evaluate($app, [], null, [
+            'document_status' => (string) ($app->validation_document_status ?? ''),
+        ]);
+        $computedRemarks = (string) ($computedEvaluation['remarks'] ?? '');
+        $computedReasons = collect($computedEvaluation['remark_reasons'] ?? [])
+            ->filter(fn ($reason): bool => is_string($reason) && trim($reason) !== '')
+            ->map(fn (string $reason): string => trim($reason))
+            ->values()
+            ->all();
+
+        $storedReasons = $this->filterStaleDocumentaryReasonForExport(
+            $this->validationDisqualificationReasonsForExport($app),
+            $computedReasons
+        );
+        $storedStatus = mb_strtolower(trim((string) ($app->validation_qualification_status ?? '')));
+        if ($storedStatus === CmspEvaluationService::QUALIFICATION_DISQUALIFIED && count($storedReasons) > 0) {
+            return implode(', ', $storedReasons);
+        }
+
+        $storedRemarks = $this->filterStaleDocumentaryRemarkForExport(
+            trim((string) ($app->validation_remarks ?? '')),
+            $computedReasons
+        );
+        if ($storedRemarks !== '' && strcasecmp($storedRemarks, CmspEvaluationService::QUALIFIED_REMARK) !== 0) {
             return $storedRemarks;
         }
 
-        return $this->evaluationService->evaluate($app)['remarks'];
+        if (count($storedReasons) > 0) {
+            return implode(', ', $storedReasons);
+        }
+
+        if ($storedStatus === CmspEvaluationService::QUALIFICATION_DISQUALIFIED) {
+            if ($computedRemarks === CmspEvaluationService::QUALIFIED_REMARK && count($storedReasons) === 0 && $storedRemarks === '') {
+                return $computedRemarks;
+            }
+
+            return $computedRemarks !== CmspEvaluationService::QUALIFIED_REMARK ? $computedRemarks : 'DISQUALIFIED';
+        }
+
+        if ($computedRemarks !== CmspEvaluationService::QUALIFIED_REMARK || $storedRemarks === '') {
+            return $computedRemarks;
+        }
+
+        return $storedRemarks;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function validationDisqualificationReasonsForExport(CmspApplication $app): array
+    {
+        $reasons = $app->validation_disqualification_reasons ?? null;
+
+        if (is_string($reasons)) {
+            $decoded = json_decode($reasons, true);
+            $reasons = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($reasons)) {
+            return [];
+        }
+
+        return collect($reasons)
+            ->filter(fn ($reason): bool => is_string($reason) && trim($reason) !== '')
+            ->map(fn (string $reason): string => trim($reason))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, string> $storedReasons
+     * @param array<int, string> $computedReasons
+     * @return array<int, string>
+     */
+    private function filterStaleDocumentaryReasonForExport(array $storedReasons, array $computedReasons): array
+    {
+        if (in_array(CmspEvaluationService::REASON_DOCUMENTARY_REQUIREMENTS, $computedReasons, true)) {
+            return $storedReasons;
+        }
+
+        return collect($storedReasons)
+            ->reject(fn (string $reason): bool => $reason === CmspEvaluationService::REASON_DOCUMENTARY_REQUIREMENTS)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, string> $computedReasons
+     */
+    private function filterStaleDocumentaryRemarkForExport(string $storedRemarks, array $computedReasons): string
+    {
+        if ($storedRemarks !== CmspEvaluationService::REASON_DOCUMENTARY_REQUIREMENTS) {
+            return $storedRemarks;
+        }
+
+        return in_array(CmspEvaluationService::REASON_DOCUMENTARY_REQUIREMENTS, $computedReasons, true)
+            ? $storedRemarks
+            : '';
     }
 
     /**
@@ -772,23 +897,23 @@ public function indexJson(\Illuminate\Http\Request $request)
         $sheet->getStyle('A2:B2')->getFont()->setItalic(true)->setSize(10);
         $sheet->getStyle('A2:B2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->mergeCells('A3:AL3');
+        $sheet->mergeCells('A3:AK3');
         $sheet->setCellValue('A3', 'COMMISSION ON HIGHER EDUCATION');
-        $sheet->mergeCells('A4:AL4');
+        $sheet->mergeCells('A4:AK4');
         $sheet->setCellValue('A4', 'REGIONAL OFFICE XII');
-        $sheet->getStyle('A3:AL4')->getFont()->setBold(true)->setSize(12);
-        $sheet->getStyle('A3:AL4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A3:AK4')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A3:AK4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->mergeCells('A6:AL6');
+        $sheet->mergeCells('A6:AK6');
         $heading = 'CMSP RANKLIST';
         if ($headingSuffix) {
             $heading .= ' - ' . $headingSuffix;
         }
         $sheet->setCellValue('A6', $heading);
-        $sheet->mergeCells('A7:AL7');
+        $sheet->mergeCells('A7:AK7');
         $sheet->setCellValue('A7', $ayLabel ? 'AY ' . $ayLabel : 'AY');
-        $sheet->getStyle('A6:AL7')->getFont()->setBold(true)->setSize(16);
-        $sheet->getStyle('A6:AL7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A6:AK7')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A6:AK7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->mergeCells('A9:A11');
         $sheet->setCellValue('A9', 'SEQ');
@@ -856,52 +981,52 @@ public function indexJson(\Illuminate\Http\Request $request)
         $sheet->mergeCells('W10:W11');
         $sheet->setCellValue('W10', 'INCOME');
 
-        $sheet->mergeCells('X9:Y9');
-        $sheet->setCellValue('X9', 'EQUIVALENT POINTS');
         $sheet->mergeCells('X10:X11');
-        $sheet->setCellValue('X10', 'GRADE');
-        $sheet->mergeCells('Y10:Y11');
-        $sheet->setCellValue('Y10', 'INCOME');
+        $sheet->setCellValue('X9', 'EQUIVALENT POINTS');
+        $sheet->setCellValue('X10', 'INCOME');
 
-        $sheet->mergeCells('Z9:AA9');
-        $sheet->setCellValue('Z9', 'PERCENTAGE CRITERIA');
-        $sheet->setCellValue('Z10', 'GRADE');
-        $sheet->setCellValue('AA10', 'INCOME');
-        $sheet->setCellValue('Z11', '70%');
-        $sheet->setCellValue('AA11', '30%');
+        $sheet->mergeCells('Y9:Z9');
+        $sheet->setCellValue('Y9', 'PERCENTAGE CRITERIA');
+        $sheet->setCellValue('Y10', 'GRADE');
+        $sheet->setCellValue('Z10', 'INCOME');
+        $sheet->setCellValue('Y11', '70%');
+        $sheet->setCellValue('Z11', '30%');
+
+        $sheet->mergeCells('AA9:AA11');
+        $sheet->setCellValue('AA9', 'TOTAL POINTS');
 
         $sheet->mergeCells('AB9:AB11');
-        $sheet->setCellValue('AB9', 'TOTAL POINTS');
+        $sheet->setCellValue('AB9', 'TYPE OF SPECIAL GROUP');
 
-        $sheet->mergeCells('AC9:AD11');
-        $sheet->setCellValue('AC9', 'TYPE OF SPECIAL GROUP');
+        $sheet->mergeCells('AC9:AC11');
+        $sheet->setCellValue('AC9', 'PLUS FIVE (5) POINTS (IF APPLICABLE)');
+
+        $sheet->mergeCells('AD9:AD11');
+        $sheet->setCellValue('AD9', 'FINAL TOTAL POINTS');
 
         $sheet->mergeCells('AE9:AE11');
-        $sheet->setCellValue('AE9', 'PLUS FIVE (5) POINTS (IF APPLICABLE)');
+        $sheet->setCellValue('AE9', 'RANK');
 
         $sheet->mergeCells('AF9:AF11');
-        $sheet->setCellValue('AF9', 'FINAL TOTAL POINTS');
+        $sheet->setCellValue('AF9', 'STATUS OF DOCUMENTARY REQUIREMENTS');
 
         $sheet->mergeCells('AG9:AG11');
-        $sheet->setCellValue('AG9', 'RANK');
+        $sheet->setCellValue('AG9', 'VALIDATOR NOTES');
 
         $sheet->mergeCells('AH9:AH11');
-        $sheet->setCellValue('AH9', 'STATUS OF DOCUMENTARY REQUIREMENTS');
+        $sheet->setCellValue('AH9', 'SIBLINGS ENROLLED IN COLLEGE');
 
         $sheet->mergeCells('AI9:AI11');
-        $sheet->setCellValue('AI9', 'VALIDATOR NOTES');
+        $sheet->setCellValue('AI9', 'MEDICAL ISSUE PROOF');
 
         $sheet->mergeCells('AJ9:AJ11');
-        $sheet->setCellValue('AJ9', 'NO. OF SIBLINGS');
+        $sheet->setCellValue('AJ9', 'INITIAL RANK');
 
         $sheet->mergeCells('AK9:AK11');
-        $sheet->setCellValue('AK9', 'INITIAL RANK');
+        $sheet->setCellValue('AK9', 'REMARKS');
 
-        $sheet->mergeCells('AL9:AL11');
-        $sheet->setCellValue('AL9', 'REMARKS');
-
-        $sheet->getStyle('A9:AL11')->getFont()->setBold(true);
-        $sheet->getStyle('A9:AL11')->getAlignment()
+        $sheet->getStyle('A9:AK11')->getFont()->setBold(true);
+        $sheet->getStyle('A9:AK11')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
@@ -930,21 +1055,20 @@ public function indexJson(\Illuminate\Http\Request $request)
             'U' => 16,
             'V' => 14,
             'W' => 16,
-            'X' => 12,
+            'X' => 14,
             'Y' => 12,
-            'Z' => 14,
+            'Z' => 12,
             'AA' => 14,
-            'AB' => 16,
-            'AC' => 28,
-            'AD' => 28,
-            'AE' => 18,
-            'AF' => 18,
-            'AG' => 10,
-            'AH' => 26,
-            'AI' => 20,
-            'AJ' => 16,
-            'AK' => 14,
-            'AL' => 28,
+            'AB' => 28,
+            'AC' => 18,
+            'AD' => 18,
+            'AE' => 10,
+            'AF' => 26,
+            'AG' => 20,
+            'AH' => 22,
+            'AI' => 16,
+            'AJ' => 14,
+            'AK' => 28,
         ];
 
         foreach ($columnWidths as $column => $width) {
@@ -1024,21 +1148,23 @@ public function indexJson(\Illuminate\Http\Request $request)
             $sheet->setCellValue("U{$row}", $currentYear);
             $sheet->setCellValue("V{$row}", $entry['gwa']);
             $sheet->setCellValue("W{$row}", $entry['income_total']);
-            $sheet->setCellValue("X{$row}", $entry['grade_points']);
-            $sheet->setCellValue("Y{$row}", $entry['income_points']);
-            $sheet->setCellValue("Z{$row}", $entry['grade_weighted']);
-            $sheet->setCellValue("AA{$row}", $entry['income_weighted']);
-            $sheet->setCellValue("AB{$row}", $entry['total_points']);
-            $sheet->mergeCells("AC{$row}:AD{$row}");
-            $sheet->setCellValue("AC{$row}", $specialGroupText);
-            $sheet->setCellValue("AE{$row}", $entry['plus_five']);
-            $sheet->setCellValue("AF{$row}", $entry['final_points']);
-            $sheet->setCellValue("AG{$row}", $entry['rank'] ?? $seq);
-            $sheet->setCellValue("AH{$row}", $app->validation_document_status ?? '');
-            $sheet->setCellValue("AI{$row}", $app->validation_validator_notes ?? '');
-            $sheet->setCellValue("AJ{$row}", $app->validation_no_siblings ?? '');
-            $sheet->setCellValue("AK{$row}", $app->validation_initial_rank ?? '');
-            $sheet->setCellValue("AL{$row}", $this->resolveValidationRemarksForExport($app));
+            $sheet->setCellValue("X{$row}", $entry['income_points']);
+            $sheet->setCellValue("Y{$row}", $entry['grade_weighted']);
+            $sheet->setCellValue("Z{$row}", $entry['income_weighted']);
+            $sheet->setCellValue("AA{$row}", $entry['total_points']);
+            $sheet->setCellValue("AB{$row}", $specialGroupText);
+            $sheet->setCellValue("AC{$row}", $entry['plus_five']);
+            $sheet->setCellValue("AD{$row}", $entry['final_points']);
+            $sheet->setCellValue("AE{$row}", $entry['rank'] ?? $seq);
+            $sheet->setCellValue("AF{$row}", $app->validation_document_status ?? '');
+            $sheet->setCellValue("AG{$row}", $app->validation_validator_notes ?? '');
+            $sheet->setCellValue("AH{$row}", $app->validation_no_siblings ?? '');
+            $sheet->setCellValue(
+                "AI{$row}",
+                is_null($app->validation_has_medical_issue_proof) ? '' : ((bool) $app->validation_has_medical_issue_proof ? 'Yes' : 'No')
+            );
+            $sheet->setCellValue("AJ{$row}", $app->validation_initial_rank ?? '');
+            $sheet->setCellValue("AK{$row}", $this->resolveValidationRemarksForExport($app));
         }
 
         $lastRow = $startRow + count($entries) - 1;
@@ -1046,17 +1172,17 @@ public function indexJson(\Illuminate\Http\Request $request)
             $lastRow = 11;
         }
 
-        $sheet->getStyle("A9:AL{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle("A9:AK{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         if ($lastRow >= $startRow) {
-            $sheet->getStyle("V{$startRow}:AF{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
+            $sheet->getStyle("V{$startRow}:AD{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
             $sheet->getStyle("W{$startRow}:W{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+            $sheet->getStyle("AC{$startRow}:AC{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
             $sheet->getStyle("AE{$startRow}:AE{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
-            $sheet->getStyle("AG{$startRow}:AG{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER);
         }
 
         if ($lastRow >= $startRow) {
-            $sheet->getStyle("B{$startRow}:AL{$lastRow}")->getAlignment()->setWrapText(true);
+            $sheet->getStyle("B{$startRow}:AK{$lastRow}")->getAlignment()->setWrapText(true);
 
             foreach ($entries as $index => $entry) {
                 /** @var CmspApplication $app */
@@ -1065,7 +1191,7 @@ public function indexJson(\Illuminate\Http\Request $request)
 
                 if ($remarks !== 'Pending Validation' && strcasecmp($remarks, CmspEvaluationService::QUALIFIED_REMARK) !== 0) {
                     $row = $startRow + $index;
-                    $sheet->getStyle("A{$row}:AL{$row}")->getFill()
+                    $sheet->getStyle("A{$row}:AK{$row}")->getFill()
                         ->setFillType(Fill::FILL_SOLID)
                         ->getStartColor()
                         ->setARGB('FFFFC7CE');

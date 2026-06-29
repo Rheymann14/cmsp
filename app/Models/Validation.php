@@ -14,6 +14,7 @@ class Validation extends Model
         'tracking_no',
         'document_status',
         'no_siblings',
+        'has_medical_issue_proof',
         'initial_rank',
         'validator_notes',
         'remarks',
@@ -24,6 +25,7 @@ class Validation extends Model
 
     protected $casts = [
         'no_siblings' => 'integer',
+        'has_medical_issue_proof' => 'boolean',
         'disqualification_reasons' => 'array',
     ];
 

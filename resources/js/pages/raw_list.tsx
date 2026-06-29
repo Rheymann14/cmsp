@@ -127,11 +127,12 @@ const parseAyDeadlines = (input: unknown): AyDeadlineOption[] => {
     }, []);
 };
 
-const SIBLING_OPTIONS = Array.from({ length: 15 }, (_, index) => index + 1);
+const SIBLING_OPTIONS = Array.from({ length: 16 }, (_, index) => index);
 const INITIAL_RANK_OPTIONS = ['FPESFA', 'FPESFA-GAD', 'FSSP', 'HPESFA', 'HPGAD', 'HSSP'] as const;
 const EMPTY_VALIDATION_FORM = {
     document_status: '',
     no_siblings: '',
+    has_medical_issue_proof: false,
     initial_rank: '',
     validator_notes: '',
     remarks: '',
@@ -181,8 +182,8 @@ const RAW_LIST_COLUMNS = [
     { key: 'guardian', label: 'Guardian' },
     { key: 'guardian_occupation', label: 'Guardian Occupation' },
     { key: 'guardian_income_monthly', label: 'Guardian Income (monthly)' },
-    { key: 'gwa_g12_s1', label: 'GWA G12 S1' },
-    { key: 'gwa_g12_s2', label: 'GWA G12 S2' },
+    { key: 'gwa_g12_s1', label: 'G12 First Sem Grade' },
+    { key: 'gwa_g12_s2', label: 'G12 Second Sem Grade' },
     { key: 'special_groups', label: 'Special Groups' },
     { key: 'files', label: 'Files' },
     { key: 'academic_year', label: 'AY' },
@@ -196,6 +197,7 @@ const RAW_LIST_COLUMNS = [
 type RawListColumnKey = (typeof RAW_LIST_COLUMNS)[number]['key'];
 const RAW_LIST_COLUMN_STORAGE_KEY = 'cmsp.raw-list.hidden-columns';
 const RAW_LIST_COLUMN_KEYS = new Set<RawListColumnKey>(RAW_LIST_COLUMNS.map((column) => column.key));
+const ALWAYS_VISIBLE_COLUMN_KEYS = new Set<RawListColumnKey>(['gwa_g12_s1', 'gwa_g12_s2']);
 const RAW_LIST_COLUMN_GROUPS: Array<{ label: string; keys: RawListColumnKey[] }> = [
     { label: 'Core identifiers', keys: ['no', 'tracking_no', 'lrn', 'action'] },
     {
@@ -721,6 +723,7 @@ function CmspsTable({
             tracking_no: string;
             document_status: string;
             no_siblings: number;
+            has_medical_issue_proof: boolean;
             initial_rank: string;
             validator_notes: string | null;
             remarks: string | null;
@@ -770,8 +773,48 @@ function CmspsTable({
         return normalized === '' || normalized === 'n a' || normalized === 'na' || normalized === 'none';
     };
 
+    const isExplicitlyUnsatisfiedDocumentStatus = (documentStatus: string): boolean => {
+        const normalized = normalizeText(documentStatus);
+        if (!normalized) {
+            return false;
+        }
+
+        return ['incomplete', 'lacking', 'missing', 'pending', 'failed', 'fail', 'not complete', 'non compliant', 'deficient'].some((status) =>
+            normalized.includes(status),
+        );
+    };
+
     const requiresSpecialGroupProof = (specialGroups: string[] | null | undefined): boolean =>
         Array.isArray(specialGroups) && specialGroups.some((group) => !isNoSpecialGroupValue(String(group)));
+
+    const normalizeSpecialGroups = (value: unknown): string[] => {
+        if (Array.isArray(value)) {
+            return value.map((group) => String(group).trim()).filter(Boolean);
+        }
+
+        if (typeof value !== 'string') {
+            return [];
+        }
+
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return [];
+        }
+
+        try {
+            const parsed: unknown = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                return parsed.map((group) => String(group).trim()).filter(Boolean);
+            }
+        } catch {
+            // Fall through to comma-separated/plain-string handling.
+        }
+
+        return trimmed
+            .split(',')
+            .map((group) => group.trim())
+            .filter(Boolean);
+    };
 
     const getMissingRequiredAttachmentLabels = (row: ApplicationRow): AttachmentLabel[] =>
         ATTACHMENTS.reduce<AttachmentLabel[]>((missing, { key, label }) => {
@@ -910,6 +953,7 @@ function CmspsTable({
 
         base.final_total_points = toNumberOrNull(raw.final_total_points);
         base.rank = toNumberOrNull(raw.rank);
+        base.special_groups = normalizeSpecialGroups(raw.special_groups);
 
         delete base.ethnicity;
         delete base.religion;
@@ -966,7 +1010,12 @@ function CmspsTable({
                 return new Set();
             }
 
-            return new Set(parsed.filter((key): key is RawListColumnKey => RAW_LIST_COLUMN_KEYS.has(key as RawListColumnKey)));
+            return new Set(
+                parsed.filter(
+                    (key): key is RawListColumnKey =>
+                        RAW_LIST_COLUMN_KEYS.has(key as RawListColumnKey) && !ALWAYS_VISIBLE_COLUMN_KEYS.has(key as RawListColumnKey),
+                ),
+            );
         } catch {
             return new Set();
         }
@@ -1105,20 +1154,23 @@ function CmspsTable({
                 return;
             }
 
-            const parentCombinedIncome = Number(validationRow.father_income_monthly ?? 0) + Number(validationRow.mother_income_monthly ?? 0);
+            const parentCombinedIncome =
+                Number(validationRow.father_income_yearly_bracket ?? 0) + Number(validationRow.mother_income_yearly_bracket ?? 0);
+            const householdIncome =
+                parentCombinedIncome > 0 ? parentCombinedIncome : Number(validationRow.guardian_income_monthly ?? 0) * 12;
             const gwaAverage = (Number(validationRow.gwa_g12_s1 ?? 0) + Number(validationRow.gwa_g12_s2 ?? 0)) / 2;
             const requiredValidationIssues: string[] = [];
 
             if (validationForm.no_siblings === '') {
-                requiredValidationIssues.push('Number of siblings is required.');
+                requiredValidationIssues.push('Number of siblings enrolled in college is required.');
             }
 
             if (validationForm.initial_rank === '') {
                 requiredValidationIssues.push('Initial rank is required.');
             }
 
-            if (parentCombinedIncome > 501000) {
-                requiredValidationIssues.push('Combined parents income is greater than 501,000.');
+            if (householdIncome > 500000) {
+                requiredValidationIssues.push('Combined annual gross income is greater than 500,000.');
             }
 
             if (gwaAverage < 92.5) {
@@ -1126,8 +1178,8 @@ function CmspsTable({
             }
 
             const missingRequiredAttachments = getMissingRequiredAttachmentLabels(validationRow);
-            const documentaryStatusSatisfied = isDocumentaryRequirementSatisfied(validationForm.document_status);
-            const documentaryRequirementsSatisfied = documentaryStatusSatisfied && missingRequiredAttachments.length === 0;
+            const documentaryRequirementsSatisfied =
+                missingRequiredAttachments.length === 0 && !isExplicitlyUnsatisfiedDocumentStatus(validationForm.document_status);
             const documentaryRequirementIssues = missingRequiredAttachments.map((label) => `Missing required attachment: ${label}.`);
 
             const requiredValidationComplete = requiredValidationIssues.length === 0;
@@ -1555,7 +1607,8 @@ function CmspsTable({
         setSelectedId(row.id);
         setValidationForm({
             document_status: row.latest_validation?.document_status ?? '',
-            no_siblings: row.latest_validation?.no_siblings ? String(row.latest_validation.no_siblings) : '',
+            no_siblings: typeof row.latest_validation?.no_siblings === 'number' ? String(row.latest_validation.no_siblings) : '',
+            has_medical_issue_proof: Boolean(row.latest_validation?.has_medical_issue_proof),
             initial_rank: row.latest_validation?.initial_rank ?? '',
             validator_notes: row.latest_validation?.validator_notes ?? '',
             remarks: row.latest_validation?.remarks ?? '',
@@ -1591,7 +1644,7 @@ function CmspsTable({
             nextErrors.document_status = 'Document status is required.';
         }
         if (!validationForm.no_siblings) {
-            nextErrors.no_siblings = 'Select the number of siblings.';
+            nextErrors.no_siblings = 'Select the number of siblings enrolled in college.';
         }
         if (!validationForm.initial_rank) {
             nextErrors.initial_rank = 'Select the initial rank.';
@@ -1607,6 +1660,7 @@ function CmspsTable({
                 cmsp_id: validationRow.id,
                 document_status: validationForm.document_status.trim(),
                 no_siblings: Number(validationForm.no_siblings),
+                has_medical_issue_proof: validationForm.has_medical_issue_proof,
                 initial_rank: validationForm.initial_rank,
                 validator_notes: validationForm.validator_notes.trim() ? validationForm.validator_notes.trim() : null,
             };
@@ -1678,6 +1732,7 @@ function CmspsTable({
                 setValidationForm({
                     document_status: savedValidation.document_status ?? '',
                     no_siblings: typeof savedValidation.no_siblings === 'number' ? String(savedValidation.no_siblings) : '',
+                    has_medical_issue_proof: Boolean(savedValidation.has_medical_issue_proof),
                     initial_rank: savedValidation.initial_rank ?? '',
                     validator_notes: savedValidation.validator_notes ?? '',
                     remarks: savedValidation.remarks ?? '',
@@ -1691,6 +1746,7 @@ function CmspsTable({
                 setValidationForm({
                     document_status: payload.document_status,
                     no_siblings: String(payload.no_siblings),
+                    has_medical_issue_proof: payload.has_medical_issue_proof,
                     initial_rank: payload.initial_rank,
                     validator_notes: payload.validator_notes ?? '',
                     remarks: '',
@@ -1796,6 +1852,10 @@ function CmspsTable({
     }, [hiddenColumnKeys]);
 
     const toggleColumnVisibility = (columnKey: RawListColumnKey) => {
+        if (ALWAYS_VISIBLE_COLUMN_KEYS.has(columnKey)) {
+            return;
+        }
+
         setHiddenColumnKeys((current) => {
             const next = new Set(current);
 
@@ -1822,7 +1882,11 @@ function CmspsTable({
                 return next;
             }
 
-            columnKeys.forEach((columnKey) => next.add(columnKey));
+            columnKeys.forEach((columnKey) => {
+                if (!ALWAYS_VISIBLE_COLUMN_KEYS.has(columnKey)) {
+                    next.add(columnKey);
+                }
+            });
 
             if (next.size >= COLS) {
                 return current;
@@ -2005,7 +2069,8 @@ function CmspsTable({
                                 </p>
                                 {RAW_LIST_COLUMNS.map((column) => {
                                     const checked = !hiddenColumnKeys.has(column.key);
-                                    const disableToggle = checked && visibleColumnCount === 1;
+                                    const disableToggle =
+                                        ALWAYS_VISIBLE_COLUMN_KEYS.has(column.key) || (checked && visibleColumnCount === 1);
 
                                     return (
                                         <label
@@ -2140,8 +2205,8 @@ function CmspsTable({
                                 <th className="px-3 py-2 font-semibold">Guardian Occupation</th>
                                 <th className="px-3 py-2 font-semibold">Guardian Income (monthly)</th>
 
-                                <th className="px-3 py-2 font-semibold">GWA G12 S1</th>
-                                <th className="px-3 py-2 font-semibold">GWA G12 S2</th>
+                                <th className="px-3 py-2 font-semibold">G12 First Sem Grade</th>
+                                <th className="px-3 py-2 font-semibold">G12 Second Sem Grade</th>
 
                                 <th className="min-w-[300px] px-3 py-2 font-semibold">Special Groups</th>
 
@@ -2582,7 +2647,7 @@ function CmspsTable({
                                 {validationErrors.document_status && <p className="text-xs text-red-600">{validationErrors.document_status}</p>}
                             </div>
                             <div className="grid gap-2">
-                                <Label>No. of Siblings</Label>
+                                <Label>Siblings Enrolled in College</Label>
                                 <Popover open={siblingsPopoverOpen} onOpenChange={setSiblingsPopoverOpen} modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -2594,7 +2659,7 @@ function CmspsTable({
                                         >
                                             {validationForm.no_siblings
                                                 ? `${validationForm.no_siblings} ${Number(validationForm.no_siblings) === 1 ? 'sibling' : 'siblings'}`
-                                                : 'Select siblings'}
+                                                : 'Select count'}
                                             <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
                                         </Button>
                                     </PopoverTrigger>
@@ -2632,7 +2697,25 @@ function CmspsTable({
                                     </InDialogPopoverContent>
                                 </Popover>
                                 {validationErrors.no_siblings && <p className="text-xs text-red-600">{validationErrors.no_siblings}</p>}
+                                <p className="text-xs text-muted-foreground">CMO tie-breaker applies when this is 2 or more.</p>
                             </div>
+                            <label className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+                                <input
+                                    type="checkbox"
+                                    className="mt-1 h-4 w-4"
+                                    checked={validationForm.has_medical_issue_proof}
+                                    onChange={(event) =>
+                                        setValidationForm((prev) => ({
+                                            ...prev,
+                                            has_medical_issue_proof: event.target.checked,
+                                        }))
+                                    }
+                                />
+                                <span>
+                                    <span className="block font-medium">Proof of family member medical issue</span>
+                                    <span className="block text-xs text-muted-foreground">CMO tie-breaker used when final scores are tied.</span>
+                                </span>
+                            </label>
                             <div className="grid gap-2">
                                 <Label>Initial Rank</Label>
                                 <Popover open={rankPopoverOpen} onOpenChange={setRankPopoverOpen} modal={false}>

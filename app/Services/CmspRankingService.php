@@ -19,7 +19,7 @@ class CmspRankingService
      *     application: CmspApplication,
      *     gwa: float,
      *     income_total: float,
-     *     grade_points: int,
+     *     grade_points: float,
      *     income_points: int,
      *     grade_weighted: float,
      *     income_weighted: float,
@@ -41,15 +41,17 @@ class CmspRankingService
 
         $sorted = $computed->sort(function (array $a, array $b) {
             if ($a['final_points'] === $b['final_points']) {
-                if ($a['total_points'] === $b['total_points']) {
-                    if ($a['grade_points'] === $b['grade_points']) {
-                        return $a['application']->id <=> $b['application']->id;
-                    }
-
-                    return $b['grade_points'] <=> $a['grade_points'];
+                $siblingComparison = $this->hasSiblingTieBreaker($b['application']) <=> $this->hasSiblingTieBreaker($a['application']);
+                if ($siblingComparison !== 0) {
+                    return $siblingComparison;
                 }
 
-                return $b['total_points'] <=> $a['total_points'];
+                $medicalComparison = $this->hasMedicalIssueTieBreaker($b['application']) <=> $this->hasMedicalIssueTieBreaker($a['application']);
+                if ($medicalComparison !== 0) {
+                    return $medicalComparison;
+                }
+
+                return $a['application']->id <=> $b['application']->id;
             }
 
             return $b['final_points'] <=> $a['final_points'];
@@ -61,7 +63,13 @@ class CmspRankingService
 
         foreach ($sorted as $entry) {
             $score = $entry['final_points'] ?? null;
-            $formattedScore = $score === null ? null : sprintf('%.2f', (float) $score);
+            $formattedScore = $score === null
+                ? null
+                : implode('|', [
+                    sprintf('%.2f', (float) $score),
+                    $this->hasSiblingTieBreaker($entry['application']) ? 'siblings' : 'no-siblings',
+                    $this->hasMedicalIssueTieBreaker($entry['application']) ? 'medical' : 'no-medical',
+                ]);
 
             if ($formattedScore !== null && $formattedScore === $lastScore) {
                 $entry['rank'] = $currentRank;
@@ -75,5 +83,15 @@ class CmspRankingService
         }
 
         return collect($ranked);
+    }
+
+    private function hasSiblingTieBreaker(CmspApplication $application): bool
+    {
+        return (int) ($application->latestValidation?->no_siblings ?? 0) >= 2;
+    }
+
+    private function hasMedicalIssueTieBreaker(CmspApplication $application): bool
+    {
+        return (bool) ($application->latestValidation?->has_medical_issue_proof ?? false);
     }
 }

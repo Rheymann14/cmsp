@@ -16,6 +16,8 @@ class SchoolController extends Controller
 
         $schools = School::orderBy('name')
             ->get()
+            ->unique(fn($s) => mb_strtolower(trim((string) $s->name)))
+            ->values()
             ->map(fn($s) => [
                 'id' => $s->id,
                 'label' => $s->name,

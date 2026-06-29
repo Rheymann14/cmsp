@@ -382,7 +382,7 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
                             Reference Points
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Adjust the equivalent points used to compute the CMSP ranking.
+                            Maintain reference tables. Official CMSP ranking uses Grade 12 GWA directly and income equivalent points.
                         </p>
                         {selectedDeadline ? (
                             <div className="flex flex-col gap-1 text-sm text-muted-foreground">
@@ -477,7 +477,7 @@ export default function ReferencePage({ gradePoints, incomePoints }: ReferencePa
                         <CardHeader>
                             <CardTitle>Grade Equivalent Points</CardTitle>
                             <CardDescription>
-                                Define how the General Weighted Average (GWA) translates into equivalent points.
+                                Retained for reference. CMO No. 13 s. 2025 ranking uses the Grade 12 GWA directly for the 70% academic score.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>

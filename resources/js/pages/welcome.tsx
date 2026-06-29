@@ -72,6 +72,22 @@ type TrackData = {
     files: Record<string, boolean>;
 };
 
+type SelectOption = { id: number; label: string; category?: string };
+
+const dedupeSelectOptions = <T extends SelectOption>(items: T[]): T[] => {
+    const seen = new Set<string>();
+
+    return items.filter((item) => {
+        const key = item.label.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!key || seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+    });
+};
+
 const resolveTrackingFromFlash = (flash: SharedData['flash'] | undefined): string | null => {
     if (!flash) return null;
 
@@ -824,7 +840,7 @@ export default function Welcome() {
     const [courseId, setCourseId] = useState<number | null>(null);
     const [courseLabel, setCourseLabel] = useState<string>('');
     const [openCourse, setOpenCourse] = useState(false);
-    const [locations, setLocations] = useState<{ id: number; label: string }[]>([]);
+    const [locations, setLocations] = useState<SelectOption[]>([]);
     const [loadingLocations, setLoadingLocations] = useState(true);
 
     // --- Parents income helpers ---
@@ -920,7 +936,7 @@ export default function Welcome() {
             },
         })
             .then((res) => res.json())
-            .then((data) => setLocations(data.data || [])) // ✅ handle { message, data }
+            .then((data) => setLocations(dedupeSelectOptions(data.data || []))) // ✅ handle { message, data }
             .catch(() => setLocations([]))
             .finally(() => setLoadingLocations(false));
     }, []);
@@ -971,7 +987,7 @@ export default function Welcome() {
         persistDraft('district_label', only.label);
     }, [districts, districtId]);
 
-    const [schools, setSchools] = useState<{ id: number; label: string }[]>([]);
+    const [schools, setSchools] = useState<SelectOption[]>([]);
     const [loadingSchools, setLoadingSchools] = useState(true);
     const [showDeadlineBanner, setShowDeadlineBanner] = useState(true);
 
@@ -983,7 +999,7 @@ export default function Welcome() {
             },
         })
             .then((res) => res.json())
-            .then((data) => setSchools(data.data || []))
+            .then((data) => setSchools(dedupeSelectOptions(data.data || [])))
             .catch(() => setSchools([]))
             .finally(() => setLoadingSchools(false));
     }, []);
@@ -1039,7 +1055,7 @@ export default function Welcome() {
         }
     }, [isOthersSelected]);
 
-    const [courses, setCourses] = useState<{ id: number; label: string; category?: string }[]>([]);
+    const [courses, setCourses] = useState<SelectOption[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
 
     useEffect(() => {
@@ -1050,7 +1066,7 @@ export default function Welcome() {
             },
         })
             .then((res) => res.json())
-            .then((data) => setCourses(data.data || []))
+            .then((data) => setCourses(dedupeSelectOptions(data.data || [])))
             .catch(() => setCourses([]))
             .finally(() => setLoadingCourses(false));
     }, []);
