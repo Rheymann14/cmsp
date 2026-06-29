@@ -627,7 +627,6 @@ export default function Welcome() {
             'contact_number',
             'last_name',
             'first_name',
-            'middle_name',
             'birthdate',
             'sex',
 
@@ -2093,15 +2092,12 @@ export default function Welcome() {
 
                                                     {/* Middle Name */}
                                                     <div>
-                                                        <label className="mb-1 block text-sm font-medium">
-                                                            Middle Name <span className="text-red-500">*</span>
-                                                        </label>
+                                                        <label className="mb-1 block text-sm font-medium">Middle Name</label>
                                                         <input
                                                             type="text"
                                                             name="middle_name"
                                                             placeholder="Your answer"
                                                             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900"
-                                                            required
                                                         />
                                                     </div>
 
@@ -3394,7 +3390,30 @@ export default function Welcome() {
                                                                     type="file"
                                                                     name="application_form"
                                                                     accept="application/pdf"
-                                                                    onChange={(e) => setHasAppForm(!!e.currentTarget.files?.length)}
+                                                                    onChange={(e) => {
+                                                                        const file = e.currentTarget.files?.[0];
+                                                                        if (!file) {
+                                                                            setHasAppForm(false);
+                                                                            return;
+                                                                        }
+
+                                                                        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+                                                                        if (!isPdf) {
+                                                                            toast.error('PDF only.');
+                                                                            e.currentTarget.value = '';
+                                                                            setHasAppForm(false);
+                                                                            return;
+                                                                        }
+
+                                                                        if (file.size > 10 * 1024 * 1024) {
+                                                                            toast.error('Max file size is 10 MB.');
+                                                                            e.currentTarget.value = '';
+                                                                            setHasAppForm(false);
+                                                                            return;
+                                                                        }
+
+                                                                        setHasAppForm(true);
+                                                                    }}
                                                                     className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[#1e3c73] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-[#25468a] focus:border-blue-500 focus:ring focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:file:bg-zinc-300 disabled:file:text-zinc-600 disabled:hover:file:bg-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:file:bg-[#1e3c73] dark:hover:file:bg-[#25468a] dark:disabled:file:bg-zinc-700 dark:disabled:file:text-zinc-400 dark:disabled:hover:file:bg-zinc-700"
                                                                 />
 

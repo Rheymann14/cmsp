@@ -84,7 +84,7 @@ class CmspApplicationController extends Controller
 
         'last_name' => ['required','string','max:100'],
         'first_name' => ['required','string','max:100'],
-        'middle_name' => ['required','string','max:100'],
+        'middle_name' => ['nullable','string','max:100'],
         'maiden_name' => ['nullable','string','max:100'],
         'name_extension' => ['nullable','string','max:20'],
 
@@ -222,7 +222,7 @@ class CmspApplicationController extends Controller
 
         'last_name'     => $validated['last_name'],
         'first_name'    => $validated['first_name'],
-        'middle_name'   => $validated['middle_name'],
+        'middle_name'   => $validated['middle_name'] ?? '',
         'maiden_name'   => $validated['maiden_name'] ?? null,
         'name_extension'=> $validated['name_extension'] ?? null,
 
